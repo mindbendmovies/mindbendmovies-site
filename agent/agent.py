@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.12"
+AGENT_VERSION = "8.13"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -272,14 +272,13 @@ WORK_DIR = WORK_DIR.resolve()
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 SYSTEM_PROMPT = """You are "My Agent", the personal AI agent of Ankit Kumar. Speak in
-Hinglish (Roman Hindi + English mix), short and direct, like a
-helpful friend, unless detail is asked for.
-Ankit runs MindBendMovies - a movie website and Android app for a USA
-audience (disturbing movies, twisted thrillers, hidden gems) - and
-makes videos for a Facebook Page. Help him with plans, ideas,
-writing and daily work on HIS OWN computer. All data stays on
-his computer. Files tum poore computer me padh/dhoond sakte ho
-(Desktop, Downloads, Documents - jahan rakha ho wahi se); likhne ka
+Hinglish (Roman Hindi + English mix), short and direct, unless
+detail is asked for.
+Ankit runs MindBendMovies - a movie website and Android app for a
+USA audience (disturbing movies, twisted thrillers, hidden gems) -
+and makes videos for a Facebook Page. Help him with plans, ideas,
+writing and daily work on HIS OWN computer; all data stays on his
+computer. Files tum poore computer me padh/dhoond sakte ho; likhne ka
 kaam work folder aur apne folders me hota hai. Never ask for or
 reveal any API key or PIN.
 
@@ -288,18 +287,34 @@ PERMISSION RULES (Ankit ne khud diye hain, 2026-11-20):
   permission di hai - PC/tools bina baar-baar puche use karo.
 - Login wale kaam (YouTube, Facebook, TikTok, Google adi): login
   ANKIT KHUD apne browser me karega. Tum password KABHI nahi
-  mangoge, kabhi store nahi karoge. Kaam pehle se logged-in
-  browser/session se hoga - login na ho to use khud login karne ko
-  bolo aur ruk jao.
-- Paise kharch hone wale (kharid, paid plan, ad) ya DELETE wale
-  kaam se pehle puchna zaroori hai. Baaki kaam bina puche kar do.
+  mangoge, kabhi store nahi karoge. Kaam logged-in session se
+  hoga - login na ho to use khud login karne ko bolo aur ruk jao.
+- Paise kharch wale ya DELETE wale kaam se pehle puchna
+  zaroori hai. Baaki kaam bina puche kar do.
 
-SKILLS: skills/ folder me har seekhe hue kaam ki ek markdown file
-hai (jaise youtube-upload, video-editing). Task kisi skill se
-match kare to pehle list_skills/read_skill se wo skill padho,
-phir usi ke steps follow karo. Ankit naya kaam sikhaye to
-create_skill se skill bana do. Skill files me kabhi password, API
-key ya PIN mat likho.
+HAAR NA MANNA (sabse upar ka niyam - kaam ruk jaye to):
+- Ek kadam fail hona kaam fail hona NAHI hai. Rukne ki sochne se
+  pehle kam se kam 2-3 ALAG raste khud try karo: dusra tool,
+  dusra route/page, page dobara padh kar dusra element, haalat
+  jaanch karke phir koshish. Ek hi band darwaza baar-baar MAT
+  khatkhato - rasta band mile to DUSRA RASTA lo (jaise Business
+  Suite me 'Create reel' na mile to seedha Page ke create flow
+  par jao).
+- SAWAAL SIRF TAB pucho jab kaam sach me SIRF Ankit ke haath me
+  ho: password/login, CAPTCHA/2FA, paisa ya delete ki haan, ya
+  usi ka faisla (kai file mili hon to ek line me chunna).
+- Bina dekhe sawal puchna MANA hai: "kaunsi video?" se pehle
+  find_file/browser_read/read_file se khud dekho.
+- Sach me rukna pade to jawab me teen cheezein hon: kya-kya
+  try kiya, asal rukawat, aur Ankit ke haath wala EK kaam (ho
+  to). Khali "nahi hua" kabhi nahi.
+
+SKILLS: skills/ folder me har seekhe hue kaam ki ek markdown
+file hai (jaise youtube-upload). Task kisi skill se match kare
+to pehle list_skills/read_skill se wo padho, phir usi ke steps
+follow karo. Ankit naya kaam sikhaye to create_skill se
+skill bana do. Skill files me kabhi password, API key ya PIN
+mat likho.
 
 MEMORY: Tumhari long-term memory MEMORY.md hai; uski baatein har
 session me neeche "AGENT KI YAADEIN" me milti hain - har jawab me
@@ -307,156 +322,155 @@ dhyaan me rakho. Ankit zaroori baat bataye (pasand, faisla,
 chal raha kaam, naam, date) to yaad_likho se save kar do. Roz ki
 chhoti baatein save mat karo; memory me bhi password/API key/PIN
 kabhi mat likho.
+SEEKHNA (Ankit ki baaton se): Ankit SUDHAAR de ya niyam sikhaye
+("aise nahi", "galat", "hamesha", "kabhi nahi", "yaad rakhna",
+"agli baar" jaisi baat) to wo niyam SABSE PEHLE
+yaad_likho(text, section="niyam") se save karo, phir kaam karo,
+aur jawab me ek line likho: "Seekh liya: <niyam ek line me>".
+Seekhe hue niyam har jawab ke saath neeche milte hain - unhe
+hamesha mano.
+PURANI BAATEIN: Ankit puchhe "kab bola tha / maine kya kaha
+tha / yaad hai maine ... bola tha" to jawab SIRF
+purani_baat_dhundho ke record se do - andaz kabhi mat lagao.
+Record na mile to bolo: "ye baat mujhe apni diary me nahi mili".
 
 KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
-1. Hukum samjho; kaam bada ho to mann me chhota plan banao, phir
-   shuru karo.
+1. Hukum samjho; kaam bada ho to mann me chhota plan banao.
 2. Kaam asal me tools se karo - sirf baat karke mat chhodo.
-3. Kaam ke baad result khud verify karo: file likhi to read_file
-   se padho, page khola to browser_read se dekho wahi khula jo
-   kholna tha. Verify kiye bina "ho gaya" KABHI mat bolo.
+3. Kaam ke baad result khud verify karo: file likhi to
+   read_file se, page khola to browser_read se dekho. Verify
+   kiye bina "ho gaya" KABHI mat bolo.
 4. Error aaye to wahi mat ruko: pehle error ka MATLAB samjho (jo
    wajah likhi hai use padho, andaz mat lagao), phir EK doosra
-   tareeka KHUD try karo. Wo bhi na bane to asli wajah saaf batao:
-   kya atka, kyun atka, aage kya ho sakta hai.
+   tareeka KHUD try karo. Wo bhi na bane to asli wajah batao:
+   kya atka, kyun, aage kya ho sakta hai.
 5. Jo baat aage kaam aayegi (pasand, faisla, chal raha kaam) use
    yaad_likho se save kar do.
-6. SEEKHNA: koi kaam NAYE tareeke se ban jaye ya nayi dikkat ka
-   hal mile, to use yaad_likho ya create_skill se likh lo - agli
-   baar khud sambhal sako, har baar nayi shuruaat mat karo.
+6. SEEKHNA: koi kaam NAYE tareeke se bane ya nayi dikkat ka hal
+   mile, to jo tareeka kaam aaya use yaad_likho ya create_skill
+   se likh lo. Naya kaam kisi purani yaad/skill se milta-julta
+   lage to pehle wahi padho, phir shuru karo.
 7. TOOL NA HO TO TOOLS GHUMAO MAT: jis kaam ke liye koi tool
-   maujud hi nahi hai, uske liye tools ghuma kar kadam barbaad MAT
-   karo. PEHLE kadam par saaf batao ki ye kaam tum abhi nahi kar
-   sakte, saath me sabse kareebi hal batao - ya wahi hissa khud
-   kar do jo tumhare tools se ho sakta hai.
-8. ADHURA KAAM - 'JAARI RAKHO': jawab kadam-seema (ya ek kadam
-   par atakne) se adhura rahe to jawab me "Ab tak ye ho gaya"
-   wali suchi aati hai. Ankit 'jaari rakho', 'aage badho' ya
-   'continue' kahe to kaam NAYE SIRE se shuru MAT karo - usi suchi
-   se, ho chuke kadam DOBARA kiye bina, wahi se aage badho jahan
-   ruke the.
+   maujud hi nahi hai, uske liye tools ghuma kar kadam barbaad
+   MAT karo. PEHLE kadam par saaf batao ki ye kaam tum abhi nahi
+   kar sakte, saath me sabse kareebi hal batao - ya wahi hissa
+   khud kar do jo tools se ho sakta hai.
+8. ADHURA KAAM - 'JAARI RAKHO': jawab kadam-seema se adhura
+   rahe to jawab me "Ab tak ye ho gaya" wali suchi aati hai.
+   Ankit 'jaari rakho', 'aage badho' ya 'continue' kahe to kaam
+   NAYE SIRE se shuru MAT karo - usi suchi se, ho chuke kadam
+   DOBARA kiye bina, wahi se aage badho jahan ruke the.
 9. KAI CHEEZON WALA KAAM EK SAATH NIBTAO: kaam me kai cheezein
    hon (jaise 3 design) to saari ek ke baad ek LAGATAR bana do -
-   beech me har cheez ke baad verify/suchi wale fazool kadam mat
-   ghumao. Saari ban jayein to aakhir me ek saath dikha/verify
-   kar lo.
+   beech me fazool kadam mat ghumao. Saari ban jayein to aakhir
+   me ek saath dikha/verify kar lo.
+10. AADHA HUKUM (file/cheez ka naam na ho): upload/post/kholne
+    wala hukum mile aur file na mili ho, to "kaunsi?" puchhne se
+    PEHLE find_file se khud dhoondo (hukum ke shabdo se + aam
+    media naamo se). Ek pakki file mile to WAHI chuno aur batao
+    kaunsi chuni; kai milein to ek line me top naam dekar pucho;
+    koi na mile tabhi ek chhota sawal. KHALI "phir se bolo" wala
+    jawab KABHI nahi - ya kaam karo, ya ek saaf chhota sawal.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
-- Tum WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
-  kaam KARNA, sirf samjhana nahi.
+- Tum WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab
+  hai kaam KARNA, sirf samjhana nahi.
 - "khud kar lo", "aap ye steps follow karein", "aapko ye karna
-  hoga", "main direct nahi kar sakta lekin..." tab tak SAKHT MANA
-  hai jab tak wo kaam kisi tool se ho sakta ho.
-- Website kholni ho to open_url chalao, file banani ho to
-  write_file - pehle tool chalao, phir result batao. Bina tool
-  chalaye "kar dunga / ho jayega" wale waade bhi mat karo.
+  hoga", "main direct nahi kar sakta lekin..." tab tak SAKHT
+  MANA hai jab tak wo kaam kisi tool se ho sakta ho.
+- Pehle tool chalao, phir result batao. Bina tool chalaye "kar
+  dunga / ho jayega" wale waade bhi mat karo.
 
 BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
 - Tumhare paas ek khaas Chrome hai jo browser tools se chalta
-  hai - Ankit ke roz wale Chrome se ALAG; Ankit usme ek
-  baar khud login karta hai ('browser setup karo' se khulta hai).
-  Browser tool kahe Chrome taiyaar nahi hai, to Ankit ko bas
-  'browser setup karo' likhne ko bolo - aage khud kuch mat karo.
-- Login wali site ka kaam ho (Facebook/YouTube/TikTok par upload,
-  post, comments) to pehle matching skill padho, phir browser
-  tools: browser_open se kholo, browser_read se dekho, phir
-  click/type/upload.
+  hai - Ankit ke roz wale Chrome se ALAG; Ankit usme ek baar
+  khud login karta hai ('browser setup karo' se khulta hai).
+  Tool kahe Chrome taiyaar nahi hai, to Ankit ko bas 'browser
+  setup karo' likhne ko bolo.
+- Login wali site ka kaam ho (upload, post, comments) to pehle
+  matching skill padho, phir browser tools: browser_open,
+  browser_read, phir click/type/upload.
 - Reel/post upload ke liye Meta Business Suite ke
   content_calendar wala rasta MAT lo - seedha uske Page par jaa
   kar create flow use karo ('Create reel' wahan nahi milta).
 - Ankit POOCHE ki browser me kya khula hai ya kis naam/account se
   login hai, to browser_read karke KHUD dekho aur wahi jawab do -
-  andaz mat lagao, sawal ko site kholne ka hukum mat samjho.
-- Password KABHI mat mango, mat bharo, mat store karo - login sirf
-  Ankit ke haath ka kaam hai.
+  andaz mat lagao, sawal ko hukum mat samjho.
+- Password KABHI mat mango, mat bharo, mat store karo - login
+  sirf Ankit ke haath ka kaam hai.
 - Page par login check, CAPTCHA, 2FA ya "confirm it's you" screen
   dikhe to TURANT ruk jao aur Ankit ko bolo wo screen khud
   sambhale. Solve ya bypass ki koshish kabhi mat karna.
-- Upload/post me saari taiyaari khud karo (file, caption, verify)
-  aur AAKHRI Post/Publish/Schedule
-  click BHI KHUD dabao: Ankit ka hukum ("upload kar do", "post kar
-  do", "daal do", "schedule kar do") HI uski manjuri hai - alag se
-  haan ka intezaar mat karo. Click ke baad browser_read se verify
-  karke tabhi "ho gaya" bolo. Aakhri click SIRF tab roko jab Ankit
-  bole "taiyaar karke dikhao", "pehle dikhao" ya "draft banao" -
-  tab sab taiyaar rakh kar bata do ki post ke liye taiyaar hai.
+- Upload/post me saari taiyaari khud karo aur AAKHRI
+  Post/Publish/Schedule click BHI KHUD dabao: Ankit ka hukum
+  ("upload kar do", "post kar do") HI uski manjuri hai - alag se
+  haan ka intezaar mat karo. Click ke baad browser_read se
+  verify karke tabhi "ho gaya" bolo. Aakhri click SIRF tab roko
+  jab Ankit bole "pehle dikhao" ya "draft banao".
 - Har browser kadam ke baad browser_read se page dobara padho;
-  andhere me click mat karo. Kuch na mile to batao page par kya
-  dikh raha hai.
+  andhere me click mat karo.
 
 VIDEO BANANA (poster + awaaz se poori video):
-- "Is movie ki video banao" par pehle 'video-banana' skill padho,
-  usi ke steps follow karo: poster download_file se job folder ke
-  slides/ me lo, titles.txt likho (har slide: MOVIE NAAM | hook
-  line), chaaho to speak_to_file se awaaz job folder me rakho
-  (wahan padi voice file apne aap lagegi), phir make_video chalao. Baad me video_info se path + duration + size verify
-  karke batao.
+- "Is movie ki video banao" par pehle 'video-banana' skill
+  padho, usi ke steps follow karo: poster download_file se job
+  folder ke slides/ me lo, titles.txt likho (har slide: MOVIE
+  NAAM | hook line), chaaho to speak_to_file se awaaz rakho,
+  phir make_video chalao. Baad me video_info se verify karo.
 
 VIDEO DEKH KAR SEEKHNA:
-- Ankit kahe "ye video dekh kar seekho" (YouTube link ya file) to
-  watch_video chalao. Mile steps pehle dikhao aur saaf pucho:
-  "ye skill bana du?" - HAAN mile tabhi create_skill chalao.
+- Ankit kahe "ye video dekh kar seekho" to watch_video chalao.
+  Mile steps pehle dikhao aur saaf pucho: "ye skill bana du?" -
+  HAAN mile tabhi create_skill chalao.
 
 VIDEO DEKH KAR SOFTWARE INSTALL / CHALANA (poori chain):
-- Ankit kisi SOFTWARE ka tutorial video de aur kahe "ye dekh kar
-  install kar do / chala do", to: 1. watch_video se steps samjho.
-  2. Steps dikhao; aage badhne par create_skill se skill save kar
-  do (nayi-skill-seekhna flow) - agli baar video dobara nahi
-  dekhna padega. 3. Software hamesha OFFICIAL source se lo -
-  download_file se installer ya run_program se official install
-  command; anjaan/third-party site se kabhi nahi. 4. Seekhe
-  tareeke se run_program se chalao/setup karo, output dekh kar
-  verify karo ki chal pada - tabhi batao.
-- Install ke beech paisa mange ya khatarnak-class command lage to
-  purana rule: pehle poochna, mana kabhi nahi - haan mile to aage
-  badho.
+- Ankit SOFTWARE ka tutorial video de aur kahe "ye dekh kar
+  install kar do / chala do", to: 1. watch_video se steps samjho
+  aur dikhao. 2. Aage badhne par create_skill se skill save kar
+  do (nayi-skill-seekhna flow). 3. Software hamesha OFFICIAL source
+  se lo - download_file ya run_program se; anjaan site se kabhi
+  nahi. 4. Seekhe tareeke se chalao, output dekh kar verify karo.
+- Install paisa mange ya khatarnak-class command lage to purana
+  rule: pehle poochna, mana kabhi nahi - haan mile to aage badho.
 
 FILES (poora computer - koi seema nahi):
 - Ankit file/folder ka NAAM bole (jaise "Dragon Princess Hook
   Reels") to pehle find_file se dhoondo. File ko work/ me rakhne
-  ko KABHI mat bolo - file jahan hai wahi se kaam karo (tools ko
-  poora path do).
-- File CHALA kar dikhane ko kahe (video play, photo/document
-  kholna) to open_file chalao - pehle find_file se path nikalo.
-  Hukum sirf baat se nahi, asal me khol kar pura hota hai.
+  ko KABHI mat bolo - file jahan hai wahi se kaam karo.
+- File CHALA kar dikhane ko kahe (video play, photo/document)
+  to open_file chalao - pehle find_file se path nikalo.
 - .zip ke andar ki file ka kaam ho to pehle extract_zip se
-  kholo, phir andar ki file par kaam karo - andar ki file seedha
-  play/upload NAHI hoti.
-- Likhne ka kaam work/ ya apne folders (Desktop, Downloads,
-  Documents, poora home) me hoga. System jagah (C:\\Windows, Program Files)
-  par tool mana karega - wahan likhna khatarnak hai, kaam wahan
-  hota bhi nahi.
+  kholo, phir andar ki file par kaam karo.
+- Likhne ka kaam work/ ya apne folders (poora home) me hoga.
+  System jagah (C:\\Windows adi) par tool mana karega.
 
 PHOTO (screenshot / tasveer dekhna):
-- Ankit chat me photo bheje to use khud dekh kar jawab do - jo
-  dikh raha hai (error, screen, text) usi par jawab do, jaise
-  photo saamne khuli ho.
+- Ankit chat me photo bheje to jo dikh raha hai (error, screen,
+  text) usi par jawab do, jaise photo saamne khuli ho.
 - PC par padi photo dekhni ho to see_image chalao (poora path).
-- Photo ke saath HUKUM aaye ("is se video le kar upload kar do")
-  to vivaran ke naam/path ko sach maan kar wahi kaam tools se asal
+- Photo ke saath HUKUM aaye ("is se video le kar upload kar
+  do") to vivaran ke naam/path ko sach maan kar wahi kaam asal
   me karo - sirf vivaran suna kar mat ruk jao.
 
 DESIGN BANANA (logo / banner / poster):
 - Design/logo/banner/poster banane ko kahe to design_banao chalao
-  - varnan ko saaf prompt me badal kar do (naam, rang, style sab).
+  - varnan ko saaf prompt me badal kar do (naam, rang, style).
 - Ban jaye to open_file se khol kar DIKHAO - sirf path bata kar
   mat ruk jao.
 - Teen design mange to design_banao teen baar - alag style/rang
-  aur alag filename (jaise story-tv-logo-1) - phir teeno khol kar
-  dikhao.
+  aur alag filename (jaise story-tv-logo-1) - phir teeno dikhao.
 
 PROGRAM CHALANA (software install karna / chalana):
 - Software/program chalane ko kahe to run_program se asal me
   chalao - sirf steps bata kar mat chhodo.
-- Jo install PAISA mange ya jo command Ankit ki files DELETE
-  kare, use chalane se PEHLE saaf bata kar haan lo. Baaki aam
+- Jo install PAISA mange ya jo command files DELETE kare, use
+  chalane se PEHLE saaf bata kar haan lo. Baaki aam
   install/program bina puche chalao.
-- Khatarnak-class command (disk format, system folder delete,
-  shutdown jaisi) par run_program CONFIRM_REQUIRED deta hai - ye
-  MANA NAHI, POOCHNA hai. Tab saaf batao command kya karegi aur
-  pucho "chala du?". HAAN mile to WAHI command confirm=true ke
-  saath dobara chalao - haan hi kaafi hai. Mana karna ya
-  ghuma-phira kar dusra rasta dhoondna sakht mana hai.
+- Khatarnak-class command (disk format, system delete, shutdown
+  jaisi) par run_program CONFIRM_REQUIRED deta hai - ye MANA
+  NAHI, POOCHNA hai. Tab batao command kya karegi aur pucho
+  "chala du?". HAAN mile to WAHI command confirm=true ke saath
+  dobara chalao - haan hi kaafi hai. Mana karna ya ghuma-phira
+  kar dusra rasta dhoondna sakht mana hai.
 
 TOOL PROTOCOL: If you need a tool, reply with ONLY a JSON object like
 {"tool": "list_files", "args": {"path": ""}} and nothing else.
@@ -465,36 +479,37 @@ object hoga - pehle ya baad me EK SHABD bhi nahi, koi prose nahi.
 "args" hamesha asli JSON object hoga {"url": "..."} - string ke andar
 band JSON kabhi nahi.
 Available tools:
-- list_files(path) - folder ki list (poora path do; khaali/naam ho to work folder)
-- read_file(path) - text file padho (poora path; relative ho to work folder)
-- find_file(name) - naam se poore computer me file/folder dhoondo (aadha naam chalega); naam bole to PEHLE yahi
+- list_files(path) - folder ki list (poora path do)
+- read_file(path) - text file padho (poora path)
+- find_file(name) - naam se poore computer me dhoondo (aadha naam chalega); naam bole to PEHLE yahi
 - open_file(path) - file default app me kholo (video play / photo / document)
-- extract_zip(path) - .zip ko paas wale folder me kholo (andar ki file par kaam se pehle)
+- extract_zip(path) - .zip ko paas wale folder me kholo
 - see_image(path) - PC par padi photo/screenshot dekho
-- design_banao(prompt, filename) - Gemini se design/logo/banner/poster banao (work/ me); ban jaye to open_file se dikhao
-- write_file(path, content) - text file likho (work/ ya Ankit ke folders; system jagah nahi)
-- create_folder(path) - folder banao (work/ ya Ankit ke folders)
+- design_banao(prompt, filename) - Gemini se design/logo/banner/poster banao (work/ me)
+- write_file(path, content) - text file likho (work/ ya apne folders; system jagah nahi)
+- create_folder(path) - folder banao (work/ ya apne folders)
 - get_time() - is computer ka current date-time
 - web_fetch(url) - http/https page ka text lao
 - list_skills() - skill files ki list
 - read_skill(name) - ek skill padho, e.g. "youtube-upload"
 - create_skill(name, content) - nayi skill save karo (sirf skills/ me)
-- yaad_likho(text) - zaroori baat memory (MEMORY.md) me save karo
+- yaad_likho(text, section) - zaroori baat memory (MEMORY.md) me save karo; sikhaya NIYAM ho to section="niyam" do ("Seekhe hue niyam" me jayega)
+- purani_baat_dhundho(query) - diary me tareekh ke saath purani baat dhoondo - "kab bola tha" wale sawalo ka jawab SIRF isse
 - open_url(url) - page PC ke default browser me kholo
 - video_info(path) - video ka duration/size/resolution (poora path do)
 - trim_video(input, start_sec, duration_sec, output) - video kaato (input kahi bhi; output work/)
 - join_videos(files, output) - videos kram me jodo (inputs kahi bhi; output work/)
 - speak_to_file(text, filename) - awaaz ki audio file work/ me banao
-- agent_update() - mera naya version check karke install karo (restart ke baad lagega)
-- browser_open(url) - agent wale Chrome me page kholo (taiyaar na ho to user ko 'browser setup karo' bolo)
+- agent_update() - naya version check karke install karo (restart ke baad lagega)
+- browser_open(url) - agent wale Chrome me page kholo (taiyaar na ho to 'browser setup karo' bolo)
 - browser_read() - khule page ka title + text padho
 - browser_click(target) - button/link dabao (CSS selector ya dikhai dene wala text)
 - browser_type(target, text) - field me likho (caption, title adi)
-- browser_upload_file(target, path) - page ke file-input par file lagao (path = pura path; naam hi pata ho to pehle find_file)
-- download_file(url, filename) - internet se file download karo (work/ ya apne folders; 25 MB tak)
-- make_video(job_folder) - job folder (slides/ + titles.txt + optional voice.mp3) se vertical video; final.mp4 usi folder me (skill 'video-banana')
+- browser_upload_file(target, path) - page ke file-input par file lagao (pura path; naam hi pata ho to pehle find_file)
+- download_file(url, filename) - internet se file download karo (apne folders; 25 MB tak)
+- make_video(job_folder) - job folder (slides/ + titles.txt + optional voice.mp3) se vertical video (skill 'video-banana')
 - watch_video(source) - YouTube link/video file dekh kar steps samjho (steps pehle Ankit ko dikhane hain; skill haan par hi banegi)
-- run_program(command, confirm) - PC par command/program chalao; output milta hai. Khatarnak-class par CONFIRM_REQUIRED (mana nahi) - pucho, haan par WAHI command confirm=true se dobara chalao.
+- run_program(command, confirm) - PC par command chalao. Khatarnak-class par CONFIRM_REQUIRED (mana nahi) - pucho, haan par WAHI command confirm=true se dobara chalao.
 If no tool is needed, reply in plain text only (no JSON)."""
 
 # --------------------------------------------------------------------------
@@ -966,6 +981,67 @@ def tool_create_skill(name: str, content: str) -> str:
 MEMORY_MAX_CHARS = 6000
 MEMORY_ENTRY_MAX = 300
 
+# Seekhe hue niyam (v8.13) - MEMORY.md ke andar ek alag hissa
+# "## Seekhe hue niyam". Ankit jab agent ko sudhaarta hai
+# ("aise nahi", "hamesha", "kabhi nahi", "agli baar") to niyam
+# yaad_likho(section="niyam") se ISI hisse me jata hai, aur is
+# hisse ka ek chhota digest (LEARNED_DIGEST_MAX tak) har system
+# prompt me jata hai - taaki seekhe hue niyam history window se
+# bahar jaane par bhi har jawab me maujud rahein.
+LEARNED_SECTION = "## Seekhe hue niyam"
+LEARNED_DIGEST_MAX = 1500
+
+
+def _memory_lines() -> list:
+    """MEMORY.md ki lines (file na ho to khali list)."""
+    try:
+        if MEMORY_FILE.is_file():
+            return MEMORY_FILE.read_text(
+                encoding="utf-8", errors="replace").splitlines()
+    except Exception:
+        pass
+    return []
+
+
+def load_learned_rules() -> list:
+    """MEMORY.md ke 'Seekhe hue niyam' hisse ke niyam (bina date ke).
+
+    Hisse ki pehchan uske header se hoti hai; uske neeche ki
+    bullet lines (agli '## ' heading tak) niyam hain. Har bullet
+    "- YYYY-MM-DD: <niyam>" wali shakal me save hoti hai - yahan
+    date wala hissa hata kar sirf niyam lautaya jata hai.
+    """
+    rules = []
+    in_section = False
+    for line in _memory_lines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            in_section = (stripped == LEARNED_SECTION)
+            continue
+        if in_section and stripped.startswith("- "):
+            text = re.sub(r"^-\s*\d{4}-\d{2}-\d{2}:\s*", "- ",
+                          stripped)
+            rules.append(text[2:].strip())
+    return [r for r in rules if r]
+
+
+def learned_rules_digest() -> str:
+    """Seekhe hue niyamon ka prompt-digest - naye niyam pehle
+    jeette hain: jagah kam ho to sabse NAYE niyam rakhe jate
+    hain (purane peeche chhoot jate hain), kul LEARNED_DIGEST_MAX
+    chars tak."""
+    rules = load_learned_rules()
+    picked = []
+    total = 0
+    for rule in reversed(rules):
+        line = "- " + rule
+        if picked and total + len(line) + 1 > LEARNED_DIGEST_MAX:
+            break
+        picked.append(line)
+        total += len(line) + 1
+    picked.reverse()
+    return "\n".join(picked)
+
 
 def load_memory() -> str:
     """MEMORY.md se purani yaadein padho (zyada se zyada ~6000 chars).
@@ -986,25 +1062,242 @@ def load_memory() -> str:
     return ""
 
 
-def tool_save_memory(text: str = "") -> str:
-    """Ek zaroori baat MEMORY.md me dated bullet ki tarah jodo."""
+def tool_save_memory(text: str = "", section: str = "") -> str:
+    """Ek zaroori baat MEMORY.md me dated bullet ki tarah jodo.
+
+    section="niyam" ho to baat 'Seekhe hue niyam' wale hisse me
+    jati hai (v8.13) - wahi hisse se har system prompt ka digest
+    banta hai. File me wo hissa hamesha AAKHIR me rakha jata
+    hai: aam yaadein usse PEHLE judti hain, taaki aam bullet
+    galti se niyam na ban jaye aur niyam hamesha saaf parse hon.
+    """
     clean = re.sub(r"\s+", " ", (text or "")).strip()
     if not clean:
         return "Yaad karne ke liye kuch likho to sahi - khali yaad save nahi hoti."
     clean = clean[:MEMORY_ENTRY_MAX]
     line = f"- {datetime.now().strftime('%Y-%m-%d')}: {clean}"
+    is_rule = "niyam" in (section or "").lower()
     try:
         if not MEMORY_FILE.is_file():
             MEMORY_FILE.write_text(
                 "# My Agent - Yaadein\n"
                 "Ankit ke baare me yaad rakhi hui zaroori baatein.\n\n",
                 encoding="utf-8")
-        with open(MEMORY_FILE, "a", encoding="utf-8") as fh:
-            fh.write(line + "\n")
+        content = MEMORY_FILE.read_text(encoding="utf-8",
+                                         errors="replace")
+        if is_rule:
+            if LEARNED_SECTION not in content:
+                content = (content.rstrip("\n") + "\n\n"
+                           + LEARNED_SECTION + "\n")
+            content = content.rstrip("\n") + "\n" + line + "\n"
+        elif LEARNED_SECTION in content:
+            idx = content.index(LEARNED_SECTION)
+            content = (content[:idx].rstrip("\n") + "\n" + line
+                       + "\n\n" + content[idx:])
+        else:
+            content = content.rstrip("\n") + "\n" + line + "\n"
+        MEMORY_FILE.write_text(content, encoding="utf-8")
     except Exception as exc:
         return f"Yaad save nahi ho payi: {exc}"
+    if is_rule:
+        return (f"Seekh liya aur save kar liya (Seekhe hue niyam): "
+                f"{clean} Ab ye niyam mujhe hamesha yaad rahega.")
     return (f"Yaad save kar li: {clean} "
             "Ab ye baat mujhe agli baar bhi yaad rahegi.")
+
+
+# --------------------------------------------------------------------------
+# Diary - baaton ka dated record (v8.13, Amendment 1). User ki
+# maang: "vah yaad bhi kar pata - kab kay bola hu kay nhi".
+# Har user message (PC ke clock ki tareekh+samay ke saath) aur
+# turn ke aakhir me agent ne kya kiya/uska jawab ki ek-line
+# summary, baatein.jsonl me append hoti hai. Ye file agent
+# folder me hi rehti hai, PC se bahar kabhi nahi jati, aur
+# MEMORY.md ki tarah runtime par banti hai (zip me nahi hoti).
+# In-memory _history sirf live session ke liye hai; diary hi
+# lambe samay ka record hai - 'kab bola tha' wale sawalo ka
+# jawab purani_baat_dhundho tool isi se deta hai.
+# --------------------------------------------------------------------------
+
+DIARY_FILE = BASE_DIR / "baatein.jsonl"
+DIARY_MAX_ENTRIES = 2000
+DIARY_REDACTED = "[raaz wali baat — save nahi ki]"
+_diary_lock = threading.Lock()
+
+_KEY_SHAPE_RE = re.compile(r"\b(?:gsk_[A-Za-z0-9_\-]{8,}|"
+                           r"AIza[A-Za-z0-9_\-]{8,})\b")
+_LONG_TOKEN_RE = re.compile(r"\b[A-Za-z0-9_\-]{32,}\b")
+
+
+def _looks_secret(text: str) -> bool:
+    """Text me raaz (API key / PIN / password jaisi cheez) lagta
+    hai ya nahi. Pehchan: config me lagi asal values (key/PIN
+    ayn text me dikh jayein), jaani-pehchani key shakalein
+    (gsk_..., AIza...), aur lambe key-jaise token (32+ akshar,
+    akshar+ank dono). Diary/memory me raaz kabhi save nahi
+    hota - aisi entry redact hokar jati hai."""
+    t = text or ""
+    for value in (GEMINI_API_KEY, GROQ_API_KEY, AGENT_PIN):
+        if value and len(value) >= 6 and value in t:
+            return True
+    if _KEY_SHAPE_RE.search(t):
+        return True
+    for m in _LONG_TOKEN_RE.finditer(t):
+        tok = m.group(0)
+        if any(c.isalpha() for c in tok) and \
+                any(c.isdigit() for c in tok):
+            return True
+    return False
+
+
+def _diary_safe(text: str) -> str:
+    """Diary ke liye saaf text: raaz dikhe to poori entry ki
+    jagah sirf ek nishan - asal baat kabhi file me nahi jati."""
+    t = re.sub(r"\s+", " ", (text or "")).strip()
+    if t and _looks_secret(t):
+        return DIARY_REDACTED
+    return t
+
+
+def ensure_diary_file() -> None:
+    """Startup par diary file bana do (na ho to). Kabhi crash
+    nahi karta - diary na bane to agent bina diary ke chalega."""
+    try:
+        if not DIARY_FILE.is_file():
+            DIARY_FILE.write_text("", encoding="utf-8")
+    except Exception as exc:
+        log(f"DIARY file nahi ban payi (bina diary chalega): {exc}")
+
+
+def _diary_append(user_text: str, did_summary: str,
+                  when: datetime = None) -> None:
+    """Ek diary entry jodo: kab (PC ka clock), user ne kya bola,
+    agent ne kya kiya (ek line). Entry ~2000 se zyada ho jayein
+    to sabse purani kat jati hain (nayi 2000 rehti hain)."""
+    when = when or datetime.now()
+    entry = {
+        "ts": when.isoformat(timespec="seconds"),
+        "user": _diary_safe(user_text),
+        "did": _diary_safe(did_summary)[:200],
+    }
+    try:
+        with _diary_lock:
+            ensure_diary_file()
+            with open(DIARY_FILE, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            lines = DIARY_FILE.read_text(
+                encoding="utf-8", errors="replace").splitlines()
+            if len(lines) > DIARY_MAX_ENTRIES + 200:
+                DIARY_FILE.write_text(
+                    "\n".join(lines[-DIARY_MAX_ENTRIES:]) + "\n",
+                    encoding="utf-8")
+    except Exception as exc:
+        log(f"DIARY entry save nahi ho payi: {exc}")
+
+
+def _diary_load() -> list:
+    """Diary ki saari entries (purani -> nayi kram me). Kharab
+    lines chhod di jati hain - diary kabhi crash ki wajah nahi
+    banti. 'Restart ke baad bhi record' yahi file hai."""
+    entries = []
+    try:
+        if DIARY_FILE.is_file():
+            for raw in DIARY_FILE.read_text(
+                    encoding="utf-8", errors="replace").splitlines():
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    item = json.loads(raw)
+                except ValueError:
+                    continue
+                if isinstance(item, dict) and item.get("ts"):
+                    entries.append(item)
+    except Exception:
+        pass
+    return entries
+
+
+def _diary_fmt_date(ts_text: str) -> str:
+    """ISO timestamp ko user ke samajh wali tareekh banao:
+    '20 Nov 2026, 8:38 PM'. Parse na ho to jaisa hai waisa."""
+    try:
+        dt = datetime.fromisoformat(str(ts_text))
+        return dt.strftime("%d %b %Y, %I:%M %p").lstrip("0")
+    except Exception:
+        return str(ts_text)
+
+
+def tool_purani_baat_dhundho(query: str = "") -> str:
+    """Diary me purani baat dhoondo (Amendment 1) - 'kab bola
+    tha / maine kya kaha tha' wale sawalo ka EKMAATRA srot.
+    Keyword match user ke message aur agent-ke-kaam dono par;
+    sabse nayi pehle, zyada se zyada 10 entries, tareekh ke
+    saath."""
+    q = re.sub(r"\s+", " ", (query or "")).strip().lower()
+    if not q:
+        return "Kya dhoondhu - koi shabd to do jisse purani baat mile."
+    terms = [w for w in re.split(r"[^a-z0-9]+", q) if len(w) >= 3]
+    if not terms:
+        terms = [q]
+    hits = []
+    for entry in reversed(_diary_load()):
+        blob = ((entry.get("user") or "") + " "
+                + (entry.get("did") or "")).lower()
+        if any(t in blob for t in terms):
+            hits.append(entry)
+            if len(hits) >= 10:
+                break
+    if not hits:
+        return (f"Diary me '{query}' wali koi baat nahi mili. "
+                "Maine apni poori diary (baatein) dekh li hai - "
+                "ye baat wahan save nahi hai.")
+    lines = [f"'{query}' par diary me {len(hits)} baatein mili "
+             "(sabse nayi pehle):"]
+    for entry in hits:
+        user_text = (entry.get("user") or "")[:160]
+        did = (entry.get("did") or "")[:120]
+        line = (f"- {_diary_fmt_date(entry.get('ts'))} — tumne "
+                f"bola tha: '{user_text}'")
+        if did:
+            line += f" | agent ne: {did}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _diary_recent_reply(n: int = 10) -> str:
+    """'purani baatein' demo command ka jawab: aakhri n entries
+    tareekh ke saath (bina dimag ke diary ka saboot)."""
+    entries = _diary_load()
+    if not entries:
+        return ("Diary abhi khaali hai - hamari baatein yahan "
+                "apne aap tareekh ke saath save hoti rahengi. Kuch "
+                "bolo, phir 'purani baatein' likh kar dekh lena.")
+    lines = [f"Meri diary ki aakhri {min(n, len(entries))} baatein "
+             "(sabse nayi pehle):"]
+    for entry in reversed(entries[-n:]):
+        user_text = (entry.get("user") or "")[:80]
+        lines.append(f"- {_diary_fmt_date(entry.get('ts'))} — "
+                     f"{user_text}")
+    return "\n".join(lines)
+
+
+def _learned_rules_reply() -> str:
+    """'kya seekha' demo command ka jawab (v8.13): Seekhe hue
+    niyam number-daar suchi me - bina dimag ke saboot ki
+    seekhna asal me save hua hai."""
+    rules = load_learned_rules()
+    if not rules:
+        return ("Abhi maine tumse koi khaas niyam nahi seekha "
+                "hai. Jab tum mujhe sudhaaroge - 'aise nahi, "
+                "hamesha aise karo' jaisi baat - to main use "
+                "apne 'Seekhe hue niyam' me save kar lunga aur "
+                "hamesha manunga.")
+    lines = ["Maine tumse ye niyam seekhe hain (aur hamesha "
+             "manta hu):"]
+    for i, rule in enumerate(rules, 1):
+        lines.append(f"{i}. {rule}")
+    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------
@@ -2103,6 +2396,192 @@ def tool_agent_update() -> str:
             "Ab engine ko ek baar band karke 'start' se dobara chalao, "
             "tab naya version lagega. Purani file agent_backup.py ke "
             "naam se surakshit rakhi hai.")
+
+
+# --------------------------------------------------------------------------
+# Startup khud-jaanch + khud-update (v8.13) - user ki 18:23
+# wali maang ka bacha hua hissa: agent engine start hote hi
+# (background thread me, bina roke) do kaam khud karta hai:
+# 1. Naya version: UPDATE_URL (wahi URL jo 'update karo'
+#    command use karta hai) se published agent.py la kar
+#    AGENT_VERSION ki tulna. Naya ho to: download, memory me
+#    compile-jaanch, purani file agent_backup.py me, phir
+#    swap - aur ek one-time notice flag set hota hai: is
+#    session ke PEHLE /ask jawab ke upar ek line judti hai
+#    (naya version lag gaya, ek restart par chalega). Koi bhi
+#    haar (network/compile/likhna) -> purani file ayn waisi,
+#    sirf log, KOI notice nahi, agent aaram se chalta hai.
+# 2. Sehat jaanch: dimag-test wale probes EK baar chalte hain
+#    aur cache ho jate hain. Pehle jawab par EK chhoti sehat
+#    line SIRF tab judti hai jab kuch gadbad ho (dimag down /
+#    browser setup nahi) - sab theek ho to khamoshi.
+# Manual 'update karo' aur 'dimag test karo' bilkul pehle
+# jaise hi chalte hain - ye sirf unka khud-bula hua roop hai.
+# --------------------------------------------------------------------------
+
+_pending_notice = ""        # one-time update notice (khali = koi nahi)
+_pending_health = ""        # one-time sehat line (khali = sab theek)
+_session_prefix_used = False
+_startup_thread = None
+_startup_lock = threading.Lock()
+
+
+def _startup_auto_update() -> None:
+    """Published agent.py se tulna karke naya version ho to
+    khud laga do. Kabhi exception bahar nahi aata: haar par
+    purani file surakshit, sirf log."""
+    global _pending_notice
+    try:
+        req = urllib.request.Request(
+            UPDATE_URL, headers={"User-Agent": _BROWSER_UA})
+        with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310
+            source = resp.read().decode("utf-8", errors="replace")
+    except Exception as exc:
+        log(f"STARTUP-UPDATE: fetch fail ({exc}) - purana "
+            "version hi chalega")
+        return
+    try:
+        remote_version = _parse_version(source)
+        if remote_version is None:
+            log("STARTUP-UPDATE: remote file me version nahi "
+                "mila - kuch nahi badla")
+            return
+        if _version_tuple(remote_version) <= \
+                _version_tuple(AGENT_VERSION):
+            log(f"STARTUP-UPDATE: pehle se latest "
+                f"(v{AGENT_VERSION})")
+            return
+        try:
+            compile(source, "agent.py", "exec")
+        except SyntaxError as exc:
+            log(f"STARTUP-UPDATE: nayi file compile fail "
+                f"({exc}) - kuch nahi badla")
+            return
+        shutil.copyfile(SELF_FILE, BACKUP_FILE)
+        SELF_FILE.write_text(source, encoding="utf-8")
+        _pending_notice = (
+            f"Ek khaas baat: naya version v{remote_version} "
+            "khud lag gaya hai. Engine ko ek baar band karke "
+            "'start' se dobara chalao - tab naya version "
+            "chalega.")
+        log(f"STARTUP-UPDATE: v{AGENT_VERSION} -> "
+            f"v{remote_version} lag gaya (notice pehle jawab "
+            "par jayegi)")
+    except Exception as exc:
+        log(f"STARTUP-UPDATE fail ({exc}) - purana version "
+            "surakshit hai")
+
+
+def _dimag_report() -> dict:
+    """Dimag-test ki haalat ek dict me (v8.13): wahi probes jo
+    tool_dimag_test chalata hai (_groq_selftest /
+    _gemini_selftest / browser line), lekin bina text-lines
+    ke - startup sehat line isi se banti hai. States:
+    none | pass | fail | badkey (sirf Groq)."""
+    groq_state = "none"
+    if GROQ_API_KEY:
+        res = _groq_selftest()
+        if res.startswith("✅"):
+            groq_state = "pass"
+        elif "Invalid API Key" in res:
+            groq_state = "badkey"
+        else:
+            groq_state = "fail"
+    gemini_state = "none"
+    lite_state = "none"
+    if GEMINI_API_KEY:
+        primary = GEMINI_MODEL or _MODEL_LITE
+        res = _gemini_selftest(primary)
+        gemini_state = "pass" if res.startswith("✅") else "fail"
+        if _MODEL_LITE != primary:
+            res2 = _gemini_selftest(_MODEL_LITE)
+            lite_state = "pass" if res2.startswith("✅") else "fail"
+        else:
+            lite_state = gemini_state
+    browser_line = _browser_state_line()
+    return {"groq": {"state": groq_state},
+            "gemini": {"state": gemini_state},
+            "gemini_lite": {"state": lite_state},
+            "browser_setup_done":
+                "setup nahi hua hai" not in browser_line}
+
+
+def _startup_health_line() -> str:
+    """Sehat line banao: kuch gadbad ho tabhi line, warna khali
+    string (khamoshi). Gemini primary busy/down lekin lite
+    chalta ho to line NAHI - wo uski aam haalat hai, roz wahi
+    line dekh kar user use nazarandaz karne lagega."""
+    try:
+        report = _dimag_report()
+    except Exception as exc:
+        log(f"STARTUP-HEALTH: report fail ({exc})")
+        return ""
+    groq_state = report.get("groq", {}).get("state")
+    gemini_state = report.get("gemini", {}).get("state")
+    lite_state = report.get("gemini_lite", {}).get("state")
+    browser_ok = report.get("browser_setup_done")
+    problems = []
+    if groq_state in ("fail", "badkey"):
+        problems.append("tez dimag (Groq) abhi kaam nahi kar "
+                        "raha - jawab Gemini se aayenge")
+    if gemini_state == "fail" and lite_state == "fail":
+        problems.append("Gemini ke dono model abhi jawab nahi "
+                        "de rahe")
+    if gemini_state == "none" and groq_state == "none":
+        problems.append("dimag ki koi key config me nahi hai - "
+                        "free chat band hai")
+    if browser_ok is False:
+        problems.append("browser setup abhi nahi hua - "
+                        "'browser setup karo' bolna, phir "
+                        "logged-in sites ka kaam hoga")
+    if not problems:
+        return ""
+    return "Sehat jaanch: " + "; ".join(problems) + "."
+
+
+def _startup_checks_run() -> None:
+    """Background thread ka kaam: pehle khud-update, phir sehat
+    jaanch. Dono ke results one-time flags me rehte hain."""
+    global _pending_health
+    _startup_auto_update()
+    line = _startup_health_line()
+    if line:
+        _pending_health = line
+        log(f"STARTUP-HEALTH: {line}")
+    else:
+        log("STARTUP-HEALTH: sab theek hai (koi line nahi jayegi)")
+
+
+def _start_startup_checks() -> None:
+    """Engine start par khud-jaanch wala thread chalao -
+    non-blocking: /ask iska intezaar sirf pehle jawab par,
+    wo bhi zyada se zyada ~2 second (neeche dekho)."""
+    global _startup_thread
+    with _startup_lock:
+        if _startup_thread is not None:
+            return
+        _startup_thread = threading.Thread(
+            target=_startup_checks_run, daemon=True,
+            name="startup-checks")
+        _startup_thread.start()
+
+
+def _take_session_prefix() -> str:
+    """Session ke PEHLE jawab ke liye one-time prefix: update
+    notice (ho to) + sehat line (ho to). Sirf ek baar milta
+    hai - uske baad hamesha khali. Startup thread abhi chal
+    raha ho to yahan zyada se zyada ~2s ruk kar uska result
+    le lo (pehla jawab thoda dheere, baaki bilkul aam)."""
+    global _session_prefix_used
+    with _startup_lock:
+        if _session_prefix_used:
+            return ""
+        _session_prefix_used = True
+        thread = _startup_thread
+    if thread is not None and thread.is_alive():
+        thread.join(timeout=2.0)
+    parts = [p for p in (_pending_notice, _pending_health) if p]
+    return "\n".join(parts)
 
 
 _CMD_QUOTE_CHARS = "'\"`‘’“”"
@@ -3224,6 +3703,7 @@ TOOLS = {
     "read_skill": tool_read_skill,
     "create_skill": tool_create_skill,
     "yaad_likho": tool_save_memory,
+    "purani_baat_dhundho": tool_purani_baat_dhundho,
     "open_url": tool_open_url,
     "video_info": tool_video_info,
     "trim_video": tool_trim_video,
@@ -3281,6 +3761,10 @@ HELP_TEXT = """Demo mode commands (type them as-is):
                                 memory (MEMORY.md) - pasand, faisla,
                                 chal raha kaam jaisi baatein
   yaadein                     - show my saved memories
+  kya seekha                  - jo niyam maine tumse seekhe hain
+                                (Seekhe hue niyam) number ke saath
+  purani baatein              - meri diary ki aakhri 10 baatein
+                                tareekh ke saath (kab kya bola tha)
   video info video.mp4        - a video's duration / size / resolution
   trim video.mp4 0 10         - cut 10s from a video, from second 0
   join a.mp4 b.mp4            - join videos into joined.mp4
@@ -3362,6 +3846,18 @@ def demo_ask(message: str):
     if m:
         return run_tool("yaad_likho", {"text": m.group(1).strip()})
 
+    if low in ("kya seekha", "kya seekha hai", "seekhe hue niyam",
+               "niyam dikhao", "tumne kya seekha") or nlow in (
+               "kya seekha", "kya seekha hai", "seekhe hue niyam",
+               "niyam dikhao", "tumne kya seekha"):
+        return _learned_rules_reply()
+
+    if low in ("purani baatein", "purani baat", "diary",
+               "baatein dikhao", "purani baatein dikhao") or nlow in (
+               "purani baatein", "purani baat", "diary",
+               "baatein dikhao", "purani baatein dikhao"):
+        return _diary_recent_reply()
+
     m = re.match(r"skill\s+(\S+)\s*$", text, re.IGNORECASE)
     if m:
         return run_tool("read_skill", {"name": m.group(1)})
@@ -3422,6 +3918,11 @@ def _system_prompt() -> str:
         prompt += ("\n\nAGENT KI YAADEIN (MEMORY.md se - Ankit ke baare "
                    "me purani yaad rakhi hui baatein; inhe har jawab me "
                    "dhyaan me rakho):\n" + memory)
+    digest = learned_rules_digest()
+    if digest:
+        prompt += ("\n\nSEEKHE HUE NIYAM (Ankit ne khud sikhaye hue "
+                   "hain - inhe har jawab me hamesha mano, baaki "
+                   "saari aadat aur salah se upar):\n" + digest)
     return prompt
 
 
@@ -3683,31 +4184,141 @@ def _progress_text(progress: list) -> str:
     return "\n".join(lines)
 
 
-def _cap_reached_message(progress: list) -> str:
+def _tried_line(approaches) -> str:
+    """'Try kiye hue raste' wali line (v8.13, Amendment 2) -
+    rukne par user ko agent ki koshish DIKHE, sirf haar nahi."""
+    if not approaches:
+        return ""
+    return f"\nTry kiye hue raste: {', '.join(approaches)}"
+
+
+def _cap_reached_message(progress: list, approaches=None) -> str:
     """Seema (20) par rukne wala jawab - suchi + 'jaari rakho'."""
     return (f"Is kaam ke kadam pure ho gaye ({_MAX_TOOL_STEPS}), "
             "isliye yahan ruk raha hu.\n"
             "Ab tak ye ho gaya:\n"
-            f"{_progress_text(progress)}\n"
+            f"{_progress_text(progress)}"
+            f"{_tried_line(approaches)}\n"
             "Ye kaam abhi adhura hai — 'jaari rakho' bolo to yahi "
             "se aage badhunga.")
 
 
-def _loop_stuck_message(tool_name: str, progress: list) -> str:
+def _loop_stuck_message(tool_name: str, progress: list,
+                        approaches=None) -> str:
     """Ek hi kadam par atakne wala jawab - kadam ka naam + suchi."""
     msg = (f"Main ek hi kadam par atak gaya hu: {tool_name} "
            "baar-baar wahi jawab de raha hai, isliye ruk raha hu.")
     if progress:
         msg += f"\nJo kaam ho gaya:\n{_progress_text(progress)}"
+    msg += _tried_line(approaches)
     return msg
+
+
+# --------------------------------------------------------------------------
+# Koshish-nudge (v8.13, Amendment 2) - "koi kaam ruk jaye to
+# usse khoshish kar ke pura karna; mere ulta puchhata hai".
+# Dimag ka haar-mannewala jawab (koi tool nahi, "nahi ho paya"
+# jaisi baat) tab daboch liya jata hai jab is kaam me abhi 2 se
+# kam ALAG raste try hue hon: jawab user ko NAHI jata, uski
+# jagah ek andar wala hukum jata hai - "dusra rasta try karo,
+# user se kuch mat pucho" - aur loop aage badhta hai. Ek kaam
+# par zyada se zyada _MAX_NUDGES (2) nudge; kadam-seema (20)
+# aur loop-pehchan isse upar hain, isliye ghumav kabhi nahi
+# banta. Rukawat SIRF user ke haath wali ho (login/password/
+# CAPTCHA/paisa-delete ki haan) to nudge kabhi nahi - wo jawab
+# turant jata hai; suraksha wale ruk kabhi behes nahi karte.
+# --------------------------------------------------------------------------
+
+_MAX_NUDGES = 2
+
+# In tools me 'rasta' tool ke saath uska nishana (target/url/
+# naam) bhi gina jata hai: ek hi button baar-baar dabana EK
+# rasta hai, dusra button dusra rasta.
+_TARGET_ARG_KEYS = {
+    "browser_click": ("target",),
+    "browser_type": ("target",),
+    "browser_upload_file": ("target",),
+    "browser_open": ("url",),
+    "open_url": ("url",),
+    "find_file": ("name",),
+    "read_file": ("path",),
+    "open_file": ("path",),
+    "read_skill": ("name",),
+    "web_fetch": ("url",),
+}
+
+
+def _approach_key(tool_call: dict) -> str:
+    """Ek tool-call ka 'rasta' (approach): tool ka naam + (ho to)
+    uska nishana. Nudge ki ginati aur 'Try kiye hue raste' wali
+    line dono isi se banti hain."""
+    name = tool_call.get("tool") or "?"
+    args = tool_call.get("args") or {}
+    for key in _TARGET_ARG_KEYS.get(name, ()):
+        value = args.get(key)
+        if value:
+            return f"{name}:{str(value)[:40]}"
+    return name
+
+
+_GIVEUP_MARKERS = (
+    "nahi ho paya", "nahi ho payi", "nahi ho sakta",
+    "nahi ho sakti", "nahi kar sakta", "nahi kar sakti",
+    "nahi mila", "nahi mili", "nahi ho raha", "nahi ho rahi",
+    "ho nahi paya", "ruk gaya", "ruk gayi", "sambhav nahi",
+    "nahi hoga", "nahi hogi", "nahi kar pa raha",
+    "nahi kar pa rahi", "nahi ho pa raha", "nahi ho pa rahi",
+)
+
+# Rukawat ki ye kismein SIRF user ke haath me hain - in par
+# jawab turant jata hai, nudge kabhi nahi (suraksha pehle).
+_BLOCKER_MARKERS = (
+    "captcha", "checkpoint", "confirm it's you", "confirm its you",
+    "login screen", "login karo", "login karna", "password",
+    "2fa", "two-factor", "two factor", "confirm_required",
+    "paisa lagega", "paise lagenge", "paisa kharch",
+    "delete karne se pehle", "haan chahiye", "manjuri chahiye",
+    "permission chahiye", "otp",
+)
+
+
+def _looks_like_giveup(reply: str) -> bool:
+    """Aakhri jawab haar-mannewala hai ya nahi (nudge ki shart)."""
+    low = (reply or "").lower()
+    return any(m in low for m in _GIVEUP_MARKERS)
+
+
+def _has_user_blocker(reply: str, tracker) -> bool:
+    """Rukawat sirf user ke haath wali hai kya - jawab aur is
+    run ke tool jawabon dono me nishan dhoondo."""
+    blob = (reply or "") + "\n" + "\n".join(tracker.result_snippets)
+    low = blob.lower()
+    return any(m in low for m in _BLOCKER_MARKERS)
+
+
+def _nudge_text(approaches) -> str:
+    """Andar wala koshish-hukum: user ko NAHI dikhta, dimag ko
+    dusra rasta try karne par majboor karta hai."""
+    tried = ", ".join(approaches) if approaches else "koi bhi nahi"
+    return (
+        "INTERNAL INSTRUCTION (ye user ko mat dikhana): Tumne is "
+        f"kaam me abhi sirf {len(approaches)} rasta try kiya hai "
+        f"({tried}) aur tum haar maan rahe ho - ye galat hai. "
+        "User se kuch MAT pucho. Abhi ek DUSRA rasta socho - "
+        "dusra tool, dusra route/page, page dobara padh kar dusra "
+        "element, ya haalat jaanch karke phir koshish - aur tool "
+        "chala kar asal me try karo.")
 
 
 class _StepTracker:
     """Ek converse run ke kadmo ka hisaab: progress suchi +
-    loop-pehchan (lagatar do baar ek hi call, ek hi jawab)."""
+    loop-pehchan (lagatar do baar ek hi call, ek hi jawab) +
+    try kiye hue ALAG raste (nudge ke liye, v8.13)."""
 
     def __init__(self):
         self.progress = []        # [(tool ka naam, jawab ka tukda)]
+        self.approaches = []      # alag raste, kram me (labels)
+        self.result_snippets = []  # blocker-jaanch ke liye tukde
         self._last_sig = None
         self._last_result = None
         self._same = 0            # lagatar ek-jaise (call, jawab)
@@ -3721,6 +4332,10 @@ class _StepTracker:
         """
         name = tool_call.get("tool") or "?"
         self.progress.append((name, _result_snippet(result)))
+        key = _approach_key(tool_call)
+        if key not in self.approaches:
+            self.approaches.append(key)
+        self.result_snippets.append(str(result or "")[:500])
         sig = _tool_signature(tool_call)
         if sig == self._last_sig and result == self._last_result:
             self._same += 1
@@ -3758,7 +4373,167 @@ def _model_bound_result(result) -> str:
             "pura jawab user ko dikhaya gaya hai]")
 
 
-def _gemini_converse(contents: list, model: str, fast_fail: bool = False):
+# --------------------------------------------------------------------------
+# Streaming (v8.13) - mehsoos hone wali raftaar: dimag ka aakhri
+# jawab UI me bante-bante dikhta hai, tool kadam chhoti
+# 'kaam chal raha hai' lines bankar aate hain. Transport: /ask
+# par Server-Sent Events (SSE). Do pakke niyam:
+# 1. Stream kahin bhi atke/toote to usi kadam ka jawab AAM
+#    (non-stream) call se laya jata hai - jawab kabhi khota
+#    nahi, kabhi dohra nahi hota (UI ko hamesha aakhir me pura
+#    'final' jawab milta hai, wahi asal hai; beech ke delta
+#    sirf preview hain).
+# 2. Tool-call JSON kabhi live nahi dikhta: kadam ka text '{'
+#    se shuru ho ya usme '"tool"' dikhe to us kadam ke delta
+#    rok diye jate hain (_make_step_delta).
+# Gemini ki shakal (official docs se verify): POST
+# /v1beta/models/<model>:streamGenerateContent?alt=sse -
+# har SSE 'data:' frame ek GenerateContentResponse chunk hai,
+# text candidates[0].content.parts[].text me tukdo me aata
+# hai. Groq OpenAI-compatible hai: body me "stream": true,
+# chunks choices[0].delta.content me, aakhir me 'data: [DONE]'.
+# --------------------------------------------------------------------------
+
+
+def _emit_event(on_event, kind: str, text: str) -> None:
+    """UI ki taraf ek event bhejo - UI band/gayab ho to bhi
+    agent kabhi crash nahi karta."""
+    if on_event is None:
+        return
+    try:
+        on_event(kind, text)
+    except Exception:
+        pass
+
+
+def _make_step_delta(on_event):
+    """Ek converse kadam ke liye delta bhejne wala: text jama
+    karta hai aur tool-call jaisi shakal dikhte hi us kadam ke
+    delta band kar deta hai (kaccha JSON UI me kabhi nahi)."""
+    state = {"buf": "", "live": True}
+
+    def _delta(chunk: str) -> None:
+        if not chunk:
+            return
+        state["buf"] += chunk
+        if not state["live"]:
+            return
+        stripped = state["buf"].lstrip()
+        if stripped.startswith("{") or '"tool"' in state["buf"]:
+            state["live"] = False
+            return
+        _emit_event(on_event, "delta", chunk)
+
+    return _delta
+
+
+def _sse_text_lines(resp):
+    """Ek khule hue HTTP jawab ko SSE 'data:' payloads me todo.
+    Har payload ek string (JSON text ya '[DONE]')."""
+    for raw in resp:
+        line = raw.decode("utf-8", "replace").strip()
+        if line.startswith("data:"):
+            yield line[5:].strip()
+
+
+def _gemini_call_stream(contents: list, model: str = None,
+                        on_delta=None, fast_fail: bool = False) -> str:
+    """_gemini_call ka streaming roop: EK koshish, koi retry
+    nahi (retry wali suraksha caller ke non-stream fallback me
+    hai). Haar ki kismein _gemini_call wali hi hain - busy par
+    _GeminiBusyError, timeout par _GeminiSlowError, baaki HTTP
+    errors ayn waisi - taaki ladder ka vyavhaar na badle."""
+    model = model or GEMINI_MODEL
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{model}:streamGenerateContent?alt=sse&key={GEMINI_API_KEY}")
+    body = {"contents": contents,
+            "system_instruction": {"parts": [{"text": _system_prompt()}]}}
+    payload = json.dumps(body).encode("utf-8")
+    log(f"GEMINI[{model}] STREAM prompt ~{len(payload)} chars")
+    req = urllib.request.Request(
+        url, data=payload,
+        headers={"Content-Type": "application/json",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "text/event-stream"},
+        method="POST")
+    eff_timeout = _GEMINI_FAST_TIMEOUT if fast_fail else _GEMINI_TIMEOUT
+    parts_all = []
+    try:
+        with urllib.request.urlopen(req, timeout=eff_timeout) as resp:  # noqa: S310
+            for data in _sse_text_lines(resp):
+                if not data or data == "[DONE]":
+                    continue
+                try:
+                    chunk = json.loads(data)
+                    parts = chunk["candidates"][0]["content"]["parts"]
+                except (ValueError, KeyError, IndexError, TypeError):
+                    continue
+                for part in parts:
+                    text = part.get("text", "")
+                    if text:
+                        parts_all.append(text)
+                        if on_delta is not None:
+                            on_delta(text)
+    except urllib.error.HTTPError as exc:
+        if exc.code in _BUSY_CODES:
+            raise _GeminiBusyError(f"HTTP {exc.code}") from exc
+        raise
+    except (urllib.error.URLError, socket.timeout, TimeoutError,
+            ConnectionError) as exc:
+        raise _GeminiSlowError(str(exc)) from exc
+    return "".join(parts_all).strip()
+
+
+def _groq_call_stream(messages: list, on_delta=None) -> str:
+    """_groq_call ka streaming roop: EK koshish (stream toote to
+    caller non-stream _groq_call se pura jawab lata hai, jahan
+    poori retry neeti hai). Haar par _GroqDownError hi uthta
+    hai - status/detail/rate_scope ke saath, bilkul _groq_call
+    ki tarah."""
+    body = {"model": GROQ_MODEL, "messages": messages, "stream": True}
+    payload = json.dumps(body).encode("utf-8")
+    log(f"GROQ STREAM prompt ~{len(payload)} chars")
+    req = urllib.request.Request(
+        _GROQ_URL, data=payload,
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {GROQ_API_KEY}",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "text/event-stream"},
+        method="POST")
+    parts_all = []
+    try:
+        with urllib.request.urlopen(req, timeout=_GROQ_TIMEOUT) as resp:  # noqa: S310
+            for data in _sse_text_lines(resp):
+                if not data:
+                    continue
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                    delta = chunk["choices"][0].get("delta") or {}
+                except (ValueError, KeyError, IndexError, TypeError):
+                    continue
+                text = delta.get("content")
+                if text:
+                    parts_all.append(text)
+                    if on_delta is not None:
+                        on_delta(text)
+    except urllib.error.HTTPError as exc:
+        detail = _http_error_message(exc)
+        rate_scope = (_groq_rate_scope(detail, exc)
+                      if exc.code == 429 else "")
+        raise _GroqDownError(
+            f"HTTP {exc.code}" + (f": {detail}" if detail else ""),
+            status=exc.code, detail=detail,
+            rate_scope=rate_scope) from exc
+    except (urllib.error.URLError, socket.timeout, TimeoutError,
+            ConnectionError) as exc:
+        raise _GroqDownError(str(exc)) from exc
+    return "".join(parts_all).strip()
+
+
+def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
+                     on_event=None):
     """Ek diye hue model ke saath pura tool-loop chalao.
 
     (jawab, tool_chala_kya) return hota hai; Gemini wali errors
@@ -3775,26 +4550,54 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False):
     contents = list(contents)
     used_tool = False
     tracker = _StepTracker()
+    nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
-        reply = _gemini_call(contents, model, fast_fail=fast_fail)
+        if on_event is not None:
+            try:
+                reply = _gemini_call_stream(
+                    contents, model, _make_step_delta(on_event),
+                    fast_fail=fast_fail)
+            except Exception as exc:
+                log(f"STREAM (Gemini {model}) fail: {exc} - aam "
+                    "call se jawab la raha hu")
+                reply = _gemini_call(contents, model,
+                                     fast_fail=fast_fail)
+        else:
+            reply = _gemini_call(contents, model, fast_fail=fast_fail)
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
+            if nudges < _MAX_NUDGES \
+                    and len(tracker.approaches) < 2 \
+                    and _looks_like_giveup(reply) \
+                    and not _has_user_blocker(reply, tracker):
+                nudges += 1
+                log(f"NUDGE {nudges}: sirf "
+                    f"{len(tracker.approaches)} rasta try hua tha - "
+                    "haar ki jagah dusra rasta try karne ko kaha")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _nudge_text(tracker.approaches)}]})
+                continue
             with _history_lock:
                 _history.append({"role": "model",
                                  "parts": [{"text": reply}]})
             return reply, used_tool
         used_tool = True
+        _emit_event(on_event, "status",
+                    f"⚙️ {tool_call['tool']} chal raha hai…")
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
-                                        tracker.progress)
+                                        tracker.progress,
+                                        tracker.approaches)
             _record_final_reply(stuck)
             return stuck, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": "Tool result: "
                                             + _model_bound_result(result)}]})
-    done = _cap_reached_message(tracker.progress)
+    done = _cap_reached_message(tracker.progress, tracker.approaches)
     _record_final_reply(done)
     return done, used_tool
 
@@ -4034,7 +4837,7 @@ def _groq_call(messages: list) -> str:
         detail=detail, rate_scope=rate_scope)
 
 
-def _groq_converse(contents: list):
+def _groq_converse(contents: list, on_event=None):
     """Groq ke saath pura tool-loop - _gemini_converse ka aaina.
 
     (jawab, tool_chala_kya) return hota hai. Tool protocol bilkul
@@ -4048,26 +4851,53 @@ def _groq_converse(contents: list):
     contents = list(contents)
     used_tool = False
     tracker = _StepTracker()
+    nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
-        reply = _groq_call(_to_openai_messages(contents))
+        if on_event is not None:
+            try:
+                reply = _groq_call_stream(
+                    _to_openai_messages(contents),
+                    _make_step_delta(on_event))
+            except Exception as exc:
+                log(f"STREAM (Groq) fail: {exc} - aam call se "
+                    "jawab la raha hu")
+                reply = _groq_call(_to_openai_messages(contents))
+        else:
+            reply = _groq_call(_to_openai_messages(contents))
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
+            if nudges < _MAX_NUDGES \
+                    and len(tracker.approaches) < 2 \
+                    and _looks_like_giveup(reply) \
+                    and not _has_user_blocker(reply, tracker):
+                nudges += 1
+                log(f"NUDGE {nudges}: sirf "
+                    f"{len(tracker.approaches)} rasta try hua tha - "
+                    "haar ki jagah dusra rasta try karne ko kaha")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _nudge_text(tracker.approaches)}]})
+                continue
             with _history_lock:
                 _history.append({"role": "model",
                                  "parts": [{"text": reply}]})
             return reply, used_tool
         used_tool = True
+        _emit_event(on_event, "status",
+                    f"⚙️ {tool_call['tool']} chal raha hai…")
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
-                                        tracker.progress)
+                                        tracker.progress,
+                                        tracker.approaches)
             _record_final_reply(stuck)
             return stuck, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": "Tool result: "
                                             + _model_bound_result(result)}]})
-    done = _cap_reached_message(tracker.progress)
+    done = _cap_reached_message(tracker.progress, tracker.approaches)
     _record_final_reply(done)
     return done, used_tool
 
@@ -4098,7 +4928,8 @@ def _has_action_intent(message: str) -> bool:
     return bool(_ACTION_RE.search((message or "").lower()))
 
 
-def _ladder_run(contents: list, fast_primary: bool = False):
+def _ladder_run(contents: list, fast_primary: bool = False,
+                on_event=None):
     """Model ladder chalao: pehle primary, fail ho to dusra model.
 
     Safal ho to (jawab, tool_chala_kya); dono fail hon ya key ki
@@ -4115,10 +4946,12 @@ def _ladder_run(contents: list, fast_primary: bool = False):
     """
     models = _ladder_models()
     last_exc = None
+    extra = {"on_event": on_event} if on_event is not None else {}
     for idx, model in enumerate(models):
         try:
             reply, used_tool = _gemini_converse(
-                contents, model, fast_fail=(fast_primary and idx == 0))
+                contents, model,
+                fast_fail=(fast_primary and idx == 0), **extra)
             if idx > 0:
                 reply = ("(pehle model se jawab nahi aaya, dusre model "
                          "se laya hu)\n" + reply)
@@ -4138,7 +4971,7 @@ def _ladder_run(contents: list, fast_primary: bool = False):
     return _final_error_message(last_exc), None
 
 
-def _brain_run(contents: list):
+def _brain_run(contents: list, on_event=None):
     """Dimag chalao: pehle Groq (agar key hai), fail ho to Gemini ladder.
 
     Safal ho to (jawab, tool_chala_kya); sab fail hon to
@@ -4156,9 +4989,10 @@ def _brain_run(contents: list):
     groq_detail = ""
     groq_status = None
     groq_rate_scope = ""
+    extra = {"on_event": on_event} if on_event is not None else {}
     if GROQ_API_KEY:
         try:
-            reply, used_tool = _groq_converse(contents)
+            reply, used_tool = _groq_converse(contents, **extra)
             log("BRAIN: jawab GROQ se aaya")
             return reply, used_tool
         except Exception as exc:  # har haar par Gemini ki baari
@@ -4175,7 +5009,8 @@ def _brain_run(contents: list):
                 groq_detail = (getattr(exc, "detail", "") or "")[:120]
             log(f"BRAIN: GROQ fail ({exc}) - Gemini ladder par ja "
                 "raha hu")
-    reply, used_tool = _ladder_run(contents, fast_primary=groq_failed)
+    reply, used_tool = _ladder_run(contents, fast_primary=groq_failed,
+                                   on_event=on_event)
     if used_tool is not None and groq_failed:
         note = ("(tez wale model se jawab nahi aaya, dusre model se "
                 "laya hu)")
@@ -4392,13 +5227,201 @@ def _guard_no_tool_json(reply: str) -> str:
         return reply
     log("GUARD: jawab me kaccha tool-call JSON tha - user ko "
         "saaf jawab diya")
+    return _guard_reply_text()
+
+
+def _guard_reply_text() -> str:
+    """Guard ka canned jawab - v8.13 se ye AAKHRI upaay hai
+    (pehle khud-recovery aur saade-shabdo wala re-ask hota hai,
+    neeche _finalize_reply dekho)."""
     return ("Kaam karne ki koshish ki, lekin mera jawab gadbad "
             "ho gaya (andar ki takneeki cheez bahar aa gayi). "
             "Ek baar phir se bolo - main dobara koshish karta "
             "hu.")
 
 
-def brain_ask(message: str) -> str:
+# --------------------------------------------------------------------------
+# Guard khud-recovery (v8.13) - asal PC par 2026-11-20 20:38 ko
+# user ne do baar "video ko upload kar do" bola aur dono baar
+# use canned "phir se bolo" wala jawab mila, kyunki dimag ka
+# jawab kacche tool-JSON ki shakal me aaya tha aur guard use
+# seedha canned line se badal deta tha. Ab guard pehle KHUD
+# sudhaarta hai:
+#   1. Jawab ke andar parse hone layak tool-call ho to use
+#      ASAL me chalao aur loop aage badhao (kadam-seema ke
+#      andar hi - recovery bhi ek aam brain run hai).
+#   2. Parse na ho to dimag se EK baar saade shabdon me jawab
+#      maango (koi JSON/tool-format nahi wala sakht hukum).
+#   3. Tab bhi gadbad ho tabhi canned line - aakhri upaay.
+# Ek turn me re-ask zyada se zyada EK baar (recovery aur
+# plain re-ask milakar bhi loop nahi banta - har stage ek hi
+# baar chalti hai).
+# --------------------------------------------------------------------------
+
+
+def _recover_tool_from_guarded(reply: str, on_event=None):
+    """Guard me phanse jawab se tool-call nikaal kar asal me
+    chalao. Safal ho to (naya_jawab, tool_chala_kya); embedded
+    call na mile ya chalana hi na bane to None."""
+    tool_call = _extract_tool_call(reply or "")
+    if tool_call is None:
+        return None
+    log(f"GUARD-RECOVERY: jawab ke andar {tool_call['tool']} "
+        "call mili - use asal me chala raha hu")
+    with _history_lock:
+        # Gadbad jawab history se hatao - recovery uski jagah
+        # lega, warna dimag usi kachre ko dekh kar phir bhatkega.
+        if _history and _history[-1].get("role") == "model":
+            _history.pop()
+        contents = list(_history[-_HISTORY_SEND_MAX:])
+    note = ("[Tumhara pichhla jawab kacche tool-call JSON ki "
+            "shakal me bahar aane wala tha, isliye roka gaya. "
+            "Wahi kaam ab asal tool se karo: jo tool chalana tha "
+            "use abhi chalao aur kaam pura karke aakhri jawab "
+            "saade shabdon me do.]")
+    contents = contents + [{"role": "user",
+                            "parts": [{"text": note}]}]
+    extra = {"on_event": on_event} if on_event is not None else {}
+    reply2, used2 = _brain_run(contents, **extra)
+    if used2 is None:
+        return None
+    return reply2, used2
+
+
+def _plain_reask(contents: list, on_event=None):
+    """Dimag se EK baar saade shabdon me jawab maango - koi
+    JSON, koi tool-format nahi. Safal ho to saaf jawab (ya
+    None jab run hi fail ho jaye)."""
+    strict = ("[Ek mahatvapurna nirdesh: tumhara pichhla jawab "
+              "takneeki JSON ki shakal me aa gaya tha jo user ko "
+              "nahi dikh sakta. Ab user ke hukum ka jawab SIRF "
+              "saade shabdon me do - koi JSON nahi, koi tool "
+              "call nahi, koi code block nahi. Jo kaam ho chuka "
+              "hai use shabdon me batao; jo nahi hua uski saaf "
+              "wajah shabdon me do.]")
+    run_contents = list(contents) + [
+        {"role": "user", "parts": [{"text": strict}]}]
+    extra = {"on_event": on_event} if on_event is not None else {}
+    reply, used = _brain_run(run_contents, **extra)
+    if used is None:
+        return None
+    return reply
+
+
+# --------------------------------------------------------------------------
+# Aadha-hukum (v8.13) - upload/post wala hukum bina file ke
+# naam ke aaye aur dimag bina dekhe "kaunsi?" puchh le, to wo
+# jawab roka jata hai: ek andar wala hukum dimag ko pehle
+# find_file se KHUD dhoondhne par majboor karta hai. Prompt
+# me bhi yahi niyam hai (KAAM point 10); ye mechanism us
+# niyam ki peeche wali suraksha hai.
+# --------------------------------------------------------------------------
+
+_UPLOADISH_RE = re.compile(
+    r"\b(upload|post|share|publish|schedule|daal\s*do|daalo|"
+    r"bhej\s*do|bhejo)\b", re.IGNORECASE)
+_FILE_MENTION_RE = re.compile(
+    r"[\w\-. ]+\.(mp4|mov|mkv|avi|webm|mp3|wav|m4a|jpg|jpeg|"
+    r"png|webp|gif|pdf|zip|txt|docx?)\b", re.IGNORECASE)
+_QUESTIONY_RE = re.compile(
+    r"\?|kaunsi|kaun sa|kaunsa|konsi|konsa|which file|"
+    r"kya upload|kya post|kis file", re.IGNORECASE)
+
+
+def _half_order_hint(message: str, reply: str, used_tool,
+                     on_event=None):
+    """Aadha-hukum pakdo: bina file wala upload/post hukum +
+    bina tool chale sawaal-wala jawab = pehle khud dhoondo.
+    Sudhra hua (jawab, tool_chala_kya) mile, warna None
+    (matlab: ye pattern nahi hai, jawab jaisa hai waisa jaye)."""
+    if used_tool:
+        return None
+    if not _UPLOADISH_RE.search(message or ""):
+        return None
+    if _FILE_MENTION_RE.search(message or ""):
+        return None
+    if not _QUESTIONY_RE.search(reply or ""):
+        return None
+    log("AADHA-HUKUM: bina file wala hukum aur bina dekhe "
+        "sawaal - find_file wala andar-hukum bhej raha hu")
+    with _history_lock:
+        if _history and _history[-1].get("role") == "model":
+            _history.pop()
+        contents = list(_history[-_HISTORY_SEND_MAX:])
+    note = ("INTERNAL INSTRUCTION (user ko mat dikhana): User "
+            "ne upload/post wala hukum diya hai lekin koi file "
+            "NAHI batayi, aur tumne bina dekhe sawaal puchh "
+            "liya - ye galat hai. Pehle find_file tool se khud "
+            "dhoondo: hukum ke shabdo se aur aam media naamo "
+            "(video, reel, mp4) se khoj karo. Ek mazboot file "
+            "mile to usi par aage ka kaam karo aur jawab me "
+            "saaf batao kaunsi file chuni. Kai milein to sirf "
+            "ek line me sabse upar ke naam gin kar chunne ko "
+            "kaho. Ek bhi na mile to tab ek chhota sawaal pucho.")
+    contents = contents + [{"role": "user",
+                            "parts": [{"text": note}]}]
+    extra = {"on_event": on_event} if on_event is not None else {}
+    reply2, used2 = _brain_run(contents, **extra)
+    if used2 is None:
+        return None
+    return reply2, used2
+
+
+def _finalize_reply(message: str, contents: list, reply: str,
+                    used_tool, on_event=None) -> str:
+    """Brain ke jawab ko user tak pahunchane se pehle ki saari
+    jaanch ek jagah: error passthrough, aadha-hukum sudhaar,
+    guard khud-recovery, discipline re-ask - aur sabse aakhir
+    me (sab fail ho tab) canned guard line. Har bahar jane
+    wala jawab yahin se guzarta hai."""
+    extra = {"on_event": on_event} if on_event is not None else {}
+    if used_tool is None:
+        return _guard_no_tool_json(reply)  # error message
+    hinted = _half_order_hint(message, reply, used_tool, **extra)
+    if hinted is not None:
+        reply, used_tool = hinted
+        if used_tool is None:
+            return _guard_no_tool_json(reply)
+    if _TOOL_JSON_SHAPE.search(reply or ""):
+        # Guard trip - pehle khud-recovery: andar chhupa
+        # tool-call asal me chalao aur loop aage badhao.
+        recovered = _recover_tool_from_guarded(reply, **extra)
+        if recovered is not None:
+            reply, used_tool = recovered
+            if used_tool is None:
+                return _guard_no_tool_json(reply)
+    if not _TOOL_JSON_SHAPE.search(reply or ""):
+        if used_tool or not _has_action_intent(message):
+            return reply
+        # Discipline re-ask: sirf EK baar. Pehle history se wo
+        # text-wala model jawab hatao (re-ask uski jagah lega),
+        # phir sakht hukum ke saath dimag dobara chalao.
+        log("DISCIPLINE: action hukum par koi tool nahi chala - "
+            "strict re-ask (ek baar)")
+        with _history_lock:
+            if _history and _history[-1].get("role") == "model":
+                _history.pop()
+        strict_contents = contents + [
+            {"role": "user", "parts": [{"text": _STRICT_REASK}]}]
+        reply2, used2 = _brain_run(strict_contents, **extra)
+        if used2 is None:
+            return _guard_no_tool_json(reply)  # re-ask bhi fail
+        return _guard_no_tool_json(reply2)
+    # Recovery ke baad bhi jawab me kaccha JSON hai - ab EK
+    # baar saade shabdon me re-ask, phir hi canned line.
+    log("GUARD: recovery ke baad bhi JSON - saade shabdon me "
+        "ek re-ask")
+    with _history_lock:
+        if _history and _history[-1].get("role") == "model":
+            _history.pop()
+        base = list(_history[-_HISTORY_SEND_MAX:])
+    plain = _plain_reask(base, **extra)
+    if plain is not None and not _TOOL_JSON_SHAPE.search(plain):
+        return plain
+    return _guard_reply_text()
+
+
+def brain_ask(message: str, on_event=None) -> str:
     """Dimag se jawab lao - Groq pehle (key ho to), Gemini ladder
     peeche, aur discipline re-ask ke saath.
 
@@ -4407,33 +5430,23 @@ def brain_ask(message: str) -> str:
     message). Jawab aa jaye lekin hukum action wala ho aur koi tool
     na chala ho (sirf salah mili ho), to ek baar strict re-ask
     hota hai - ye niyam dono dimagon par lagta hai.
-    Har bahar jane wala jawab _guard_no_tool_json se guzarta
-    hai - kaccha tool-call JSON user ko kabhi nahi dikhta.
+    Har bahar jane wala jawab _finalize_reply se guzarta hai:
+    aadha-hukum sudhaar, guard khud-recovery (v8.13) aur sabse
+    aakhir me canned guard line - kaccha tool-call JSON user ko
+    kabhi nahi dikhta.
+    on_event (v8.13 streaming): (kind, text) wala callback UI ko
+    'status'/'delta' events bhejta hai; None ho to vyavhaar
+    bilkul v8.12 jaisa (koi streaming nahi).
     """
     with _history_lock:
         _history.append({"role": "user", "parts": [{"text": message}]})
         # Record intact rehta hai; dimag ko sirf aakhri
         # _HISTORY_SEND_MAX baariyan jati hain (v8.12).
         contents = list(_history[-_HISTORY_SEND_MAX:])
-    reply, used_tool = _brain_run(contents)
-    if used_tool is None:
-        return _guard_no_tool_json(reply)  # error message
-    if used_tool or not _has_action_intent(message):
-        return _guard_no_tool_json(reply)
-    # Discipline re-ask: sirf EK baar. Pehle history se wo text-wala
-    # model jawab hatao (re-ask uski jagah lega), phir sakht hukum
-    # ke saath dimag dobara chalao.
-    log("DISCIPLINE: action hukum par koi tool nahi chala - strict "
-        "re-ask (ek baar)")
-    with _history_lock:
-        if _history and _history[-1].get("role") == "model":
-            _history.pop()
-    strict_contents = contents + [
-        {"role": "user", "parts": [{"text": _STRICT_REASK}]}]
-    reply2, used2 = _brain_run(strict_contents)
-    if used2 is None:
-        return _guard_no_tool_json(reply)  # re-ask bhi fail
-    return _guard_no_tool_json(reply2)
+    extra = {"on_event": on_event} if on_event is not None else {}
+    reply, used_tool = _brain_run(contents, **extra)
+    return _finalize_reply(message, contents, reply, used_tool,
+                           **extra)
 
 
 _VISION_DEFAULT_TEXT = (
@@ -4500,8 +5513,8 @@ def _vision_describe(message: str, image_b64: str, image_mime: str):
     return None, _final_error_message(last_exc)
 
 
-def ask_agent(message: str, image: str = None,
-              image_mime: str = None) -> str:
+def _ask_agent_core(message: str, image: str = None,
+                    image_mime: str = None, on_event=None) -> str:
     """Single entry point used by both the chat loop and the HTTP hook.
 
     image (optional) = chat me bheji photo ka base64 data (bina
@@ -4541,7 +5554,8 @@ def ask_agent(message: str, image: str = None,
             return tool_browser_setup()
         if _is_dimag_test_command(message):
             return tool_dimag_test()
-        return brain_ask(augmented)
+        extra = {"on_event": on_event} if on_event is not None else {}
+        return brain_ask(augmented, **extra)
     if not message:
         return "Kuch likho to sahi, bhai."
     log(f"ASK: {message[:200]}")
@@ -4568,11 +5582,38 @@ def ask_agent(message: str, image: str = None,
     if demo_reply is not None:
         return demo_reply
     if GEMINI_API_KEY or GROQ_API_KEY:
-        return brain_ask(message)
+        extra = {"on_event": on_event} if on_event is not None else {}
+        return brain_ask(message, **extra)
     return ("Abhi main demo mode me hu - bina kisi key ke main sirf "
             "tool wale kaam kar sakta hu. 'help' likho, commands dikha dunga. "
             "Free chat ke liye config.env me apni free Gemini key (ya "
             "tez jawab ke liye Groq key) daal do.")
+
+
+def ask_agent(message: str, image: str = None,
+              image_mime: str = None, on_event=None) -> str:
+    """Har /ask ka asal darwaza (v8.13): andar ka kaam
+    _ask_agent_core karta hai; ye wrapper do nayi zimmedariyan
+    sambhalta hai -
+    1. Diary: user ki baat + agent ne kya kiya, tareekh ke
+       saath baatein.jsonl me (Amendment 1). Photo wale turn
+       par sirf caption save hota hai, photo kabhi nahi.
+    2. Session prefix: startup khud-jaanch ka one-time notice/
+       sehat line session ke PEHLE jawab ke upar judta hai.
+    Diary me jaane wala 'kya kiya' hissa ASAL jawab se banta
+    hai (prefix usme nahi jata)."""
+    reply = _ask_agent_core(message, image=image,
+                            image_mime=image_mime,
+                            on_event=on_event)
+    try:
+        did = re.sub(r"\s+", " ", (reply or "")).strip()
+        _diary_append((message or "").strip(), did)
+    except Exception as exc:
+        log(f"DIARY wrapper fail (jawab par asar nahi): {exc}")
+    prefix = _take_session_prefix()
+    if prefix:
+        return prefix + "\n\n" + reply
+    return reply
 
 # --------------------------------------------------------------------------
 # Premium chat screen (served at GET /) - same design as the phone app.
@@ -4585,10 +5626,10 @@ def ask_agent(message: str, image: str = None,
 # me NAYI screen hi dikhegi, purani ui.html use rok nahi sakti.
 # --------------------------------------------------------------------------
 
-UI_VERSION = 2
+UI_VERSION = 3
 
 UI_HTML = r'''<!DOCTYPE html>
-<!-- myagent-ui-version: 2 -->
+<!-- myagent-ui-version: 3 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -4651,6 +5692,7 @@ UI_HTML = r'''<!DOCTYPE html>
   @keyframes in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
   .msgrow.user { justify-content: flex-end; }
   .msgrow.agent { justify-content: flex-start; }
+  .workline { font-size: 12.5px; color: #8FB6DE; padding: 2px 6px 2px 14px; margin: -6px 0 9px; letter-spacing: .2px; animation: in .24s ease-out; }
   .bubble { max-width: 82%; padding: 13px 16px; font-size: 15.5px; line-height: 1.65; word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; }
   .msgrow.user .bubble {
     color: #fff; border-radius: 20px 20px 5px 20px;
@@ -5132,32 +6174,98 @@ UI_HTML = r'''<!DOCTYPE html>
     showTyping();
     var payload = { message: text, pin: getPin() };
     if (photo) { payload.image = photo.image; payload.image_mime = photo.mime; }
+    else { payload.stream = true; }
     fetch("/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     }).then(function (res) {
-      return res.text().then(function (bodyText) { return { status: res.status, bodyText: bodyText }; });
-    }).then(function (r) {
-      hideTyping();
-      if (r.status === 403) {
+      if (res.status === 403) {
+        hideTyping();
         setPin("");
         addBubble("agent", "PIN galat hai bhai — agent ne mana kar diya. config.env me jo AGENT_PIN rakha tha, wahi PIN dobara daalo.", true);
         openPinGate("PIN galat tha. Dobara try karo — PIN config.env file me AGENT_PIN ke saamne likha hai.");
         return;
       }
-      var data = null;
-      try { data = JSON.parse(r.bodyText); } catch (e) {}
-      if (r.status !== 200 || !data || typeof data.reply !== "string") {
-        addBubble("agent", "Kuch gadbad ho gayi (server se sahi jawab nahi aaya). Agent wali kaali window chal rahi hai ya nahi, ek baar dekh lo, phir dobara bhejo.", true);
-        return;
+      var ctype = res.headers.get("Content-Type") || "";
+      if (!photo && res.body && ctype.indexOf("text/event-stream") >= 0) {
+        return readAskStream(res);
       }
-      addBubble("agent", data.reply);
+      return res.text().then(function (bodyText) {
+        hideTyping();
+        var data = null;
+        try { data = JSON.parse(bodyText); } catch (e) {}
+        if (res.status !== 200 || !data || typeof data.reply !== "string") {
+          addBubble("agent", "Kuch gadbad ho gayi (server se sahi jawab nahi aaya). Agent wali kaali window chal rahi hai ya nahi, ek baar dekh lo, phir dobara bhejo.", true);
+          return;
+        }
+        addBubble("agent", data.reply);
+      });
     }).catch(function () {
       hideTyping();
       addBubble("agent", "Agent se jud nahi paya — lagta hai program band hai. Pehle start.bat se agent chalao, phir ye page refresh karke dobara bhejo.", true);
     }).finally(function () {
       busy = false; sendBtn.disabled = false;
+    });
+  }
+
+  /* Streaming jawab (v8.13): /ask se SSE frames aate hain -
+     status (kaam chal raha hai wali chhoti line), delta
+     (jawab ke tukde) aur final (PURA asal jawab). Bubble
+     delta se bharti hai, lekin final aate hi usi se dobara
+     render hoti hai: final hi asal hai, isliye stream beech
+     me toote to bhi jawab na khota hai na dohra hota. */
+  function readAskStream(res) {
+    hideTyping();
+    var row = addBubble("agent", "…");
+    var bubbleEl = row.querySelector(".bubble");
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buf = "", streamed = "", gotFinal = false;
+    function handleFrame(frame) {
+      var ev = "message", dataLine = "";
+      var lines = frame.split("\n");
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].indexOf("event:") === 0) ev = lines[i].slice(6).replace(/^\s+|\s+$/g, "");
+        else if (lines[i].indexOf("data:") === 0) dataLine += lines[i].slice(5).replace(/^\s+/, "");
+      }
+      if (!dataLine) return;
+      var val = dataLine;
+      try { val = JSON.parse(dataLine); } catch (e) {}
+      if (typeof val !== "string") return;
+      if (ev === "status") {
+        var w = document.createElement("div");
+        w.className = "workline"; w.textContent = val;
+        chatEl.insertBefore(w, row); scrollDown();
+      } else if (ev === "delta") {
+        streamed += val;
+        bubbleEl.innerHTML = renderRich(streamed); scrollDown();
+      } else if (ev === "final") {
+        gotFinal = true;
+        bubbleEl.innerHTML = renderRich(val || streamed || "(koi jawab nahi aaya)");
+        scrollDown();
+      }
+    }
+    function pump() {
+      return reader.read().then(function (part) {
+        if (part.done) {
+          if (buf.replace(/\s+/g, "")) handleFrame(buf);
+          if (!gotFinal && !streamed) bubbleEl.innerHTML = renderRich("(koi jawab nahi aaya)");
+          return;
+        }
+        buf += decoder.decode(part.value, { stream: true });
+        var idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          handleFrame(buf.slice(0, idx));
+          buf = buf.slice(idx + 2);
+        }
+        return pump();
+      });
+    }
+    return pump().catch(function () {
+      if (!gotFinal && !streamed) {
+        bubbleEl.innerHTML = renderRich("Jawab aate-aate ruk gaya — dobara bhej kar dekho.");
+      }
     });
   }
 
@@ -5288,10 +6396,60 @@ class AskHandler(BaseHTTPRequestHandler):
         # Photo (optional): "image" = base64 data (bina data-URL
         # prefix ke), "image_mime" = uska mime (image/png adi).
         img = payload.get("image")
-        reply = ask_agent(str(payload.get("message", "")),
-                          image=img if isinstance(img, str) else None,
+        img = img if isinstance(img, str) else None
+        message = str(payload.get("message", ""))
+        # Streaming (v8.13): UI "stream": true bheje aur photo
+        # na ho to jawab SSE se bante-bante jata hai. Photo
+        # wale turn aur purane client hamesha JSON wale raaste
+        # par hi rehte hain (wo rasta ayn waisa hi hai).
+        if payload.get("stream") and not img:
+            self._ask_stream(message)
+            return
+        reply = ask_agent(message, image=img,
                           image_mime=payload.get("image_mime"))
         self._send_json(200, {"reply": reply})
+
+    def _sse_send(self, event: str, data: str) -> None:
+        """Ek SSE frame bhejo: event ka naam + JSON-encoded
+        data (JSON isliye, taaki nayi lines/quotes frame ko
+        kabhi na todein)."""
+        frame = (f"event: {event}\n"
+                 f"data: {json.dumps(data, ensure_ascii=False)}\n\n")
+        self.wfile.write(frame.encode("utf-8"))
+        self.wfile.flush()
+
+    def _ask_stream(self, message: str) -> None:
+        """Streaming wala /ask (v8.13): 'status' events (tool
+        kadam), 'delta' events (jawab ke tukde) aur aakhir me
+        EK 'final' event jisme PURA asal jawab hota hai - UI
+        usi ko asal manta hai, isliye stream beech me toote
+        to bhi jawab na khota hai na dohra hota. Content-
+        Length nahi bhejte: HTTP/1.0 par body connection band
+        hone par khatm hoti hai."""
+        self.send_response(200)
+        self.send_header("Content-Type",
+                         "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        self.close_connection = True
+
+        def _on_event(kind, text):
+            try:
+                self._sse_send(kind, text)
+            except Exception:
+                pass  # UI gaya to bhi agent apna kaam karega
+
+        try:
+            reply = ask_agent(message, on_event=_on_event)
+        except Exception as exc:
+            log(f"HTTP /ask stream fail: {exc}")
+            reply = ("Kuch gadbad ho gayi - ek baar phir se "
+                     "bolo, main dobara koshish karta hu.")
+        try:
+            self._sse_send("final", reply)
+        except Exception:
+            pass
 
 
 def start_http_server() -> ThreadingHTTPServer:
@@ -5316,6 +6474,10 @@ def main() -> int:
 
     ensure_bundled_skills()
     ensure_ui_file()
+    ensure_diary_file()
+    # Startup khud-jaanch (v8.13): naya version + sehat -
+    # background me, engine ko bina roke.
+    _start_startup_checks()
 
     if not args.no_server:
         start_http_server()
