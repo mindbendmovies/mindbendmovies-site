@@ -51,11 +51,13 @@
   .card .t { font-size: 13px; font-weight: 600; line-height: 1.35; padding: 8px 9px 6px; flex: 1; }
   .card .wn { margin: 0 9px 10px; background: #0072ce; color: #fff; text-align: center; font-size: 13px; font-weight: 700; padding: 8px 4px; border-radius: 999px; border: 0; cursor: pointer; }
   /* Top 10 */
-  .top10 { display: flex; gap: 14px; overflow-x: auto; padding: 6px 2px 12px; }
-  .t10 { display: flex; align-items: flex-end; flex: none; }
-  .t10 .num { font-size: 74px; font-weight: 900; line-height: .8; color: transparent; -webkit-text-stroke: 2.5px #0072ce; margin-right: -8px; z-index: 1; }
-  .t10 img { width: 108px; height: 162px; object-fit: cover; border-radius: 10px; }
-  .t10 .tt { font-size: 12px; font-weight: 600; width: 108px; margin-top: 6px; line-height: 1.3; }
+  .top10 { display: flex; gap: 14px; overflow-x: auto; padding: 6px 10px 12px; }
+  .t10w { flex: 0 0 auto; }
+  .t10 { display: flex; align-items: flex-end; }
+  .t10 .num { font-size: 74px; font-weight: 900; line-height: .8; color: transparent; -webkit-text-stroke: 2.5px #0072ce; margin-right: -8px; z-index: 1; flex: none; }
+  .t10 a { flex: none; }
+  .t10 img { width: 108px; height: 162px; object-fit: cover; border-radius: 10px; display: block; }
+  .t10w .tt { font-size: 12.5px; font-weight: 600; margin-top: 6px; line-height: 1.3; max-width: 170px; }
   /* Today's movie */
   .today { display: flex; gap: 16px; background: linear-gradient(135deg, #1b1b24, #131a24); border: 1px solid #26262f; border-radius: 14px; padding: 16px; }
   .today img { width: 110px; border-radius: 10px; flex: none; }
@@ -327,6 +329,7 @@ COMING.forEach(function (m) { cg.appendChild(card(m)); });
 var t10 = document.getElementById('top10Row');
 TOP10.forEach(function (m, i) {
   var d = document.createElement('div');
+  d.className = 't10w';
   d.innerHTML = '<div class="t10"><div class="num">' + (i + 1) + '</div><a href="' + POST + '"><img loading="lazy" src="' + poster(m[1]) + '" alt="' + m[0] + ' poster"></a></div><div class="tt">' + m[0] + '</div>';
   t10.appendChild(d);
 });
