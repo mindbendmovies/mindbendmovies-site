@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Agent - PC half, v8.2 - Muse-style: persistent memory (MEMORY.md),
+My Agent - PC half, v8.3 - Muse-style: persistent memory (MEMORY.md),
 2-model ladder (jo model jawab de, usi se kaam), verify-before-done
 workflow rules, busy-server (503/429) retries with honest per-error
 messages, aur SELF-UPDATE: 'update' likhne par naya version khud
@@ -16,6 +16,15 @@ Groq ka tez model jawab deta hai, wahi tool protocol aur wahi
 discipline; Groq atak jaye - timeout, busy, ya galat key (401) - to
 agent khud Gemini ladder par gir jata hai. Bina Groq key ke vyavhaar
 bilkul v8.1 jaisa hai.)
+v8.3: BROWSER HAATH - agent ab apna khaas Chrome khud chalata hai
+(Chrome DevTools Protocol, sirf stdlib WebSocket - browser_hand/
+cdp_client.py wala proven code is file ke andar shabdashah merge
+hai). 'browser setup karo' bolne par user ke Chrome ka ek alag
+profile (agent_chrome_profile/) khulta hai jisme user EK BAAR khud
+login karta hai; uske baad browser_open/read/click/type/
+upload_file tools se logged-in sites (Facebook/YouTube adi) ka
+asal kaam hota hai. Password agent kabhi nahi mangta, dekhta ya
+store karta.
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
@@ -31,6 +40,8 @@ Stdlib only. No pip installs needed. Python 3.9+.
 """
 
 import argparse
+import base64
+import hashlib
 import hmac
 import html
 import json
@@ -39,6 +50,7 @@ import platform
 import re
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import threading
@@ -69,7 +81,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.2"
+AGENT_VERSION = "8.3"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -203,6 +215,31 @@ WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tool chalane ke baad hi apne jawab me result batao. Bina tool
   chalaye "kar dunga / ho jayega" wale waade bhi mat karo.
 
+BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
+- Tumhare paas ek khaas Chrome hai jise tum browser wale tools se
+  khud chala sakte ho. Wo Ankit ke roz wale Chrome se ALAG hai;
+  Ankit usme ek baar khud login karta hai ('browser setup karo'
+  command se khulta hai). Browser tool se jawab aaye ki Chrome
+  taiyaar nahi hai, to Ankit ko bas 'browser setup karo' likhne ko
+  bolo - usse aage khud kuch mat karo.
+- Login wali site ka kaam ho (Facebook/YouTube/TikTok par upload,
+  post, comments padhna) to pehle matching skill padho, phir
+  browser tools se kaam karo: browser_open se page kholo,
+  browser_read se dekho page par kya hai, phir click/type/upload.
+- Password KABHI mat mango, mat bharo, mat store karo. Login
+  sirf Ankit ke haath ka kaam hai.
+- Page par login check, CAPTCHA, 2FA ya "confirm it's you" jaisi
+  screen dikhe to TURANT ruk jao aur Ankit ko bolo ki wo screen
+  khud sambhale. Use solve ya bypass karne ki koshish kabhi mat
+  karna.
+- Upload/post wale kaam me saari taiyaari khud karo - file
+  lagana, caption bharna, browser_read se verify karna - lekin
+  AAKHRI Post/Publish wala click Ankit ke liye chhodo, jab tak
+  Ankit usi baat-cheet me saaf na bol de ki "post kar do".
+- Har browser kadam ke baad browser_read se page dobara padho;
+  andhere me click mat karo. Kuch na mile to saaf batao page par
+  kya dikh raha hai.
+
 TOOL PROTOCOL: If you need a tool, reply with ONLY a JSON object like
 {"tool": "list_files", "args": {"path": ""}} and nothing else.
 FORMAT RULE (bahut zaroori): tool call wala jawab SIRF wahi ek JSON
@@ -228,6 +265,17 @@ Available tools:
 - speak_to_file(text, filename)  make a voice audio file inside work/
 - agent_update()             check for a newer version of myself and
                              install it (engine restart ke baad lagega)
+- browser_open(url)          agent wale Chrome me page kholo
+                             (logged-in sites ke kaam ke liye; Chrome
+                             taiyaar na ho to user ko 'browser setup
+                             karo' likhne ko bolo)
+- browser_read()             abhi khule page ka title + text padho
+- browser_click(target)      page par button/link dabao - target ek
+                             CSS selector ya dikhai dene wala text hai
+- browser_type(target, text) kisi field me likho (caption, title adi)
+- browser_upload_file(target, path)  page ke file-input par file
+                             lagao (path = is PC par file ka pura
+                             path, aam taur par work/ folder se)
 If no tool is needed, reply in plain text only (no JSON)."""
 
 # --------------------------------------------------------------------------
@@ -727,6 +775,774 @@ def _is_update_command(low: str) -> bool:
 
 
 # --------------------------------------------------------------------------
+# Browser haath (v8.3) - agent apna khaas Chrome KHUD chalata hai.
+#
+# Mechanism: Chrome DevTools Protocol (CDP). Chrome ek DEDICATED
+# profile (agent_chrome_profile/, is file ke bilkul paas) ke saath
+# --remote-debugging-port=9222 par chalta hai; agent localhost par
+# WebSocket se usse baat karta hai. User us Chrome me EK BAAR khud
+# login karta hai - password agent kabhi nahi mangta, dekhta ya
+# store karta. Chrome 136+ remote debugging ko default profile par
+# chalne hi nahi deta, isliye alag profile sirf suraksha nahi,
+# zaroorat bhi hai. Poora plan: BROWSER_PLAN.md.
+#
+# Neeche pehle CDP client hai - browser_hand/cdp_client.py se
+# SHABDASHAH (verbatim) copy, do marker lines ke beech band. Wahi
+# code browser_hand/demo.py ke 7/7 live test se proven hai; yahan
+# use dobara NAHI likha gaya, taaki merge me uska vyavhaar ek inch
+# bhi na badle. (File-level imports - base64, hashlib, struct,
+# socket, json, os, urllib.request - dono me common hain.)
+# --------------------------------------------------------------------------
+
+# ===== CDP CLIENT: verbatim copy of browser_hand/cdp_client.py =====
+WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+OP_CONT, OP_TEXT, OP_BIN, OP_CLOSE, OP_PING, OP_PONG = 0x0, 0x1, 0x2, 0x8, 0x9, 0xA
+
+
+class WebSocketError(Exception):
+    pass
+
+
+class WebSocket:
+    """Blocking WebSocket client for ws:// URLs (no TLS)."""
+
+    def __init__(self, url, timeout=15.0):
+        self.url = url
+        self.timeout = timeout
+        self._buf = bytearray()
+        self._frag = bytearray()
+        self._frag_opcode = None
+        self.sock = None
+        self._connect(url)
+
+    # ---- handshake -----------------------------------------------------
+    def _connect(self, url):
+        if not url.startswith("ws://"):
+            raise WebSocketError("only ws:// supported (CDP is localhost): %r" % url)
+        rest = url[5:]
+        if "/" in rest:
+            hostport, path = rest.split("/", 1)
+            path = "/" + path
+        else:
+            hostport, path = rest, "/"
+        if ":" in hostport:
+            host, port = hostport.rsplit(":", 1)
+            port = int(port)
+        else:
+            host, port = hostport, 80
+
+        self.sock = socket.create_connection((host, port), timeout=self.timeout)
+        self.sock.settimeout(self.timeout)
+
+        key = base64.b64encode(os.urandom(16)).decode("ascii")
+        req = (
+            "GET %s HTTP/1.1\r\n"
+            "Host: %s\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            "Sec-WebSocket-Key: %s\r\n"
+            "Sec-WebSocket-Version: 13\r\n"
+            "\r\n" % (path, hostport, key)
+        )
+        self.sock.sendall(req.encode("ascii"))
+
+        # Read headers (byte-by-byte into buffer until \r\n\r\n).
+        while b"\r\n\r\n" not in self._buf:
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise WebSocketError("connection closed during handshake")
+            self._buf.extend(chunk)
+        head, _, restbuf = bytes(self._buf).partition(b"\r\n\r\n")
+        self._buf = bytearray(restbuf)
+
+        status_line = head.split(b"\r\n", 1)[0].decode("latin-1")
+        if " 101" not in status_line:
+            raise WebSocketError("handshake refused: %s" % status_line)
+        expect = base64.b64encode(
+            hashlib.sha1((key + WS_GUID).encode("ascii")).digest()
+        ).decode("ascii")
+        if expect.encode() not in head:
+            raise WebSocketError("bad Sec-WebSocket-Accept in handshake")
+
+    # ---- frame io ------------------------------------------------------
+    def _read_exact(self, n):
+        while len(self._buf) < n:
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise WebSocketError("connection closed by peer")
+            self._buf.extend(chunk)
+        out = bytes(self._buf[:n])
+        del self._buf[:n]
+        return out
+
+    def _send_frame(self, opcode, payload):
+        if isinstance(payload, str):
+            payload = payload.encode("utf-8")
+        mask = os.urandom(4)
+        header = bytearray([0x80 | opcode])
+        ln = len(payload)
+        if ln < 126:
+            header.append(0x80 | ln)
+        elif ln < 65536:
+            header.append(0x80 | 126)
+            header.extend(struct.pack(">H", ln))
+        else:
+            header.append(0x80 | 127)
+            header.extend(struct.pack(">Q", ln))
+        header.extend(mask)
+        masked = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+        self.sock.sendall(bytes(header) + masked)
+
+    def send_text(self, text):
+        self._send_frame(OP_TEXT, text)
+
+    def recv_message(self):
+        """Return the next complete text/binary message as str, or None on close."""
+        while True:
+            b0, b1 = self._read_exact(2)
+            fin = bool(b0 & 0x80)
+            opcode = b0 & 0x0F
+            masked = bool(b1 & 0x80)
+            ln = b1 & 0x7F
+            if ln == 126:
+                ln = struct.unpack(">H", self._read_exact(2))[0]
+            elif ln == 127:
+                ln = struct.unpack(">Q", self._read_exact(8))[0]
+            mask = self._read_exact(4) if masked else None
+            payload = self._read_exact(ln) if ln else b""
+            if mask:
+                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+
+            if opcode == OP_PING:
+                self._send_frame(OP_PONG, payload)
+                continue
+            if opcode == OP_PONG:
+                continue
+            if opcode == OP_CLOSE:
+                try:
+                    self._send_frame(OP_CLOSE, b"")
+                except Exception:
+                    pass
+                return None
+            if opcode in (OP_TEXT, OP_BIN, OP_CONT):
+                if opcode != OP_CONT:
+                    self._frag = bytearray(payload)
+                    self._frag_opcode = opcode
+                else:
+                    self._frag.extend(payload)
+                if fin:
+                    data = bytes(self._frag)
+                    self._frag = bytearray()
+                    return data.decode("utf-8", errors="replace")
+                continue
+            # Unknown opcode: ignore frame.
+
+    def close(self):
+        try:
+            self._send_frame(OP_CLOSE, b"")
+        except Exception:
+            pass
+        try:
+            self.sock.close()
+        except Exception:
+            pass
+
+
+class CDPError(Exception):
+    def __init__(self, method, error):
+        super().__init__("CDP %s failed: %s" % (method, error))
+        self.method = method
+        self.error = error
+
+
+def http_json(port, path, host="127.0.0.1", timeout=5.0):
+    with urllib.request.urlopen(
+        "http://%s:%d%s" % (host, port, path), timeout=timeout
+    ) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+class CDPClient:
+    """Synchronous CDP client over the browser-level WebSocket, using
+    flattened target sessions (Target.attachToTarget with flatten=True)."""
+
+    def __init__(self, port=9222, host="127.0.0.1", timeout=20.0):
+        version = http_json(port, "/json/version", host=host)
+        ws_url = version["webSocketDebuggerUrl"]
+        self.ws = WebSocket(ws_url, timeout=timeout)
+        self.timeout = timeout
+        self._next_id = 0
+        self.events = []  # buffered (method, session_id, params)
+
+    def call(self, method, params=None, session_id=None, timeout=None):
+        self._next_id += 1
+        mid = self._next_id
+        msg = {"id": mid, "method": method, "params": params or {}}
+        if session_id:
+            msg["sessionId"] = session_id
+        self.ws.send_text(json.dumps(msg))
+        while True:
+            raw = self.ws.recv_message()
+            if raw is None:
+                raise CDPError(method, "websocket closed")
+            data = json.loads(raw)
+            if data.get("id") == mid:
+                if "error" in data:
+                    raise CDPError(method, data["error"])
+                return data.get("result", {})
+            if "method" in data:
+                self.events.append(
+                    (data["method"], data.get("sessionId"), data.get("params", {}))
+                )
+
+    def wait_event(self, method, session_id=None, timeout=10.0):
+        """Return params of the next matching event (checks buffered ones first)."""
+        import time
+
+        deadline = time.time() + timeout
+        while True:
+            for i, (m, sid, params) in enumerate(self.events):
+                if m == method and (session_id is None or sid == session_id):
+                    del self.events[i]
+                    return params
+            if time.time() > deadline:
+                raise TimeoutError("timed out waiting for %s" % method)
+            # Pump the socket briefly by issuing a zero-cost read cycle:
+            self.ws.sock.settimeout(min(0.5, max(0.05, deadline - time.time())))
+            try:
+                raw = self.ws.recv_message()
+            except socket.timeout:
+                continue
+            finally:
+                self.ws.sock.settimeout(self.timeout)
+            if raw is None:
+                raise CDPError(method, "websocket closed while waiting")
+            data = json.loads(raw)
+            if "method" in data:
+                self.events.append(
+                    (data["method"], data.get("sessionId"), data.get("params", {}))
+                )
+            elif "id" in data:
+                # A response with no waiter (shouldn't happen in sync use);
+                # drop it rather than deadlock.
+                pass
+
+    # ---- high-level helpers -------------------------------------------
+    def new_page(self, url="about:blank"):
+        """Create a tab and attach to it. Returns session_id."""
+        target = self.call("Target.createTarget", {"url": url})
+        attached = self.call(
+            "Target.attachToTarget",
+            {"targetId": target["targetId"], "flatten": True},
+        )
+        return attached["sessionId"]
+
+    def evaluate(self, session_id, expression, timeout=None):
+        """Runtime.evaluate with returnByValue; returns the JS value."""
+        result = self.call(
+            "Runtime.evaluate",
+            {
+                "expression": expression,
+                "returnByValue": True,
+                "awaitPromise": True,
+            },
+            session_id=session_id,
+            timeout=timeout,
+        )
+        if "exceptionDetails" in result:
+            raise CDPError("Runtime.evaluate", result["exceptionDetails"])
+        return result.get("result", {}).get("value")
+
+    def navigate(self, session_id, url, wait_load=True, load_timeout=20.0):
+        self.call("Page.enable", session_id=session_id)
+        result = self.call("Page.navigate", {"url": url}, session_id=session_id)
+        if result.get("errorText"):
+            raise CDPError("Page.navigate", result["errorText"])
+        if wait_load:
+            try:
+                self.wait_event(
+                    "Page.loadEventFired", session_id=session_id, timeout=load_timeout
+                )
+            except TimeoutError:
+                # Fall back to readyState polling — some pages fire load
+                # before we attach listeners.
+                import time
+
+                deadline = time.time() + 5
+                while time.time() < deadline:
+                    state = self.evaluate(session_id, "document.readyState")
+                    if state == "complete":
+                        break
+                    time.sleep(0.2)
+                else:
+                    raise
+        return result
+
+    def close(self):
+        self.ws.close()
+# ===== END CDP CLIENT =====
+
+BROWSER_DEBUG_PORT = 9222
+BROWSER_PROFILE_DIR = BASE_DIR / "agent_chrome_profile"
+BROWSER_READ_MAX = 20000  # web_fetch ki tarah - page text ki hadd
+
+_browser_lock = threading.Lock()
+_browser_client = None   # CDPClient (browser-level connection)
+_browser_session = None  # attach hua hua page session
+
+
+def _find_chrome():
+    """User ke installed Chrome ka rasta dhoondo; na mile to None.
+
+    Windows par standard install wale sthan pehle dekhe jate hain,
+    phir PATH. Dusre OS par bhi wahi koshish (dev/test ke liye).
+    """
+    candidates = []
+    system = platform.system()
+    if system == "Windows":
+        for env in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+            root = os.environ.get(env)
+            if root:
+                candidates.append(Path(root) / "Google" / "Chrome" /
+                                  "Application" / "chrome.exe")
+    elif system == "Darwin":
+        candidates.append(Path("/Applications/Google Chrome.app"
+                               "/Contents/MacOS/Google Chrome"))
+    for cand in candidates:
+        if cand.is_file():
+            return str(cand)
+    for name in ("chrome", "google-chrome", "google-chrome-stable",
+                 "chromium", "chromium-browser"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+def _browser_setup_needed_msg() -> str:
+    return ("Agent wala Chrome abhi chal nahi raha hai. Pehle chat "
+            "me likho: 'browser setup karo' - ek alag Chrome "
+            "khulega, usme tum ek baar khud login kar loge, phir "
+            "main wahi se tumhara kaam karunga. (Password main "
+            "kabhi nahi mangta aur kabhi store nahi karta - login "
+            "hamesha tumhare haath me rahega.)")
+
+
+# ----------------------------------------------------------------------
+# 'browser setup karo' - agent wala Chrome kholne ka hukum. Ye bhi
+# update/site commands ki tarah demo/Gemini dispatch se PEHLE pakda
+# jata hai (ask_agent me), taaki bina dimag ke turant chale.
+# ----------------------------------------------------------------------
+
+_BROWSER_SETUP_TRIGGERS = ("browser setup karo", "browser setup")
+
+
+def _is_browser_setup_command(low: str) -> bool:
+    """'browser setup karo' hukum ki pehchan (dono modes ke liye)."""
+    return (low or "").strip().lower() in _BROWSER_SETUP_TRIGGERS
+
+
+def tool_browser_setup() -> str:
+    """Agent wala Chrome kholo - dedicated profile ke saath.
+
+    User us window me EK BAAR khud login karega. Password agent
+    kabhi nahi mangta, dekhta ya store karta - login hamesha user
+    ke haath me hai, aur ye baat jawab me saaf kahi jati hai.
+    """
+    marker = BROWSER_PROFILE_DIR / "DevToolsActivePort"
+    try:
+        http_json(BROWSER_DEBUG_PORT, "/json/version", timeout=2.0)
+        port_alive = True
+    except Exception:
+        port_alive = False
+    if port_alive and marker.is_file():
+        return ("Agent wala Chrome pehle se khula hua hai - kaam "
+                "usi window me hoga. Agar usme login nahi hai to "
+                "pehle khud login kar lo, phir hukum do.")
+    if port_alive:
+        return ("Port 9222 par pehle se kuch aur chal raha hai, "
+                "isliye agent wala Chrome nahi khol paya. Use band "
+                "karke 'browser setup karo' dobara likho.")
+    chrome = _find_chrome()
+    if not chrome:
+        log("BROWSER SETUP fail: is PC par Chrome nahi mila")
+        return ("Is PC par Google Chrome mila hi nahi. Pehle "
+                "Chrome install karo (google.com/chrome se), phir "
+                "'browser setup karo' likhna - main dobara try "
+                "karunga.")
+    try:
+        BROWSER_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        return f"Browser ki profile folder nahi ban payi: {exc}"
+    args = [chrome,
+            f"--remote-debugging-port={BROWSER_DEBUG_PORT}",
+            "--remote-debugging-address=127.0.0.1",
+            f"--user-data-dir={BROWSER_PROFILE_DIR}",
+            "--no-first-run",
+            "--new-window",
+            "https://www.facebook.com"]
+    try:
+        if platform.system() == "Windows":
+            # DETACHED_PROCESS (0x8): Chrome engine ke band hone par
+            # bhi khula rahe - apni alag zindagi jiye.
+            subprocess.Popen(args, creationflags=0x00000008)
+        else:
+            subprocess.Popen(args, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+    except Exception as exc:
+        log(f"BROWSER SETUP fail: Chrome launch error: {exc}")
+        return f"Chrome kholne me dikkat aayi: {exc}"
+    for _ in range(20):
+        try:
+            http_json(BROWSER_DEBUG_PORT, "/json/version", timeout=2.0)
+            break
+        except Exception:
+            time.sleep(0.5)
+    else:
+        log("BROWSER SETUP: Chrome khula lekin devtools taiyaar nahi")
+        return ("Chrome khol to diya hai, lekin uska control abhi "
+                "taiyaar nahi hua. Thoda ruk kar koi browser wala "
+                "hukum do; phir bhi na ho to Chrome band karke "
+                "'browser setup karo' dobara likho.")
+    log("BROWSER SETUP: agent wala Chrome khul gaya (dedicated profile)")
+    return ("Agent wala Chrome khul gaya hai - usme Facebook khula "
+            "hoga. Ab us window me TUM KHUD Facebook (aur chaho to "
+            "YouTube/TikTok) me login kar lo. Ye login sirf EK "
+            "BAAR karna hoga - is profile me login yaad rahega.\n"
+            "Saaf baat: main tumhara password KABHI nahi mangunga, "
+            "dekhunga ya store karunga - login hamesha tumhare "
+            "haath me hai.\n"
+            "Login ho jaye to bas hukum do - jaise 'facebook kholo' "
+            "ya 'is video ko upload kar do'.")
+
+
+# ----------------------------------------------------------------------
+# Connection - lazy: pehle browser tool par banta hai, phir cached
+# rehta hai. Chrome band ho jaye to agli koshish khud reset karke
+# saaf wajah deti hai.
+# ----------------------------------------------------------------------
+
+
+def _browser_reset():
+    global _browser_client, _browser_session
+    try:
+        if _browser_client is not None:
+            _browser_client.close()
+    except Exception:
+        pass
+    _browser_client = None
+    _browser_session = None
+
+
+def _browser_connect():
+    """Agent wale Chrome se CDP connection banao (lazy + cached).
+
+    Safal ho to (client, session_id); warna (None, wajah) - wajah
+    user ko dikhane layak Hinglish message hai. Sirf WAHI Chrome
+    qabool hai jo hamari dedicated profile se chala ho - uski
+    pehchan profile folder ki DevToolsActivePort file hai.
+    """
+    global _browser_client, _browser_session
+    if _browser_client is not None and _browser_session:
+        try:
+            _browser_client.evaluate(_browser_session, "1")
+            return _browser_client, _browser_session
+        except Exception:
+            _browser_reset()
+    try:
+        http_json(BROWSER_DEBUG_PORT, "/json/version", timeout=3.0)
+    except Exception:
+        return None, _browser_setup_needed_msg()
+    if not (BROWSER_PROFILE_DIR / "DevToolsActivePort").is_file():
+        return None, ("Port 9222 par kuch chal raha hai, lekin wo "
+                      "agent wala Chrome nahi lagta - uski profile "
+                      "(agent_chrome_profile) yahan nahi mili. Chat "
+                      "me likho: 'browser setup karo' - sahi Chrome "
+                      "wahi se khulega.")
+    try:
+        client = CDPClient(port=BROWSER_DEBUG_PORT, timeout=20.0)
+        session = None
+        targets = client.call("Target.getTargets").get("targetInfos", [])
+        for t in targets:
+            if t.get("type") != "page":
+                continue
+            turl = t.get("url", "")
+            if turl.startswith(("chrome://", "devtools://",
+                                "chrome-extension://")):
+                continue
+            try:
+                session = client.call(
+                    "Target.attachToTarget",
+                    {"targetId": t["targetId"], "flatten": True},
+                )["sessionId"]
+                break
+            except Exception:
+                continue
+        if session is None:
+            session = client.new_page("about:blank")
+        client.call("Runtime.enable", session_id=session)
+        _browser_client, _browser_session = client, session
+        log("BROWSER: agent wale Chrome se connect ho gaya")
+        return client, session
+    except Exception as exc:
+        _browser_reset()
+        return None, (f"Browser se connect nahi ho paya ({exc}). "
+                      + _browser_setup_needed_msg())
+
+
+def _with_browser(work) -> str:
+    """Ek browser wala kaam chalao: connection lazy banta hai, har
+    haar par saaf Hinglish jawab milta hai (kabhi crash nahi), aur
+    kharab connection reset ho jata hai taaki agli koshish taza ho.
+    Saare browser kaam ek lock ke andar - ek samay par ek hi kadam.
+    """
+    with _browser_lock:
+        client, session = _browser_connect()
+        if client is None:
+            return session  # session ki jagah wajah wala message hai
+        try:
+            return work(client, session)
+        except CDPError as exc:
+            _browser_reset()
+            return f"Browser ne mana kar diya: {exc}"
+        except Exception as exc:  # browser tools kabhi crash nahi karte
+            _browser_reset()
+            return f"Browser wala kaam atak gaya: {exc}"
+
+
+# ----------------------------------------------------------------------
+# Page ke andar element dhoondhne wale JS tukde. Pehle CSS selector
+# try hota hai, phir dikhai dene wala text/label. Yehi tareeka
+# demo.py me proven hai (wahan inline tha, yahan function roop me).
+# ----------------------------------------------------------------------
+
+_CLICK_FIND_JS = """
+function (target) {
+  function labelOf(el) {
+    return (el.innerText || el.value ||
+            el.getAttribute('aria-label') || '').trim();
+  }
+  var el = null;
+  try { el = document.querySelector(target); } catch (e) { el = null; }
+  if (!el) {
+    var want = String(target).trim().toLowerCase();
+    var nodes = document.querySelectorAll(
+      'a, button, [role="button"], input[type="submit"], ' +
+      'input[type="button"], [onclick]');
+    var i, t;
+    for (i = 0; i < nodes.length; i++) {
+      t = labelOf(nodes[i]).toLowerCase();
+      if (t && t === want) { el = nodes[i]; break; }
+    }
+    if (!el) {
+      for (i = 0; i < nodes.length; i++) {
+        t = labelOf(nodes[i]).toLowerCase();
+        if (t && t.indexOf(want) !== -1) { el = nodes[i]; break; }
+      }
+    }
+  }
+  if (!el) return {found: false};
+  el.scrollIntoView({block: 'center', inline: 'center'});
+  var r = el.getBoundingClientRect();
+  var s = getComputedStyle(el);
+  if (r.width <= 0 || r.height <= 0 || s.display === 'none' ||
+      s.visibility === 'hidden') {
+    return {found: false,
+            reason: 'element page par dikhai nahi de raha'};
+  }
+  return {found: true, x: r.x + r.width / 2, y: r.y + r.height / 2,
+          label: labelOf(el).slice(0, 80)};
+}
+"""
+
+_TYPE_FOCUS_JS = """
+function (target) {
+  function labelOf(el) {
+    return (el.getAttribute('placeholder') ||
+            el.getAttribute('aria-label') || el.name ||
+            el.id || '').trim();
+  }
+  var el = null;
+  try { el = document.querySelector(target); } catch (e) { el = null; }
+  if (!el) {
+    var want = String(target).trim().toLowerCase();
+    var nodes = document.querySelectorAll(
+      'input, textarea, [contenteditable="true"], [contenteditable=""]');
+    for (var i = 0; i < nodes.length; i++) {
+      var t = labelOf(nodes[i]).toLowerCase();
+      if (t && t.indexOf(want) !== -1) { el = nodes[i]; break; }
+    }
+  }
+  if (!el) return {found: false};
+  el.focus();
+  try {
+    var len = (el.value || '').length;
+    if (el.setSelectionRange) el.setSelectionRange(len, len);
+  } catch (e) {}
+  return {found: true,
+          type: (el.type || el.getAttribute('type') || '').toLowerCase(),
+          label: labelOf(el).slice(0, 80)};
+}
+"""
+
+_UPLOAD_CHECK_JS = """
+function (target) {
+  var el = null;
+  try { el = document.querySelector(target); } catch (e) { el = null; }
+  if (!el || !el.files || !el.files.length) return {ok: false};
+  return {ok: true, name: el.files[0].name, size: el.files[0].size};
+}
+"""
+
+
+# ----------------------------------------------------------------------
+# Browser tools - JSON-action protocol ke asal auzaar
+# ----------------------------------------------------------------------
+
+
+def tool_browser_open(url: str) -> str:
+    url = (url or "").strip()
+    if not re.match(r"^https?://", url):
+        return "Sirf http/https wala link khol sakta hu - sahi URL do."
+
+    def work(client, session):
+        client.navigate(session, url)
+        title = client.evaluate(session, "document.title") or url
+        return f"Agent wale Chrome me page khul gaya: {title}\n{url}"
+
+    return _with_browser(work)
+
+
+def tool_browser_read() -> str:
+    def work(client, session):
+        title = client.evaluate(session, "document.title") or ""
+        url = client.evaluate(session, "location.href") or ""
+        text = client.evaluate(
+            session,
+            "(document.body ? document.body.innerText : '')") or ""
+        text = re.sub(r"\n{3,}", "\n\n", str(text)).strip()
+        if len(text) > BROWSER_READ_MAX:
+            text = (text[:BROWSER_READ_MAX] +
+                    "\n... (page aur lamba hai - bas itna hi padha)")
+        if not text:
+            text = ("(page par padhne layak text nahi mila - page "
+                    "abhi load ho raha hoga, ya sab kuch tasveeron "
+                    "me hai)")
+        return (f"Page: {title or '(bina title)'}\nURL: {url}\n"
+                f"---\n{text}")
+
+    return _with_browser(work)
+
+
+def tool_browser_click(target: str) -> str:
+    target = (target or "").strip()
+    if not target:
+        return "Kya dabana hai - uska text ya CSS selector to do."
+
+    def work(client, session):
+        info = client.evaluate(
+            session,
+            "(" + _CLICK_FIND_JS + ")(" + json.dumps(target) + ")")
+        if not info or not info.get("found"):
+            reason = (info or {}).get(
+                "reason", "page par wo cheez mili hi nahi")
+            return (f"'{target}' nahi dab paya: {reason}. Pehle "
+                    "browser_read karke dekho page par kya-kya dikh "
+                    "raha hai, phir sahi naam/selector se try karo.")
+        for etype, buttons in (("mousePressed", 1),
+                               ("mouseReleased", 0)):
+            client.call(
+                "Input.dispatchMouseEvent",
+                {"type": etype, "x": info["x"], "y": info["y"],
+                 "button": "left", "buttons": buttons,
+                 "clickCount": 1},
+                session_id=session)
+            time.sleep(0.05)
+        time.sleep(0.8)  # click ke baad page ko sambhalne ka samay
+        label = info.get("label") or target
+        return f"'{label}' par click kar diya."
+
+    return _with_browser(work)
+
+
+def tool_browser_type(target: str, text: str) -> str:
+    target = (target or "").strip()
+    text = "" if text is None else str(text)
+    if not target:
+        return ("Kis field me likhna hai - uska naam ya CSS "
+                "selector to do.")
+
+    def work(client, session):
+        info = client.evaluate(
+            session,
+            "(" + _TYPE_FOCUS_JS + ")(" + json.dumps(target) + ")")
+        if not info or not info.get("found"):
+            return (f"'{target}' wala field page par nahi mila. "
+                    "Pehle browser_read karke dekho sahi field "
+                    "kaunsi hai.")
+        if info.get("type") == "password":
+            return ("Ruk gaya: ye PASSWORD wala field hai. Main "
+                    "isme kabhi kuch nahi likhta - login Ankit "
+                    "khud karta hai. Wo screen khud sambhal lo, "
+                    "uske baad ka kaam main kar dunga.")
+        client.call("Input.insertText", {"text": text},
+                    session_id=session)
+        label = info.get("label") or target
+        shown = text if len(text) <= 100 else text[:100] + "..."
+        return f"'{label}' me likh diya: {shown}"
+
+    return _with_browser(work)
+
+
+def tool_browser_upload_file(target: str, path: str) -> str:
+    target = (target or "").strip() or "input[type=file]"
+    raw = (path or "").strip().strip('"').strip("'")
+    if not raw:
+        return "Kaunsi file lagani hai - uska path to do."
+    p = Path(raw).expanduser()
+    if not p.is_absolute():
+        p = WORK_DIR / raw
+    p = p.resolve()
+    if not p.is_file():
+        return (f"File mili nahi: {raw} - pehle list_files se "
+                "check kar lo file work/ folder me hai ya nahi, "
+                "aur naam sahi hai ya nahi.")
+
+    def work(client, session):
+        doc = client.call("DOM.getDocument", session_id=session)
+        node = client.call(
+            "DOM.querySelector",
+            {"nodeId": doc["root"]["nodeId"], "selector": target},
+            session_id=session)
+        node_id = node.get("nodeId") or 0
+        if not node_id:
+            return (f"Page par file wala input ('{target}') nahi "
+                    "mila. Ho sakta hai pehle koi 'Upload' / 'Add "
+                    "video' wala button dabana pade - browser_click "
+                    "se wo dabao, phir ye tool dobara chalao.")
+        client.call("DOM.setFileInputFiles",
+                    {"nodeId": node_id, "files": [str(p)]},
+                    session_id=session)
+        time.sleep(0.5)
+        seen = client.evaluate(
+            session,
+            "(" + _UPLOAD_CHECK_JS + ")(" + json.dumps(target) + ")")
+        size_mb = p.stat().st_size / (1024 * 1024)
+        if seen and seen.get("ok"):
+            return (f"File lag gayi: {p.name} ({size_mb:.2f} MB) - "
+                    f"page ne bhi wahi file pehchani "
+                    f"({seen.get('name')}). Ab aage ke steps "
+                    "(caption adi) pure karo; aakhri Post wala "
+                    "click Ankit ke kehne par hi hoga.")
+        return (f"File input par laga di hai: {p.name} "
+                f"({size_mb:.2f} MB). Page ne abhi use dikhaya "
+                "nahi - browser_read se ek baar page check kar lo.")
+
+    return _with_browser(work)
+
+
+# --------------------------------------------------------------------------
 # Instant site commands (v8.1) - 'facebook kholo' type ke hukum bina
 # Gemini ke, turant isi PC ke browser me khulte hain. Update command ki
 # tarah ye bhi demo/Gemini dispatch se pehle pakde jate hain, isliye
@@ -798,6 +1614,11 @@ TOOLS = {
     "join_videos": tool_join_videos,
     "speak_to_file": tool_speak_to_file,
     "agent_update": tool_agent_update,
+    "browser_open": tool_browser_open,
+    "browser_read": tool_browser_read,
+    "browser_click": tool_browser_click,
+    "browser_type": tool_browser_type,
+    "browser_upload_file": tool_browser_upload_file,
 }
 
 
@@ -843,6 +1664,12 @@ HELP_TEXT = """Demo mode commands (type them as-is):
   update                      - check for a newer agent version and
                                 update myself (engine restart ke baad
                                 naya version lagega)
+  browser setup karo          - agent wala Chrome kholo (alag
+                                profile) - usme ek baar tum KHUD
+                                login karoge; phir main browser
+                                tools se logged-in sites ka kaam
+                                karunga (password main kabhi nahi
+                                mangta, dekhta ya store karta)
   facebook kholo              - mashhoor site seedha browser me khol
                                 do (youtube, instagram, tiktok,
                                 whatsapp, google, gmail bhi chalega)
@@ -1334,8 +2161,8 @@ def _groq_converse(contents: list):
 # --------------------------------------------------------------------------
 
 _ACTION_WORDS = ("kholo", "khol", "open", "banao", "bana", "create",
-                 "download", "likho", "save", "delete", "hatao",
-                 "bhejo", "chalao", "play")
+                 "download", "upload", "post", "likho", "save",
+                 "delete", "hatao", "bhejo", "chalao", "play")
 _ACTION_RE = re.compile(r"\b(?:" + "|".join(_ACTION_WORDS) + r")\b")
 
 _STRICT_REASK = (
@@ -1461,6 +2288,11 @@ def ask_agent(message: str) -> str:
         # 'facebook kholo' jaisa hukum - bina Gemini ke turant khulta
         # hai, isliye demo/Gemini se pehle yahin nipta diya jata hai.
         return site_reply
+    if _is_browser_setup_command(message):
+        # 'browser setup karo' - agent wala Chrome kholna hai. Ye
+        # hukum bhi demo/Gemini dispatch se pehle pakda jata hai,
+        # bilkul update aur site commands ki tarah.
+        return tool_browser_setup()
     demo_reply = demo_ask(message)
     if demo_reply is not None:
         return demo_reply
