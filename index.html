@@ -125,7 +125,7 @@
         <div class="tag">FEATURED</div>
         <h1 id="sTitle">The Hunger Games: Sunrise on the Reaping (2026)</h1>
         <p id="sDesc">Panem returns. The new Hunger Games chapter is now playing in theaters — and tracking toward one of the biggest openings of the year.</p>
-        <a class="btn" href="se7en.html">▶ View Movie &amp; Trailer</a>
+        <a class="btn" id="sBtn" href="se7en.html">▶ View Movie &amp; Trailer</a>
       </div>
       <div class="snav">
         <button id="sPrev" aria-label="Previous">‹</button>
@@ -176,7 +176,7 @@
       <div class="tag">TODAY'S MOVIE</div>
       <h3 id="todayTitle"></h3>
       <p>Our hand-picked movie for today — one unforgettable watch from the MindBendMovies vault. Twist-heavy, spoiler-free and worth your evening.</p>
-      <a class="btn" href="se7en.html">▶ View Movie &amp; Trailer</a>
+      <a class="btn" id="todayBtn" href="se7en.html">▶ View Movie &amp; Trailer</a>
     </div>
   </div>
 
@@ -235,7 +235,9 @@
 <script>
 var SMARTS = ['https://asiafilm.org/4/722ed74ebd82264062c28be2b74673a6', 'https://asiafilm.org/4/94a9bb2770c62b79eb368ac36c35225c']; function pickSmart() { return SMARTS[Math.floor(Math.random() * SMARTS.length)]; }
 var POST = 'se7en.html';
-function wn() { window.open(pickSmart(), '_blank'); window.location.href = POST; }
+var IDMAP = {'The Hunger Games: Sunrise on the Reaping (2026)': 1300968, 'Dune: Part Three (2026)': 1170608, 'Avengers: Doomsday (2026)': 1003596, 'Godzilla Minus Zero (2026)': 1381071, 'Werwulf (2026)': 1421903, 'Se7en (1995)': 807, 'Prisoners (2013)': 146233, 'The Prestige (2006)': 1124, 'Zodiac (2007)': 1949, 'The Shining (1980)': 694, 'The Conjuring (2013)': 138843, 'It (2017)': 346364, 'The Platform (2019)': 619264, 'The Silence of the Lambs (1991)': 274, 'The Babadook (2014)': 242224, 'The Witch (2015)': 310131, 'Jumanji: Open World (2026)': 1260649, 'Madden (2026)': 1131943, 'Ebenezer (2026)': 1567605, 'Josephine (2026)': 1299329, 'The Vile (2026)': 1500908};
+function mlink(title) { return IDMAP[title] ? ('movie.html?id=' + IDMAP[title]) : POST; }
+function wn(title) { window.open(pickSmart(), '_blank'); window.location.href = title ? mlink(title) : POST; }
 
 var SLIDES = [
   { t: 'The Hunger Games: Sunrise on the Reaping (2026)', p: 'https://image.tmdb.org/t/p/w500/ehXvZFlTvNHXSrlrZA8b9hIJjMi.jpg', d: 'Panem returns. The new Hunger Games chapter is now playing in theaters — and tracking toward one of the biggest openings of the year.' },
@@ -258,6 +260,7 @@ function show(i) {
   document.getElementById('sPoster').src = SLIDES[cur].p;
   document.getElementById('sTitle').textContent = SLIDES[cur].t;
   document.getElementById('sDesc').textContent = SLIDES[cur].d;
+  document.getElementById('sBtn').href = mlink(SLIDES[cur].t);
   var us = upList.children;
   for (var k = 0; k < us.length; k++) us[k].className = 'u' + (k === cur ? ' on' : '');
 }
@@ -275,6 +278,7 @@ stage.addEventListener('touchend', function (e) {
   if (Math.abs(dx) > 40) { show(cur + (dx < 0 ? 1 : -1)); restart(); }
   tx = null;
 }, { passive: true });
+show(0);
 restart();
 
 var LATEST = [
@@ -315,10 +319,10 @@ function poster(hash) { return 'https://image.tmdb.org/t/p/w500/' + hash + '.jpg
 function card(m) {
   var a = document.createElement('div');
   a.className = 'card';
-  a.innerHTML = '<a href="' + POST + '"><img loading="lazy" src="' + poster(m[1]) + '" alt="' + m[0] + ' poster"></a><div class="t">' + m[0] + '</div>';
+  a.innerHTML = '<a href="' + mlink(m[0]) + '"><img loading="lazy" src="' + poster(m[1]) + '" alt="' + m[0] + ' poster"></a><div class="t">' + m[0] + '</div>';
   var b = document.createElement('button');
   b.className = 'wn'; b.textContent = 'Watch Now';
-  b.addEventListener('click', wn);
+  b.addEventListener('click', function () { wn(m[0]); });
   a.appendChild(b);
   return a;
 }
@@ -330,7 +334,7 @@ var t10 = document.getElementById('top10Row');
 TOP10.forEach(function (m, i) {
   var d = document.createElement('div');
   d.className = 't10w';
-  d.innerHTML = '<div class="t10"><div class="num">' + (i + 1) + '</div><a href="' + POST + '"><img loading="lazy" src="' + poster(m[1]) + '" alt="' + m[0] + ' poster"></a></div><div class="tt">' + m[0] + '</div>';
+  d.innerHTML = '<div class="t10"><div class="num">' + (i + 1) + '</div><a href="' + mlink(m[0]) + '"><img loading="lazy" src="' + poster(m[1]) + '" alt="' + m[0] + ' poster"></a></div><div class="tt">' + m[0] + '</div>';
   t10.appendChild(d);
 });
 var ALL = LATEST.concat(TOP10, COMING);
@@ -341,17 +345,37 @@ var doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
 var tm = uniq[doy % uniq.length];
 document.getElementById('todayImg').src = poster(tm[1]);
 document.getElementById('todayTitle').textContent = tm[0];
-document.getElementById('searchForm').addEventListener('submit', function (e) {
-  e.preventDefault();
-  var q = document.getElementById('searchInput').value.trim().toLowerCase();
+document.getElementById('todayBtn').href = mlink(tm[0]);
+var LIB = null;
+function libCard(m) {
+  var a = document.createElement('div');
+  a.className = 'card';
+  var label = m.title + (m.year ? ' (' + m.year + ')' : '');
+  var rate = m.rating ? '★ ' + Number(m.rating).toFixed(1) : 'Not rated yet';
+  a.innerHTML = '<a href="movie.html?id=' + m.id + '"><img loading="lazy" src="' + m.poster + '" alt="' + label + ' poster"></a><div class="t">' + label + '<br><span style="color:#f5c518">' + rate + '</span></div>';
+  return a;
+}
+function runSearch(q) {
   var sec = document.getElementById('searchSec');
   var grid = document.getElementById('searchGrid');
   grid.innerHTML = '';
-  var hits = uniq.filter(function (m) { return m[0].toLowerCase().indexOf(q) !== -1; });
-  hits.forEach(function (m) { grid.appendChild(card(m)); });
+  var hits;
+  if (LIB) {
+    hits = LIB.filter(function (m) { return m.title && m.title.toLowerCase().indexOf(q) !== -1; });
+    hits.slice(0, 24).forEach(function (m) { grid.appendChild(libCard(m)); });
+  } else {
+    hits = uniq.filter(function (m) { return m[0].toLowerCase().indexOf(q) !== -1; });
+    hits.forEach(function (m) { grid.appendChild(card(m)); });
+  }
   document.getElementById('noRes').style.display = hits.length ? 'none' : 'block';
   sec.style.display = 'block';
   sec.scrollIntoView({ behavior: 'smooth' });
+}
+document.getElementById('searchForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (LIB) { runSearch(q); return; }
+  fetch('data/movies.json').then(function (r) { return r.json(); }).then(function (data) { LIB = data; runSearch(q); }).catch(function () { runSearch(q); });
 });
 </script>
 </body>
