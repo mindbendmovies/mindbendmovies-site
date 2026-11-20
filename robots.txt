@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mindbendmovies.github.io/mindbendmovies-site/sitemap.xml
