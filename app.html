@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindBendMovies App — Disturbing Movies, Twisted Thrillers & Hidden Gems</title>
+<meta name="description" content="Get the free MindBendMovies Android app: 900+ hand-picked disturbing movies, twisted thrillers and hidden gems, Top 10 lists, daily movie news and the Dragon Princess AI drama series — all 8 parts free, no sign-up.">
+<meta name="google-site-verification" content="plG_idpw8vkLWc49nNQHUWj274ddIs7JMaUtaBfnPjQ" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"MobileApplication","name":"MindBendMovies","operatingSystem":"Android","applicationCategory":"EntertainmentApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"softwareVersion":"2.3","fileSize":"12 MB","description":"Hand-picked disturbing movies, twisted thrillers and hidden gems, plus the Dragon Princess AI drama series."}
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: #0b0b10; color: #f2f3f5; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; overflow-x: clip; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  header { background: rgba(16,16,22,.92); backdrop-filter: blur(8px); border-bottom: 2px solid #0072ce; padding: 12px 16px; position: sticky; top: 0; z-index: 60; }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: .3px; max-width: 1150px; margin: 0 auto; }
+  .logo span { color: #0072ce; }
+  nav { display: flex; gap: 8px; margin: 10px auto 0; max-width: 1150px; overflow-x: auto; padding-bottom: 2px; }
+  nav a { background: #22222b; border: 1px solid #33333f; color: #e8e9ec; font-size: 13px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  nav a.cur { background: #0072ce; border-color: #0072ce; color: #fff; font-weight: 700; }
+
+  /* HERO */
+  .hero { position: relative; overflow: hidden; text-align: center; padding: 56px 18px 46px; background:
+      radial-gradient(620px 340px at 15% -60px, rgba(0,114,206,.38), transparent 65%),
+      radial-gradient(560px 320px at 88% 0, rgba(53,162,255,.20), transparent 60%),
+      linear-gradient(180deg, #101018 0%, #0b0b10 100%); }
+  .hero .bgposters { position: absolute; inset: 0; opacity: .10; display: flex; gap: 10px; justify-content: center; pointer-events: none; }
+  .hero .bgposters img { height: 100%; width: auto; border-radius: 0; filter: saturate(.85); }
+  .hero .inner { position: relative; max-width: 760px; margin: 0 auto; }
+  .appicon { width: 118px; height: 118px; border-radius: 28px; margin: 0 auto; box-shadow: 0 18px 46px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.09), 0 0 44px rgba(0,114,206,.45); }
+  .hero h1 { font-size: 40px; letter-spacing: .2px; margin-top: 20px; }
+  .hero h1 span { color: #35a2ff; }
+  .tag { font-size: 17.5px; color: #c9cdd6; line-height: 1.55; margin: 12px auto 0; max-width: 560px; }
+  .meta { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+  .meta span { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.13); color: #dfe3ea; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; }
+  .dl { display: inline-flex; align-items: center; gap: 10px; margin-top: 26px; background: linear-gradient(180deg, #1a8cff, #0072ce); color: #fff; font-size: 18px; font-weight: 800; padding: 16px 34px; border-radius: 999px; box-shadow: 0 12px 34px rgba(0,114,206,.5), inset 0 1px 0 rgba(255,255,255,.35); transition: transform .15s ease, box-shadow .15s ease; }
+  .dl:hover { transform: translateY(-2px); box-shadow: 0 18px 42px rgba(0,114,206,.6), inset 0 1px 0 rgba(255,255,255,.35); }
+  .fine { color: #9aa0ab; font-size: 12.5px; margin-top: 12px; }
+  .stats { display: flex; justify-content: center; gap: 0; flex-wrap: wrap; margin: 34px auto 0; max-width: 640px; border-top: 1px solid rgba(255,255,255,.09); padding-top: 22px; }
+  .stat { flex: 1 1 130px; padding: 4px 8px; }
+  .stat b { display: block; font-size: 24px; color: #fff; }
+  .stat i { font-style: normal; color: #9aa0ab; font-size: 12.5px; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 10px 16px 30px; }
+  h2.sec { font-size: 25px; margin: 44px 0 6px; text-align: center; }
+  .secsub { text-align: center; color: #9aa0ab; font-size: 14.5px; max-width: 620px; margin: 0 auto; line-height: 1.55; }
+
+  /* PHONES */
+  .phones { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
+  .phone { width: 232px; background: #050507; border: 1px solid #2c2c38; border-radius: 34px; padding: 10px; box-shadow: 0 24px 50px rgba(0,0,0,.55); }
+  .scr { background: #101016; border-radius: 26px; overflow: hidden; height: 470px; position: relative; }
+  .scr .notch { width: 76px; height: 16px; background: #050507; border-radius: 0 0 10px 10px; margin: 0 auto; position: relative; z-index: 3; }
+  .scr .applogo { font-size: 13.5px; font-weight: 800; padding: 8px 12px 4px; }
+  .scr .applogo span { color: #35a2ff; }
+  .scr .feat { margin: 6px 10px 0; border-radius: 10px; overflow: hidden; position: relative; }
+  .scr .feat img { width: 100%; height: 128px; object-fit: cover; }
+  .scr .feat .ft { position: absolute; left: 8px; bottom: 7px; font-size: 11.5px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.9); }
+  .scr .lbl { font-size: 11px; font-weight: 800; color: #e8e9ec; margin: 12px 12px 6px; letter-spacing: .2px; }
+  .scr .prow { display: flex; gap: 7px; padding: 0 10px; }
+  .scr .prow img { width: 62px; height: 92px; object-fit: cover; border-radius: 7px; flex: none; }
+  .scr .detail-bd { width: 100%; height: 150px; object-fit: cover; }
+  .scr .dtitle { font-size: 14.5px; font-weight: 800; padding: 10px 12px 2px; }
+  .scr .dmeta { font-size: 11px; color: #9aa0ab; padding: 0 12px; }
+  .scr .dmeta b { color: #f5c518; }
+  .scr .wbtn { margin: 12px; background: #0072ce; color: #fff; text-align: center; font-size: 12.5px; font-weight: 800; padding: 9px; border-radius: 999px; }
+  .scr .dtxt { font-size: 11px; color: #c9cdd6; line-height: 1.5; padding: 0 12px; }
+  .scr .sposter { width: 108px; border-radius: 10px; margin: 8px auto 0; }
+  .scr .stitle { font-size: 12.5px; font-weight: 800; text-align: center; padding: 8px 12px 2px; line-height: 1.35; }
+  .scr .srow { display: flex; align-items: center; gap: 8px; background: #17171f; margin: 7px 10px 0; padding: 8px 9px; border-radius: 9px; font-size: 10.5px; color: #dfe3ea; }
+  .scr .srow .pn { background: #0072ce; color: #fff; font-weight: 800; font-size: 10px; border-radius: 6px; padding: 4px 6px; flex: none; }
+  .scr .srow .lk { margin-left: auto; flex: none; }
+  .pcap { text-align: center; color: #9aa0ab; font-size: 13px; margin-top: 12px; font-weight: 600; }
+
+  /* FEATURES */
+  .feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 28px; }
+  .feat-card { background: linear-gradient(180deg, #15151d, #111118); border: 1px solid #26262f; border-radius: 16px; padding: 20px 18px; }
+  .feat-card .ic { width: 44px; height: 44px; border-radius: 12px; background: rgba(0,114,206,.16); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .feat-card h3 { font-size: 16.5px; margin-bottom: 6px; }
+  .feat-card p { color: #a7adb8; font-size: 13.5px; line-height: 1.55; }
+
+  /* SERIES BANNER */
+  .seriesband { margin-top: 46px; border-radius: 20px; overflow: hidden; border: 1px solid #2c2c38; display: flex; flex-wrap: wrap; background: linear-gradient(120deg, #141019 0%, #101623 55%, #0d1522 100%); }
+  .seriesband img { width: 240px; height: 100%; min-height: 240px; object-fit: cover; }
+  .seriesband .sb { flex: 1 1 300px; padding: 28px 26px; }
+  .seriesband .kick { color: #35a2ff; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; }
+  .seriesband h3 { font-size: 23px; line-height: 1.3; margin: 8px 0; }
+  .seriesband p { color: #b8bcc4; font-size: 14.5px; line-height: 1.6; }
+
+  /* STEPS */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 28px; }
+  .step { background: #12121a; border: 1px solid #26262f; border-radius: 16px; padding: 20px 18px; text-align: left; }
+  .step .n { width: 34px; height: 34px; border-radius: 50%; background: #0072ce; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .step h3 { font-size: 15.5px; margin-bottom: 6px; }
+  .step p { color: #a7adb8; font-size: 13.5px; line-height: 1.55; }
+
+  /* FAQ */
+  .faq { max-width: 760px; margin: 26px auto 0; }
+  .faq details { background: #12121a; border: 1px solid #26262f; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .faq summary { font-weight: 700; font-size: 15px; cursor: pointer; }
+  .faq p { color: #a7adb8; font-size: 14px; line-height: 1.6; margin-top: 8px; }
+
+  .finalcta { text-align: center; margin: 52px auto 6px; padding: 38px 18px; border-radius: 20px; background: radial-gradient(520px 240px at 50% -40px, rgba(0,114,206,.35), transparent 65%), #101018; border: 1px solid #26262f; }
+  .finalcta h2 { font-size: 26px; }
+  .finalcta p { color: #9aa0ab; margin-top: 8px; font-size: 14.5px; }
+  footer { border-top: 1px solid #26262f; color: #8a8f98; font-size: 12px; line-height: 1.7; padding: 20px 16px 90px; text-align: center; margin-top: 40px; }
+  @media (max-width: 640px) {
+    .hero { padding: 42px 16px 38px; }
+    .hero h1 { font-size: 31px; }
+    .tag { font-size: 16px; }
+    .seriesband img { width: 100%; height: 210px; min-height: 0; }
+    .phone { width: 216px; }
+  }
+</style>
+<!-- Google Analytics (GA4) — same property as the app -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9XB8WR0RNL"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-9XB8WR0RNL');
+</script>
+</head>
+<body>
+<header>
+  <div class="logo">MindBend<span>Movies</span></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="index.html#latest">Movies</a>
+    <a href="index.html#top10">Top 10</a>
+    <a href="index.html#news">Movie News</a>
+    <a href="series.html">AI Drama Series</a>
+    <a class="cur" href="app.html">Download App</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="bgposters" aria-hidden="true">
+    <img src="https://image.tmdb.org/t/p/w500/191nKfP0ehp3uIvWqgPbFmI4lv9.jpg" alt="">
+    <img src="https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg" alt="">
+    <img src="https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg" alt="">
+    <img src="https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg" alt="">
+    <img src="https://image.tmdb.org/t/p/w500/nrmXQ0zcZUL8jFLrakWc90IR8z9.jpg" alt="">
+  </div>
+  <div class="inner">
+    <img class="appicon" src="assets/app-icon.png" alt="MindBendMovies app icon">
+    <h1>MindBend<span>Movies</span></h1>
+    <p class="tag">The free Android app for disturbing movies, twisted thrillers and hidden gems — hand-picked films you will never forget, plus an original AI drama series.</p>
+    <div class="meta">
+      <span>Version 2.3</span><span>12 MB</span><span>Android 7.0+</span><span>100% Free</span><span>No Sign-Up</span>
+    </div>
+    <br>
+    <a class="dl" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.3/MindBendMovies.apk">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v10.6m0 0 4.2-4.2M12 13.6 7.8 9.4M4 17v2.2A1.8 1.8 0 0 0 5.8 21h12.4A1.8 1.8 0 0 0 20 19.2V17" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Download the App — Free
+    </a>
+    <div class="fine">Free download • No sign-up needed • Installs in under a minute</div>
+    <div class="stats">
+      <div class="stat"><b>900+</b><i>Movies in the library</i></div>
+      <div class="stat"><b>8 Parts</b><i>Original AI drama series</i></div>
+      <div class="stat"><b>Daily</b><i>New movies &amp; news</i></div>
+      <div class="stat"><b>$0</b><i>Free forever</i></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <h2 class="sec">Inside the App</h2>
+  <p class="secsub">A home screen built like your favourite streaming app — featured hits up top, fresh picks, Top 10, a movie of the day and a full original series.</p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="notch"></div>
+        <div class="applogo">MindBend<span>Movies</span></div>
+        <div class="feat"><img src="https://image.tmdb.org/t/p/w780/8ZTVqvKDQ8emSGUEMjsS4yHAwrp.jpg" alt="Featured movie"><div class="ft">Inception</div></div>
+        <div class="lbl">Latest Picks</div>
+        <div class="prow">
+          <img src="https://image.tmdb.org/t/p/w500/191nKfP0ehp3uIvWqgPbFmI4lv9.jpg" alt="Se7en">
+          <img src="https://image.tmdb.org/t/p/w500/nrmXQ0zcZUL8jFLrakWc90IR8z9.jpg" alt="Shutter Island">
+          <img src="https://image.tmdb.org/t/p/w500/ts996lKsxvjkO2yiYG0ht4qAicO.jpg" alt="Gone Girl">
+        </div>
+        <div class="lbl">Top 10 This Week</div>
+        <div class="prow">
+          <img src="https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg" alt="The Dark Knight">
+          <img src="https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg" alt="Parasite">
+          <img src="https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg" alt="Joker">
+        </div>
+      </div></div>
+      <div class="pcap">Home — fresh picks every day</div>
+    </div>
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="notch"></div>
+        <img class="detail-bd" src="https://image.tmdb.org/t/p/w780/jwBs4djVIe9Kz3Vu9rsI9aEEKWU.jpg" alt="Se7en backdrop">
+        <div class="dtitle">Se7en</div>
+        <div class="dmeta"><b>★ 8.4</b> • 1995 • Crime, Mystery, Thriller</div>
+        <div class="wbtn">▶ Watch Now</div>
+        <div class="dtxt">Two homicide detectives are on a desperate hunt for a serial killer whose crimes are based on the "seven deadly sins" in this dark and haunting film that takes viewers from the tortured remains of one victim to the next.</div>
+        <div class="lbl">Where to Watch (US)</div>
+        <div class="dtxt">Netflix • Max • Amazon Prime Video</div>
+      </div></div>
+      <div class="pcap">Movie pages — story, facts &amp; where to watch</div>
+    </div>
+    <div>
+      <div class="phone"><div class="scr">
+        <div class="notch"></div>
+        <div class="applogo">MindBend<span>Movies</span></div>
+        <img class="sposter" src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
+        <div class="stitle">Dragon Princess — AI Drama Series</div>
+        <div class="dmeta" style="text-align:center">2026 • Fantasy Drama • 8 Parts • 79 min</div>
+        <div class="srow"><span class="pn">P1</span> Thrown out by the family that raised her<span class="lk">▶</span></div>
+        <div class="srow"><span class="pn">P2</span> A Dragon Clan elder brings her to the palace<span class="lk">▶</span></div>
+        <div class="srow"><span class="pn">P3</span> A power sleeping in her blood awakens<span class="lk">▶</span></div>
+        <div class="srow"><span class="pn">P4</span> The old family tries to drag her back down<span class="lk">▶</span></div>
+      </div></div>
+      <div class="pcap">Series — all 8 parts free in the app</div>
+    </div>
+  </div>
+
+  <h2 class="sec">Why You'll Love It</h2>
+  <p class="secsub">No endless scrolling through the same mainstream lists — every movie here is chosen because it twists, disturbs or stays with you.</p>
+  <div class="feats">
+    <div class="feat-card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="#35a2ff" stroke-width="1.8"/><path d="M3 9h18M8 4v5m8-5v5" stroke="#35a2ff" stroke-width="1.8"/></svg></div>
+      <h3>900+ Hand-Picked Movies</h3>
+      <p>Psychological thrillers, disturbing horror, twisted endings and hidden gems — each with its story, facts, cast and ratings.</p>
+    </div>
+    <div class="feat-card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l2.5 5.6 6 .7-4.4 4.1 1.2 5.9L12 16.4 6.7 19.3l1.2-5.9L3.5 9.3l6-.7L12 3z" stroke="#35a2ff" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+      <h3>Top 10 &amp; Movie of the Day</h3>
+      <p>A fresh Top 10 every week and a new Today's Movie pick daily, so there is always something worth your evening.</p>
+    </div>
+    <div class="feat-card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#35a2ff" stroke-width="1.8"/><path d="m20 20-3.8-3.8" stroke="#35a2ff" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <h3>Where to Watch, Instantly</h3>
+      <p>Every movie shows its US streaming options — Netflix, Max, Prime Video and more — with one tap to the legal watch page.</p>
+    </div>
+    <div class="feat-card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.3 0 2.4-1 2.4-2.4H9.6C9.6 21 10.7 22 12 22Zm7-5.3v.8H5v-.8l1.9-1.9V9.6a5.4 5.4 0 0 1 4.3-5.3V4a.9.9 0 0 1 1.6 0v.3a5.4 5.4 0 0 1 4.3 5.3v5.2L19 16.7Z" fill="#35a2ff"/></svg></div>
+      <h3>New Movie Alerts</h3>
+      <p>Turn on notifications and get pinged the moment a new movie, list or series part drops. No spam — only new content.</p>
+    </div>
+    <div class="feat-card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" stroke="#35a2ff" stroke-width="1.8"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20" stroke="#35a2ff" stroke-width="1.8"/></svg></div>
+      <h3>World Movie News</h3>
+      <p>Hollywood, Bollywood, Korean, Japanese and European cinema news — the stories everyone will be talking about tomorrow.</p>
+    </div>
+    <div class="feat-card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2Z" stroke="#35a2ff" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <h3>Fast, Light &amp; Free</h3>
+      <p>Just 12 MB, runs smoothly on any Android 7.0+ phone, updates itself in-app — and it is completely free, no sign-up ever.</p>
+    </div>
+  </div>
+
+  <div class="seriesband">
+    <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess — AI drama series poster">
+    <div class="sb">
+      <div class="kick">ONLY IN THE APP</div>
+      <h3>Dragon Princess — the full AI drama series, free</h3>
+      <p>Abandoned by the family who raised her, a poor orphan girl is taken in by the hidden Dragon Clan — and discovers a royal power sleeping in her blood. All 8 parts stream free inside the app, in HD, with no waiting.</p>
+      <a class="dl" style="margin-top:18px;font-size:15.5px;padding:13px 26px" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.3/MindBendMovies.apk">Get the App &amp; Watch</a>
+    </div>
+  </div>
+
+  <h2 class="sec">Install in Under a Minute</h2>
+  <p class="secsub">The app is distributed directly by MindBendMovies, so installation takes three quick steps.</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>Download</h3><p>Tap the download button on this page. The app file (12 MB) saves straight to your phone.</p></div>
+    <div class="step"><div class="n">2</div><h3>Open the file</h3><p>Tap the downloaded file and press Install. If your phone asks, allow installs from your browser — just this once.</p></div>
+    <div class="step"><div class="n">3</div><h3>Install anyway &amp; watch</h3><p>If Play Protect shows a notice, tap "Install anyway" — the app is signed and safe. Open it and start watching.</p></div>
+  </div>
+
+  <h2 class="sec">Questions</h2>
+  <div class="faq">
+    <details><summary>Is the app really free?</summary><p>Yes — completely free, with no sign-up and no subscription. The app is supported by ads, like the website.</p></details>
+    <details><summary>Why is it not on the Play Store yet?</summary><p>MindBendMovies is an independent project and the Play Store listing is on the way. Until then, the official app is distributed directly from this page — always download it only from here.</p></details>
+    <details><summary>How do updates work?</summary><p>The app checks for updates by itself and offers the new version in one tap. New movies and news appear automatically — no update needed for those.</p></details>
+    <details><summary>Which phones are supported?</summary><p>Any Android phone running Android 7.0 or newer. The app is only 12 MB and works on modest hardware.</p></details>
+  </div>
+
+  <div class="finalcta">
+    <h2>Your next unforgettable movie is waiting</h2>
+    <p>Join MindBendMovies — free forever, no sign-up.</p>
+    <a class="dl" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.3/MindBendMovies.apk">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v10.6m0 0 4.2-4.2M12 13.6 7.8 9.4M4 17v2.2A1.8 1.8 0 0 0 5.8 21h12.4A1.8 1.8 0 0 0 20 19.2V17" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Download MindBendMovies — Free
+    </a>
+    <div class="fine">Version 2.3 • 12 MB • Android 7.0+</div>
+  </div>
+
+</div>
+
+<footer>
+  MindBendMovies — Disturbing Movies, Twisted Thrillers &amp; Hidden Gems.<br>
+  Movie posters and artwork via TMDB. Watch options powered by JustWatch data via TMDB.
+</footer>
+
+<script data-cfasync="false" src="https://bancadeltempoidea.org/14/287bb9ff9ab2c00132f1070f21a5a6f9"></script>
+</body>
+</html>
