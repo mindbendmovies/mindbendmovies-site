@@ -122,6 +122,13 @@
 </header>
 
 <div class="wrap">
+  <!-- Search results — right below the header/search box -->
+  <section id="searchSec">
+    <h2 class="sec">Search Results</h2>
+    <div class="grid" id="searchGrid"></div>
+    <div class="nores" id="noRes" style="display:none">No movies found for that search yet.</div>
+  </section>
+
   <!-- Featured slider + Up next -->
   <div class="slider">
     <div class="stage" id="stage">
@@ -152,13 +159,6 @@
       <a class="btn" href="series.html">▶ Watch Now — Full Movie</a>
     </div>
   </div>
-
-  <!-- Search results -->
-  <section id="searchSec">
-    <h2 class="sec">Search Results</h2>
-    <div class="grid" id="searchGrid"></div>
-    <div class="nores" id="noRes" style="display:none">No movies found for that search yet.</div>
-  </section>
 
   <!-- Latest Picks -->
   <h2 class="sec" id="latest">Latest Picks</h2>
@@ -360,7 +360,7 @@ function libCard(m) {
   a.innerHTML = '<a href="movie.html?id=' + m.id + '"><img loading="lazy" src="' + m.poster + '" alt="' + label + ' poster"></a><div class="t">' + label + '<br><span style="color:#f5c518">' + rate + '</span></div>';
   return a;
 }
-function runSearch(q) {
+function runSearch(q, stay) {
   var sec = document.getElementById('searchSec');
   var grid = document.getElementById('searchGrid');
   grid.innerHTML = '';
@@ -374,15 +374,35 @@ function runSearch(q) {
   }
   document.getElementById('noRes').style.display = hits.length ? 'none' : 'block';
   sec.style.display = 'block';
-  setTimeout(function () { sec.scrollIntoView({ behavior: 'smooth' }); }, 90);
+  if (!stay) { setTimeout(function () { sec.scrollIntoView({ behavior: 'smooth' }); }, 90); }
 }
+var libLoading = false;
+function fetchLib(cb) {
+  if (LIB) { if (cb) { cb(); } return; }
+  if (libLoading) { return; }
+  libLoading = true;
+  fetch('data/movies.json').then(function (r) { return r.json(); }).then(function (data) {
+    LIB = data; libLoading = false; if (cb) { cb(); }
+  }).catch(function () { libLoading = false; });
+}
+function currentQuery() { return document.getElementById('searchInput').value.trim().toLowerCase(); }
 document.getElementById('searchForm').addEventListener('submit', function (e) {
   e.preventDefault();
-  var q = document.getElementById('searchInput').value.trim().toLowerCase();
   document.getElementById('searchInput').blur();
-  if (LIB) { runSearch(q); return; }
-  runSearch(q);
-  fetch('data/movies.json').then(function (r) { return r.json(); }).then(function (data) { LIB = data; runSearch(q); }).catch(function () {});
+  runSearch(currentQuery());
+  fetchLib(function () { runSearch(currentQuery()); });
+});
+/* Live search: results appear right below the search box while typing. */
+var searchTimer = null;
+document.getElementById('searchInput').addEventListener('focus', function () { fetchLib(); });
+document.getElementById('searchInput').addEventListener('input', function () {
+  var q = currentQuery();
+  if (searchTimer) { clearTimeout(searchTimer); }
+  if (!q) { document.getElementById('searchSec').style.display = 'none'; return; }
+  searchTimer = setTimeout(function () {
+    runSearch(currentQuery(), true);
+    fetchLib(function () { if (currentQuery()) { runSearch(currentQuery(), true); } });
+  }, 220);
 });
 </script>
 </body>
