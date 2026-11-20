@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Agent - PC half, v8.1 - Muse-style: persistent memory (MEMORY.md),
+My Agent - PC half, v8.2 - Muse-style: persistent memory (MEMORY.md),
 2-model ladder (jo model jawab de, usi se kaam), verify-before-done
 workflow rules, busy-server (503/429) retries with honest per-error
 messages, aur SELF-UPDATE: 'update' likhne par naya version khud
@@ -11,10 +11,17 @@ salah dene par model ko ek baar tool chalane par majboor karna),
 tolerant action parsing (prose me chipka ya double-encoded JSON bhi
 tool call bankar chalta hai), aur 'facebook kholo' jaisi site commands
 jo bina Gemini ke turant browser kholti hain.
+v8.2: DUSRA TEZ DIMAG - Groq (config.env me GROQ_API_KEY ho to pehle
+Groq ka tez model jawab deta hai, wahi tool protocol aur wahi
+discipline; Groq atak jaye - timeout, busy, ya galat key (401) - to
+agent khud Gemini ladder par gir jata hai. Bina Groq key ke vyavhaar
+bilkul v8.1 jaisa hai.)
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
-- Brain = Google Gemini free API (key from a local config file, never in code).
+- Brain = Google Gemini free API (key from a local config file, never in code),
+  plus optional Groq free API as the fast first brain (same rule: key
+  only in the local config file, never in code).
 - Without a key it runs in demo/offline mode: direct tool commands still work.
 - Tools are confined to the work/ folder. Nothing outside it can be touched.
 - A tiny HTTP hook on 127.0.0.1 (localhost ONLY) lets the phone app talk to
@@ -62,7 +69,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.1"
+AGENT_VERSION = "8.2"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -87,6 +94,10 @@ def load_config() -> dict:
     Expected keys (all optional except the PIN if the HTTP hook is used):
       GEMINI_API_KEY   - his free Google AI Studio key (stored ONLY here)
       GEMINI_MODEL     - default: gemini-3.5-flash-lite (sabse tez/halka)
+      GROQ_API_KEY     - optional: his free Groq key (stored ONLY here).
+                         Ho to pehle tez wala Groq dimag jawab deta hai,
+                         atak jaye to Gemini khud sambhal leta hai.
+      GROQ_MODEL       - default: llama-3.3-70b-versatile
       AGENT_PIN        - shared PIN checked on every HTTP /ask request
       AGENT_PORT       - default: 8765
       AGENT_WORK_DIR   - default: the work/ folder next to this script
@@ -103,8 +114,8 @@ def load_config() -> dict:
                 cfg[key.strip()] = value.strip().strip('"').strip("'")
             break
     # Real environment variables win over the file.
-    for key in ("GEMINI_API_KEY", "GEMINI_MODEL", "AGENT_PIN",
-                "AGENT_PORT", "AGENT_WORK_DIR"):
+    for key in ("GEMINI_API_KEY", "GEMINI_MODEL", "GROQ_API_KEY",
+                "GROQ_MODEL", "AGENT_PIN", "AGENT_PORT", "AGENT_WORK_DIR"):
         if os.environ.get(key):
             cfg[key] = os.environ[key]
     return cfg
@@ -113,6 +124,9 @@ def load_config() -> dict:
 CONFIG = load_config()
 GEMINI_API_KEY = CONFIG.get("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = CONFIG.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+GROQ_API_KEY = CONFIG.get("GROQ_API_KEY", "").strip()
+GROQ_MODEL = (CONFIG.get("GROQ_MODEL", "").strip()
+              or "llama-3.3-70b-versatile")
 AGENT_PIN = CONFIG.get("AGENT_PIN", "").strip()
 try:
     AGENT_PORT = int(CONFIG.get("AGENT_PORT", "8765"))
@@ -834,7 +848,9 @@ HELP_TEXT = """Demo mode commands (type them as-is):
                                 whatsapp, google, gmail bhi chalega)
   help                        - this list
   quit                        - stop
-For free chatting like Muse, add your free Gemini key in config.env."""
+For free chatting like Muse, add your free Gemini key in config.env.
+Tez dimag: config.env me GROQ_API_KEY bhi ho to pehle Groq ka tez
+model jawab deta hai - wo atak jaye to Gemini khud sambhal leta hai."""
 
 
 def demo_ask(message: str):
@@ -1201,6 +1217,115 @@ def _gemini_http_message(exc) -> str:
 
 
 # --------------------------------------------------------------------------
+# Groq - dusra, TEZ dimag (v8.2). config.env me GROQ_API_KEY ho to
+# pehle Groq jawab deta hai (uske khaas tez chips par chalne wala
+# Llama model). API OpenAI-compatible hai: wahi system prompt, wahi
+# tool protocol (tolerant parser), wahi tool loop - bas transport
+# alag hai. Groq ki koi bhi haar (timeout, busy 429/503, galat key
+# 401, ya koi aur error) haar NAHI mani jati: agent chup chaap
+# Gemini ladder par gir jata hai aur wahi se jawab lata hai.
+# Bina Groq key ke ye hissa bilkul nahi chalta (v8.1 wala vyavhaar).
+# --------------------------------------------------------------------------
+
+_GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# Fail-fast: Groq tez hone ke liye mashhoor hai, isliye sirf 30s ka
+# intezaar. Timeout/network par kul 2 koshish (2s ki rukawat), busy
+# (429/503) par kul 3 koshish (2s, phir 5s) - phir Gemini ki baari.
+_GROQ_TIMEOUT = 30
+
+
+class _GroqDownError(Exception):
+    """Groq se jawab nahi aaya - caller Gemini ladder par girega."""
+
+
+def _to_openai_messages(contents: list) -> list:
+    """Agent ki andar wali history (Gemini-style contents) ko Groq ke
+    OpenAI-style messages me badlo: pehle system prompt (yaadon ke
+    saath), phir user/assistant ki baariyan (andar 'model' role hai,
+    Groq me wahi 'assistant' kahlata hai)."""
+    messages = [{"role": "system", "content": _system_prompt()}]
+    for item in contents or []:
+        role = "assistant" if item.get("role") == "model" else "user"
+        text = "".join(p.get("text", "") for p in item.get("parts", []))
+        messages.append({"role": role, "content": text})
+    return messages
+
+
+def _groq_call(messages: list) -> str:
+    """Groq ko ek baar (retry ke saath) bulao aur jawab ka text do.
+
+    Fail-fast neeti upar wali hai. Busy (429/503) ke alawa koi bhi
+    HTTP error (401 galat key samet) turant _GroqDownError banta
+    hai - retry bekaar hai, Gemini ki baari jaldi aani chahiye.
+    Saari koshishen khatm hon to bhi _GroqDownError hi uthta hai,
+    taaki caller hamesha ek hi tareeke se Gemini par gir sake.
+    """
+    body = {"model": GROQ_MODEL, "messages": messages}
+    req = urllib.request.Request(
+        _GROQ_URL,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {GROQ_API_KEY}"},
+        method="POST",
+    )
+    last_exc = None
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=_GROQ_TIMEOUT) as resp:  # noqa: S310
+                data = json.loads(resp.read().decode("utf-8"))
+            content = data["choices"][0]["message"].get("content")
+            return (content or "").strip()
+        except urllib.error.HTTPError as exc:
+            if exc.code not in _BUSY_CODES:
+                log(f"GROQ fail: HTTP {exc.code} (turant Gemini ki baari)")
+                raise _GroqDownError(f"HTTP {exc.code}") from exc
+            last_exc = exc
+            max_attempts = 3
+            delays = _BUSY_DELAYS
+            log(f"GROQ attempt {attempt + 1}/{max_attempts} fail: "
+                f"HTTP {exc.code} (server busy / rate limit, retry)")
+        except (urllib.error.URLError, socket.timeout, TimeoutError,
+                ConnectionError) as exc:
+            last_exc = exc
+            max_attempts = 2
+            delays = _TIMEOUT_DELAYS
+            log(f"GROQ attempt {attempt + 1}/{max_attempts} fail: {exc}")
+        if attempt + 1 >= max_attempts:
+            break
+        time.sleep(delays[min(attempt, len(delays) - 1)])
+        attempt += 1
+    raise _GroqDownError(str(last_exc))
+
+
+def _groq_converse(contents: list):
+    """Groq ke saath pura tool-loop - _gemini_converse ka aaina.
+
+    (jawab, tool_chala_kya) return hota hai. Tool protocol bilkul
+    wahi hai: jawab me JSON mile to _extract_tool_call use pehchan
+    kar tool chalata hai, warna jawab plain text hai. Groq ki haar
+    par _GroqDownError (ya koi aur exception) upar jata hai.
+    """
+    contents = list(contents)
+    used_tool = False
+    for _ in range(5):  # max 5 tool steps per message
+        reply = _groq_call(_to_openai_messages(contents))
+        tool_call = _extract_tool_call(reply)
+        if tool_call is None:
+            with _history_lock:
+                _history.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+            return reply, used_tool
+        used_tool = True
+        result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        contents.append({"role": "model", "parts": [{"text": reply}]})
+        contents.append({"role": "user",
+                         "parts": [{"text": f"Tool result: {result}"}]})
+    return ("Tool steps zyada ho gaye, main ruk gaya. Thoda simple "
+            "karke phir pucho."), used_tool
+
+
+# --------------------------------------------------------------------------
 # Tool discipline (v8.1) - 'khud kar lo' wali shikayat ka code ilaaj.
 # Hukum me action wala shabd ho (kholo, banao, likho...) aur model ne
 # BINA koi tool chalaye sirf text jawab de diya ho, to ek baar sakht
@@ -1259,26 +1384,55 @@ def _ladder_run(contents: list):
     return _final_error_message(last_exc), None
 
 
-def gemini_ask(message: str) -> str:
-    """Gemini se jawab lao - ladder ke saath, discipline ke saath.
+def _brain_run(contents: list):
+    """Dimag chalao: pehle Groq (agar key hai), fail ho to Gemini ladder.
 
-    Dono fail hon to jawab AAKHRI error ki class se banta hai (busy
-    -> busy message, timeout -> slow message, 404 -> plain message).
-    Jawab aa jaye lekin hukum action wala ho aur koi tool na chala
-    ho (sirf salah mili ho), to ek baar strict re-ask hota hai.
+    Safal ho to (jawab, tool_chala_kya); sab fail hon to
+    (error_message, None) - error message Gemini wali class-neeti
+    se hi banta hai (busy -> busy wala, slow -> slow wala, 404 ->
+    plain). Groq se gir kar Gemini se jawab aaye to jawab ke upar
+    ek chhota note lagta hai. Bina Groq key ke ye seedha Gemini
+    ladder hai - bilkul v8.1 wala vyavhaar, koi note nahi.
+    """
+    groq_failed = False
+    if GROQ_API_KEY:
+        try:
+            reply, used_tool = _groq_converse(contents)
+            log("BRAIN: jawab GROQ se aaya")
+            return reply, used_tool
+        except Exception as exc:  # har haar par Gemini ki baari
+            groq_failed = True
+            log(f"BRAIN: GROQ fail ({exc}) - Gemini ladder par ja "
+                "raha hu")
+    reply, used_tool = _ladder_run(contents)
+    if used_tool is not None and groq_failed:
+        reply = ("(tez wale model se jawab nahi aaya, dusre model se "
+                 "laya hu)\n" + reply)
+    return reply, used_tool
+
+
+def brain_ask(message: str) -> str:
+    """Dimag se jawab lao - Groq pehle (key ho to), Gemini ladder
+    peeche, aur discipline re-ask ke saath.
+
+    Dono dimag fail hon to jawab AAKHRI error ki class se banta hai
+    (busy -> busy message, timeout -> slow message, 404 -> plain
+    message). Jawab aa jaye lekin hukum action wala ho aur koi tool
+    na chala ho (sirf salah mili ho), to ek baar strict re-ask
+    hota hai - ye niyam dono dimagon par lagta hai.
     """
     with _history_lock:
         _history.append({"role": "user", "parts": [{"text": message}]})
         del _history[:-20]  # keep the last ~10 exchanges
         contents = list(_history)
-    reply, used_tool = _ladder_run(contents)
+    reply, used_tool = _brain_run(contents)
     if used_tool is None:
         return reply  # error message - re-ask ka koi matlab nahi
     if used_tool or not _has_action_intent(message):
         return reply
     # Discipline re-ask: sirf EK baar. Pehle history se wo text-wala
     # model jawab hatao (re-ask uski jagah lega), phir sakht hukum
-    # ke saath ladder dobara chalao.
+    # ke saath dimag dobara chalao.
     log("DISCIPLINE: action hukum par koi tool nahi chala - strict "
         "re-ask (ek baar)")
     with _history_lock:
@@ -1286,7 +1440,7 @@ def gemini_ask(message: str) -> str:
             _history.pop()
     strict_contents = contents + [
         {"role": "user", "parts": [{"text": _STRICT_REASK}]}]
-    reply2, used2 = _ladder_run(strict_contents)
+    reply2, used2 = _brain_run(strict_contents)
     if used2 is None:
         return reply  # re-ask bhi fail - pehla jawab hi de do
     return reply2
@@ -1310,11 +1464,12 @@ def ask_agent(message: str) -> str:
     demo_reply = demo_ask(message)
     if demo_reply is not None:
         return demo_reply
-    if GEMINI_API_KEY:
-        return gemini_ask(message)
-    return ("Abhi main demo mode me hu - bina Gemini key ke main sirf "
+    if GEMINI_API_KEY or GROQ_API_KEY:
+        return brain_ask(message)
+    return ("Abhi main demo mode me hu - bina kisi key ke main sirf "
             "tool wale kaam kar sakta hu. 'help' likho, commands dikha dunga. "
-            "Free chat ke liye config.env me apni free Gemini key daal do.")
+            "Free chat ke liye config.env me apni free Gemini key (ya "
+            "tez jawab ke liye Groq key) daal do.")
 
 # --------------------------------------------------------------------------
 # Premium chat screen (served at GET /) - same design as the phone app.
@@ -1854,8 +2009,16 @@ class AskHandler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html", "/ui"):
             self._send_html(_ui_page())
         elif self.path == "/health":
+            if GROQ_API_KEY and GEMINI_API_KEY:
+                mode = "groq+gemini"
+            elif GROQ_API_KEY:
+                mode = "groq"
+            elif GEMINI_API_KEY:
+                mode = "gemini"
+            else:
+                mode = "demo"
             self._send_json(200, {"ok": True,
-                                  "mode": "gemini" if GEMINI_API_KEY else "demo",
+                                  "mode": mode,
                                   "work_folder": str(WORK_DIR)})
         else:
             self._send_json(404, {"error": "not found"})
@@ -1905,7 +2068,14 @@ def main() -> int:
     if not args.no_server:
         start_http_server()
 
-    mode = "Gemini" if GEMINI_API_KEY else "demo (no key)"
+    if GROQ_API_KEY and GEMINI_API_KEY:
+        mode = "Groq (tez) + Gemini (backup)"
+    elif GROQ_API_KEY:
+        mode = "Groq"
+    elif GEMINI_API_KEY:
+        mode = "Gemini"
+    else:
+        mode = "demo (no key)"
     print("=" * 58)
     print("  My Agent - tumhara apna agent, tumhare hi computer par")
     print(f"  Mode: {mode}   Work folder: {WORK_DIR}")
