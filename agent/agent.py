@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.9"
+AGENT_VERSION = "8.10"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -336,6 +336,13 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
    likh lo, taaki agli baar wahi dikkat aaye to tum khud sambhal
    sako - har baar nayi shuruaat mat karo, aur har chhoti dikkat
    ke liye Ankit ko pareshan mat karo.
+7. TOOL NA HO TO TOOLS GHUMAO MAT: jis kaam ke liye tumhare paas
+   koi tool maujud hi nahi hai, uske liye alag-alag tools
+   baar-baar ghuma kar kadam barbaad MAT karo, aur aakhir me
+   "ruk gaya" bhi mat bolo. PEHLE kadam par hi saaf batao ki ye
+   kaam tum abhi nahi kar sakte, aur saath me sabse kareebi hal
+   batao - ya wahi hissa khud kar do jo tumhare tools se ho
+   sakta hai.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tum ek WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
@@ -462,6 +469,18 @@ PHOTO (screenshot / tasveer dekhna):
   aam tools se asal me karo - sirf photo ka vivaran
   suna kar mat ruk jao.
 
+DESIGN BANANA (logo / banner / poster):
+- Ankit design, logo, banner, poster ya koi bhi tasveer
+  banane ko kahe to design_banao chalao. Uske varnan ko
+  saaf prompt me badal kar do - naam, rang, style jo usne
+  bola ho, wo sab shamil karo.
+- Design ban jaye to use open_file se khol kar Ankit ko
+  DIKHAO bhi - sirf path bata kar mat ruk jao.
+- Teen design mange to design_banao teen baar chalao -
+  har baar alag style/rang ka varnan aur alag filename
+  (jaise story-tv-logo-1, story-tv-logo-2) - phir teeno
+  khol kar dikhao, taaki wo chun sake.
+
 PROGRAM CHALANA (software install karna / chalana):
 - Ankit koi software install karne ya koi program chalane ko
   kahe to run_program se asal me chalao - sirf steps bata kar
@@ -506,6 +525,11 @@ Available tools:
                              kaam karne se pehle yahi chalao
 - see_image(path)            PC par padi photo/screenshot dekho -
                              usme kya hai samajh kar milega
+- design_banao(prompt, filename)  Gemini ke image model se
+                             design/logo/banner/poster ki tasveer
+                             banao - file work/ me banti hai;
+                             ban jaye to open_file se khol kar
+                             Ankit ko dikhao bhi
 - write_file(path, content)  text file likho - work folder ya Ankit
                              ke apne folders me (system jagah nahi)
 - create_folder(path)        folder banao - work folder ya Ankit ke
@@ -1819,6 +1843,157 @@ def tool_see_image(path: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# Design banana (v8.10) - Gemini ke IMAGE model se logo/banner/
+# poster jaisi tasveer banana. Asal PC par zinda wajah: user ne
+# kaha "story tv ke 3 design banao, logo aur banner" aur agent
+# ke paas image banane ka koi tool hi nahi tha - kamzor backup
+# dimag alag-alag tools ghumata raha aur step-cap par ruk gaya
+# ("Tool steps zyada ho gaye, main ruk gaya"). Ab asal tool hai.
+# API ki shakal Google ke official docs se verify ki hui hai
+# (ai.google.dev/gemini-api/docs/image-generation): POST
+# v1beta/models/{model}:generateContent, body me
+# generationConfig.responseModalities ["TEXT", "IMAGE"], aur
+# jawab ke parts me inlineData {mimeType, data(base64)} bankar
+# tasveer aati hai. Pehla model: gemini-3.1-flash-image (Nano
+# Banana 2 - maujuda Flash Image workhorse); wo model na mile
+# (HTTP 404) to dusra khud try hota hai: gemini-2.5-flash-image
+# (purana Nano Banana, door-door tak uplabdh). Har bani hui
+# tasveer par Google ka SynthID watermark hota hai (docs ki
+# baat hai) - ye Google ki taraf se hai, agent ka kiya nahi.
+# --------------------------------------------------------------------------
+
+_DESIGN_MODELS = ("gemini-3.1-flash-image", "gemini-2.5-flash-image")
+_DESIGN_TIMEOUT = 120  # image banne me samay lagta hai
+_DESIGN_MIME_EXT = {"image/png": ".png", "image/jpeg": ".jpg",
+                    "image/jpg": ".jpg", "image/webp": ".webp"}
+
+
+def _gemini_image_call(prompt: str, model: str):
+    """Ek image-generation call: (image_bytes, mime, model_text).
+
+    Tasveer na mile to image_bytes None rahega (model_text me
+    model ki kahi baat ho sakti hai). HTTP galti par HTTPError
+    upar jata hai - tool use saaf shabdon me badalta hai.
+    """
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{model}:generateContent?key={GEMINI_API_KEY}")
+    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]}}
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=_DESIGN_TIMEOUT) as resp:  # noqa: S310
+        data = json.loads(resp.read().decode("utf-8"))
+    text = ""
+    for cand in data.get("candidates") or []:
+        for part in (cand.get("content") or {}).get("parts") or []:
+            if part.get("text"):
+                text += part["text"]
+            inline = part.get("inlineData") or part.get("inline_data") or {}
+            b64 = inline.get("data")
+            if b64:
+                mime = (inline.get("mimeType") or inline.get("mime_type")
+                        or "image/png")
+                return base64.b64decode(b64), mime, text.strip()
+    return None, None, text.strip()
+
+
+def _design_filename(filename: str, mime: str) -> str:
+    """Design ki file ka saaf naam: sirf aakhri hissa (basename)
+    rakho, ajeeb akshar hata do, aur extension hamesha mile hue
+    image ke mime se lagao. '../../evil' jaisi chaal se bhi
+    file work/ ke bahar nahi ja sakti - naam seedha wahi banta
+    hai."""
+    raw = (filename or "").strip().strip('"').strip("'")
+    raw = raw.replace("\\", "/").rsplit("/", 1)[-1]
+    raw = re.sub(r"[^A-Za-z0-9._\- ]+", "_", raw).strip()
+    stem = raw.rsplit(".", 1)[0] if "." in raw else raw
+    stem = stem.strip(". ") or "design"
+    return stem + _DESIGN_MIME_EXT.get(mime, ".png")
+
+
+def tool_design_banao(prompt: str, filename: str = "") -> str:
+    """Gemini ke image model se ek design/tasveer banao.
+
+    prompt = design ka varnan (kya banna hai - naam, rang,
+    style). filename = file ka naam (khaali ho to 'design');
+    asli extension mile hue image ke mime se lagti hai aur
+    file work/ folder me banti hai. Pehla image model na
+    mile (404) to dusra model khud try hota hai; quota (429)
+    adi par Gemini ki ASLI wajah wapas jati hai - jhooti
+    safalta kabhi nahi milti.
+    """
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return ("Kaisa design banau - uska varnan to do (jaise "
+                "'Story TV ke liye dark-gold logo, beech me "
+                "play button').")
+    if not GEMINI_API_KEY:
+        return ("Design banane ke liye Gemini ki key chahiye, "
+                "lekin config.env me GEMINI_API_KEY mili nahi. "
+                "Key daal kar phir bolo - main design bana dunga.")
+    img = mime = text = None
+    last_404 = ""
+    for model in _DESIGN_MODELS:
+        try:
+            img, mime, text = _gemini_image_call(prompt, model)
+        except urllib.error.HTTPError as exc:
+            detail = _http_error_message(exc)
+            log(f"DESIGN fail [{model}]: HTTP {exc.code}"
+                + (f" - {detail}" if detail else ""))
+            if exc.code == 404:
+                last_404 = detail
+                continue
+            msg = ("Design nahi ban paya - Gemini ne HTTP "
+                   f"{exc.code} diya"
+                   + (f": {detail}" if detail else ""))
+            if exc.code == 429:
+                msg += (" Lagta hai free wali hadd (quota) abhi "
+                        "khatm hai - thodi der baad phir try karo.")
+            return msg + "."
+        except Exception as exc:
+            log(f"DESIGN fail [{model}]: {exc}")
+            return (f"Design nahi ban paya: {exc}. Internet "
+                    "check karke phir try karo.")
+        break
+    if img is None and last_404:
+        return ("Design nahi ban paya - Gemini par image wala "
+                "model mila hi nahi (HTTP 404"
+                + (f": {last_404}" if last_404 else "") + "). "
+                "Key sahi hai, ye ek baar jaanch lo; thodi der "
+                "baad phir try karo.")
+    if not img:
+        msg = ("Gemini ne jawab to diya lekin usme koi tasveer "
+               "nahi mili.")
+        if text:
+            msg += f" Model ne kaha: {text[:300]}"
+        msg += (" Prompt thoda aur saaf karke phir bolo - kya "
+                "banna hai, kis naam/rang/style me.")
+        return msg
+    try:
+        dst = _write_path(_design_filename(filename, mime))
+    except ValueError as exc:
+        return str(exc)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    base = dst
+    n = 2
+    while dst.exists():
+        dst = base.with_name(f"{base.stem}-{n}{base.suffix}")
+        n += 1
+    dst.write_bytes(img)
+    log(f"DESIGN ok: {_rel(dst)} ({len(img)} bytes, {mime})")
+    return (f"Design ban gaya: {_rel(dst)} "
+            f"({len(img) / 1024:.0f} KB). open_file se khol "
+            "kar dekh lo - pasand na aaye to badlaav batao, "
+            "naya bana dunga.")
+
+
+# --------------------------------------------------------------------------
 # Program chalana (v8.4) - user ke kahe par PC par command chalana
 # (software install karna / chalana). Har command logs/agent.log me
 # likhi jati hai. Neeche wali khatarnak-class list ek SEATBELT hai -
@@ -3120,6 +3295,7 @@ TOOLS = {
     "run_program": tool_run_program,
     "find_file": tool_find_file,
     "see_image": tool_see_image,
+    "design_banao": tool_design_banao,
     "open_file": tool_open_file,
     "extract_zip": tool_extract_zip,
 }
