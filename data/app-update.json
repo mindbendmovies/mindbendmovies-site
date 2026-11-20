@@ -1,1 +1,6 @@
-{"apk":"https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.3/MindBendMovies.apk","notes":"Push notifications for new movies, a New Added row on Home, and faster in-app updates.","versionCode":14,"versionName":"2.3"}
+{
+  "versionCode": 15,
+  "versionName": "2.4",
+  "apk": "https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.4/MindBendMovies.apk",
+  "notes": "New in 2.4: Tapping a movie now opens its full page with trailer. Fixed taps feeling stuck when an ad is slow."
+}
