@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Dragon Princess Series — Unlock Flow Sample v2 — MindBendMovies</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0f; color: #f2f2f2; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .hdr { padding: 14px 16px; border-bottom: 2px solid #0072ce; font-size: 22px; font-weight: 800; }
+  .hdr span { color: #0072ce; }
+  .samplebar { background: #3a2f00; color: #ffd54a; text-align: center; font-size: 12.5px; font-weight: 700; padding: 7px 10px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 14px 44px; }
+  .hero { text-align: center; }
+  .hero img { width: 190px; border-radius: 14px; }
+  .hero h1 { font-size: 20px; line-height: 1.3; margin-top: 12px; }
+  .meta { color: #9a9aa3; font-size: 13px; margin-top: 6px; }
+  .playerwrap { position: relative; margin-top: 16px; }
+  video { width: 100%; border-radius: 14px; background: #000; display: block; aspect-ratio: 9/16; max-height: 62vh; object-fit: contain; }
+  .nowplaying { margin-top: 8px; font-size: 13.5px; color: #b9b9c2; text-align: center; }
+  .nowplaying b { color: #4ade80; }
+  .soundchip { position: absolute; right: 10px; bottom: 12px; background: #0072ce; color: #fff; border: 0; border-radius: 999px; padding: 9px 14px; font-size: 13px; font-weight: 800; cursor: pointer; display: none; }
+  .sec { font-size: 17px; font-weight: 800; margin: 22px 0 10px; }
+  .prow { display: flex; align-items: center; gap: 12px; background: #16161c; border: 1px solid #26262e; border-radius: 12px; padding: 12px; margin-bottom: 9px; cursor: pointer; width: 100%; text-align: left; color: #f2f2f2; font-family: inherit; }
+  .prow:active { transform: scale(.995); }
+  .pnum { flex: 0 0 40px; height: 40px; border-radius: 10px; background: rgba(0,114,206,.16); color: #35a2ff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .phook { flex: 1; font-size: 14px; line-height: 1.4; }
+  .pdur { color: #9a9aa3; font-size: 12.5px; white-space: nowrap; }
+  .free { color: #4ade80; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
+  .lock { color: #ffd54a; font-size: 15px; }
+  .card { background: #16161c; border: 1px solid #26262e; border-radius: 16px; padding: 18px 16px; margin-top: 16px; }
+  .step { display: none; }
+  .step.on { display: block; }
+  .bell { width: 46px; height: 46px; border-radius: 50%; background: rgba(0,114,206,.15); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .card h2 { font-size: 18px; }
+  .card p { color: #b9b9c2; font-size: 14px; line-height: 1.5; margin-top: 6px; }
+  .allowbtn { display: block; width: 100%; margin-top: 14px; background: #0072ce; color: #fff; border: 0; border-radius: 999px; padding: 13px; font-size: 15.5px; font-weight: 800; cursor: pointer; }
+  .skip { display: block; margin: 10px auto 0; background: none; border: 0; color: #8a8a93; font-size: 13.5px; cursor: pointer; text-decoration: underline; }
+  .subchip { display: none; text-align: center; color: #4ade80; font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+  .count { font-size: 46px; font-weight: 800; text-align: center; margin: 6px 0 2px; }
+  .barwrap { height: 10px; background: #232329; border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .bar { height: 100%; width: 100%; background: linear-gradient(90deg, #0072ce, #35a2ff); border-radius: 999px; transition: width 1s linear; }
+  .adbox { border: 1.5px dashed #3d3d47; border-radius: 12px; color: #8a8a93; text-align: center; padding: 18px 10px; margin-top: 14px; font-size: 13px; position: relative; }
+  .adbox .adchip { position: absolute; top: 6px; left: 8px; background: #3d3d47; color: #d7d7de; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; letter-spacing: .5px; }
+  .adbox.small { padding: 12px 10px; }
+  .tapopen { display: none; width: 100%; margin-top: 14px; background: #b8860b; color: #fff; border: 0; border-radius: 999px; padding: 13px; font-size: 15px; font-weight: 800; cursor: pointer; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(184,134,11,.5); } 70% { box-shadow: 0 0 0 12px rgba(184,134,11,0); } 100% { box-shadow: 0 0 0 0 rgba(184,134,11,0); } }
+  .hidden { display: none; }
+  .back { display: inline-block; margin-top: 18px; color: #8a8a93; font-size: 13.5px; background: none; border: 0; cursor: pointer; text-decoration: underline; }
+  .note { color: #8a8a93; font-size: 12.5px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="hdr">MindBend<span>Movies</span></div>
+<div class="samplebar">SAMPLE v2 — tap Part 2–8: notification → 10s countdown (Smartlink opens at 8) → the part plays on this same page. Ads are placeholders.</div>
+<div class="wrap">
+
+  <!-- Series view -->
+  <div id="seriesView">
+    <div class="hero">
+      <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
+      <h1>They Abandoned a Poor Orphan Girl… Now She's the Dragon Clan's Beloved Princess!</h1>
+      <div class="meta">2026 • Fantasy Drama • 8 Parts • 79 min</div>
+    </div>
+    <div class="playerwrap">
+      <video id="mainPlayer" controls playsinline preload="none" poster="assets/dragon-princess-poster.jpg"></video>
+      <button class="soundchip" id="soundChip">🔊 Tap for Sound</button>
+    </div>
+    <div class="nowplaying" id="nowPlaying">Part 1 is free — tap Part 1 below or any part to begin.</div>
+    <h2 class="sec">All 8 Parts</h2>
+    <div id="partList"></div>
+  </div>
+
+  <!-- Unlock view -->
+  <div id="unlockView" class="hidden">
+    <h2 class="sec" style="margin-top:2px" id="unlockTitle">Unlocking Part 2</h2>
+    <p style="color:#b9b9c2;font-size:14px" id="unlockHook"></p>
+
+    <!-- Step 1: notifications -->
+    <div class="card step on" id="uStep1">
+      <div class="bell">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.3 0 2.4-1 2.4-2.4H9.6C9.6 21 10.7 22 12 22Zm7-5.3v.8H5v-.8l1.9-1.9V9.6a5.4 5.4 0 0 1 4.3-5.3V4a.9.9 0 0 1 1.6 0v.3a5.4 5.4 0 0 1 4.3 5.3v5.2L19 16.7Z" fill="#35a2ff"/></svg>
+      </div>
+      <h2>Never miss a new episode</h2>
+      <p>Allow notifications and we will tell you the moment a new part or movie is added — no spam, only new episodes.</p>
+      <button class="allowbtn" id="allowBtn">🔔 Allow Notifications</button>
+      <button class="skip" id="skipBtn">Skip this step</button>
+    </div>
+
+    <!-- Step 2: 10s countdown, Smartlink at 8 -->
+    <div class="card step" id="uStep2">
+      <div class="subchip" id="subChip">✓ Subscribed — new episode alerts are ON</div>
+      <h2 style="text-align:center">Your part is getting ready…</h2>
+      <div class="count" id="countNum">10</div>
+      <div class="barwrap"><div class="bar" id="bar"></div></div>
+      <p class="note">A sponsor page opens at 8 — close it and stay here, your part is loading.</p>
+      <button class="tapopen" id="tapOpen">Tap here to continue →</button>
+      <div class="adbox"><span class="adchip">AD</span>Sponsor ad space — a real Native ad runs here in the live version</div>
+      <div class="adbox small"><span class="adchip">AD</span>Sponsor banner space — 320 × 50</div>
+    </div>
+
+    <button class="back" id="backBtn">← Back to all parts</button>
+  </div>
+
+</div>
+<script>
+  var SMARTS = [
+    'https://asiafilm.org/4/722ed74ebd82264062c28be2b74673a6',
+    'https://asiafilm.org/4/94a9bb2770c62b79eb368ac36c35225c'
+  ];
+  var BASE = 'https://github.com/mindbendmovies/mindbendmovies-app/releases/download/series-v1/dragon-princess-part';
+  var PARTS = [
+    { n: 1, hook: 'Thrown out by the family that raised her', dur: '10:00' },
+    { n: 2, hook: 'A Dragon Clan elder brings her to the hidden palace', dur: '10:00' },
+    { n: 3, hook: 'A power sleeping in her blood awakens', dur: '10:00' },
+    { n: 4, hook: 'The old family tries to drag her back down', dur: '10:00' },
+    { n: 5, hook: 'Rivals plot against her — the clan stands behind her', dur: '10:00' },
+    { n: 6, hook: 'Her true identity begins to surface', dur: '10:00' },
+    { n: 7, hook: 'The old family begs for forgiveness', dur: '10:00' },
+    { n: 8, hook: "Crowned the Dragon Clan's beloved princess", dur: '9:24' }
+  ];
+  var player = document.getElementById('mainPlayer');
+  var soundChip = document.getElementById('soundChip');
+  var nowPlaying = document.getElementById('nowPlaying');
+
+  function playInPage(p) {
+    player.src = BASE + p.n + '.mp4';
+    nowPlaying.innerHTML = 'Now playing: <b>Part ' + p.n + '</b> — ' + p.hook;
+    player.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    var pr = player.play();
+    if (pr && pr.catch) {
+      pr.catch(function () {
+        player.muted = true;
+        player.play().catch(function () {});
+        soundChip.style.display = 'block';
+      });
+    }
+  }
+  soundChip.addEventListener('click', function () {
+    player.muted = false;
+    player.play().catch(function () {});
+    soundChip.style.display = 'none';
+  });
+  player.addEventListener('click', function () {
+    if (player.muted) { player.muted = false; soundChip.style.display = 'none'; }
+  });
+
+  var list = document.getElementById('partList');
+  PARTS.forEach(function (p) {
+    var b = document.createElement('button');
+    b.className = 'prow';
+    if (p.n === 1) {
+      b.innerHTML = '<div class="pnum">1</div><div class="phook">' + p.hook + '<br><span class="free">FREE — PLAYS ON THIS PAGE</span></div><div class="pdur">' + p.dur + '</div>';
+      b.addEventListener('click', function () { playInPage(p); });
+    } else {
+      b.innerHTML = '<div class="pnum">' + p.n + '</div><div class="phook">' + p.hook + '</div><div class="pdur">' + p.dur + '</div><div class="lock">🔒</div>';
+      b.addEventListener('click', function () { startUnlock(p); });
+    }
+    list.appendChild(b);
+  });
+
+  var current = null;
+  var timer = null;
+  var seriesView = document.getElementById('seriesView');
+  var unlockView = document.getElementById('unlockView');
+  var uStep1 = document.getElementById('uStep1');
+  var uStep2 = document.getElementById('uStep2');
+
+  function startUnlock(p) {
+    current = p;
+    document.getElementById('unlockTitle').textContent = 'Unlocking Part ' + p.n;
+    document.getElementById('unlockHook').textContent = p.hook + ' • ' + p.dur;
+    document.getElementById('subChip').style.display = 'none';
+    document.getElementById('tapOpen').style.display = 'none';
+    uStep1.classList.add('on');
+    uStep2.classList.remove('on');
+    seriesView.classList.add('hidden');
+    unlockView.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openSmart() {
+    var url = SMARTS[Math.floor(Math.random() * SMARTS.length)];
+    return window.open(url, '_blank');
+  }
+
+  function startTimer() {
+    uStep1.classList.remove('on');
+    uStep2.classList.add('on');
+    var n = 10;
+    var num = document.getElementById('countNum');
+    var bar = document.getElementById('bar');
+    var tapOpen = document.getElementById('tapOpen');
+    num.textContent = '10';
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    setTimeout(function () { bar.style.transition = 'width 1s linear'; }, 40);
+    if (timer) { clearInterval(timer); }
+    timer = setInterval(function () {
+      n--;
+      bar.style.width = (n * 10) + '%';
+      if (n === 8) {
+        num.textContent = n;
+        var w = openSmart();
+        if (!w) {
+          /* Browser blocked the auto-open: pause at 8 until the user taps. */
+          clearInterval(timer); timer = null;
+          tapOpen.style.display = 'block';
+          tapOpen.onclick = function () {
+            openSmart();
+            tapOpen.style.display = 'none';
+            timer = setInterval(tick, 1000);
+          };
+        }
+      } else if (n <= 0) {
+        clearInterval(timer); timer = null;
+        num.textContent = '✓';
+        finishUnlock();
+      } else {
+        num.textContent = n;
+      }
+      function tick() {
+        n--;
+        bar.style.width = (n * 10) + '%';
+        if (n <= 0) {
+          clearInterval(timer); timer = null;
+          num.textContent = '✓';
+          finishUnlock();
+        } else {
+          num.textContent = n;
+        }
+      }
+    }, 1000);
+  }
+
+  function finishUnlock() {
+    unlockView.classList.add('hidden');
+    seriesView.classList.remove('hidden');
+    playInPage(current);
+  }
+
+  document.getElementById('allowBtn').addEventListener('click', function () {
+    document.getElementById('subChip').style.display = 'block';
+    startTimer();
+  });
+  document.getElementById('skipBtn').addEventListener('click', function () {
+    document.getElementById('subChip').style.display = 'none';
+    startTimer();
+  });
+  document.getElementById('backBtn').addEventListener('click', function () {
+    if (timer) { clearInterval(timer); timer = null; }
+    unlockView.classList.add('hidden');
+    seriesView.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+</body>
+</html>
