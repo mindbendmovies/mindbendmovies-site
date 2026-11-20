@@ -18,8 +18,9 @@
   .wrap { max-width: 760px; margin: 0 auto; padding: 16px; }
   .back { color: #0072ce; font-size: 14px; font-weight: 600; }
   .scrollline { color: #0072ce !important; font-weight: 800; text-align: center; font-size: 17px; margin: 14px 0 4px; }
-  .player { max-width: 420px; margin: 14px auto 6px; border-radius: 14px; overflow: hidden; border: 1px solid #26262f; background: #000; }
+  .player { max-width: 420px; margin: 14px auto 6px; border-radius: 14px; overflow: hidden; border: 1px solid #26262f; background: #000; position: relative; }
   .player video { width: 100%; aspect-ratio: 9/16; background: #000; }
+  .unmute { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: rgba(0,114,206,.94); color: #fff; border: 0; font-size: 15px; font-weight: 800; padding: 11px 20px; border-radius: 999px; cursor: pointer; z-index: 5; box-shadow: 0 6px 22px rgba(0,0,0,.5); white-space: nowrap; }
   h1 { font-size: 24px; line-height: 1.3; margin: 14px 0 4px; }
   .meta { color: #b8bcc4; font-size: 14px; margin-bottom: 12px; }
   .story { color: #dfe1e6; font-size: 15px; line-height: 1.65; }
@@ -53,7 +54,7 @@
     <a href="index.html#top10">Top 10</a>
     <a href="index.html#news">Movie News</a>
     <a href="series.html">AI Drama Series</a>
-    <a href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.1/MindBendMovies.apk">Download App</a>
+    <a href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.2/MindBendMovies.apk">Download App</a>
   </nav>
 </header>
 
@@ -63,6 +64,7 @@
 
   <div class="player">
     <video id="sv" controls playsinline preload="metadata" poster="assets/dragon-princess-poster.jpg" src="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/series-v1/dragon-princess-part1.mp4"></video>
+    <button id="unmuteBtn" class="unmute" style="display:none">🔊 Tap for Sound</button>
   </div>
 
   <h1>Dragon Princess — AI Drama Series</h1>
@@ -72,7 +74,7 @@
   <h2 class="sec">All Parts</h2>
   <div id="parts"></div>
 
-  <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.1/MindBendMovies.apk">▶ WATCH FREE — GET THE APP</a>
+  <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.2/MindBendMovies.apk">▶ WATCH FREE — GET THE APP</a>
 </div>
 
 <footer>
@@ -87,7 +89,7 @@
     <div class="pb">
       <h3>Watch Free in the App</h3>
       <p>All parts are free in the app.</p>
-      <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.1/MindBendMovies.apk">▶ WATCH FREE — GET THE APP</a>
+      <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.2/MindBendMovies.apk">▶ WATCH FREE — GET THE APP</a>
       <div class="fine">Free download • No sign-up needed</div>
     </div>
   </div>
@@ -127,6 +129,33 @@ PARTS.forEach(function (p, i) {
   wrap.appendChild(b);
 });
 document.getElementById('sv').addEventListener('ended', openPop);
+/* Autoplay: try with sound first; if the browser blocks sound (its autoplay
+   policy), start muted and offer a one-tap sound button. */
+(function () {
+  var v = document.getElementById('sv');
+  var ub = document.getElementById('unmuteBtn');
+  function showUb() { ub.style.display = 'block'; }
+  function hideUb() { ub.style.display = 'none'; }
+  ub.addEventListener('click', function (e) {
+    e.stopPropagation();
+    v.muted = false;
+    hideUb();
+    var pr = v.play(); if (pr && pr.catch) { pr.catch(function () {}); }
+  });
+  v.addEventListener('click', function () { if (v.muted) { v.muted = false; hideUb(); } });
+  try {
+    v.preload = 'auto';
+    var p = v.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        v.muted = true;
+        var p2 = v.play();
+        if (p2 && p2.catch) { p2.catch(function () {}); }
+        showUb();
+      });
+    }
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
