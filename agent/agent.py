@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-My Agent - PC half, v8 - Muse-style: persistent memory (MEMORY.md),
+My Agent - PC half, v8.1 - Muse-style: persistent memory (MEMORY.md),
 2-model ladder (jo model jawab de, usi se kaam), verify-before-done
 workflow rules, busy-server (503/429) retries with honest per-error
 messages, aur SELF-UPDATE: 'update' likhne par naya version khud
 download karke lag jata hai - file haath se badalna khatm.
+v8.1 fixes (user ke asal PC test se): fail-fast Gemini (40s timeout,
+class-wise retry), sakht WORKER rule + tool discipline re-ask (sirf
+salah dene par model ko ek baar tool chalane par majboor karna),
+tolerant action parsing (prose me chipka ya double-encoded JSON bhi
+tool call bankar chalta hai), aur 'facebook kholo' jaisi site commands
+jo bina Gemini ke turant browser kholti hain.
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
@@ -56,7 +62,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.0"
+AGENT_VERSION = "8.1"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -171,8 +177,25 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
 5. Jo baat aage bhi kaam aayegi (pasand, faisla, chal raha kaam) use
    yaad_likho se memory me save kar do.
 
+WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
+- Tum ek WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
+  kaam KARNA, sirf samjhana nahi.
+- "khud kar lo", "aap ye steps follow karein", "aapko ye karna hoga",
+  "main direct nahi kar sakta lekin..." jaisi baatein tab tak kehna
+  SAKHT MANA hai, jab tak wo kaam kisi tool se ho sakta ho.
+- Website kholni ho (Facebook, YouTube, koi bhi site) to open_url
+  chalao. File banani ho to write_file chalao. Jo bhi hukum mile -
+  pehle tool chalao, phir batao kya hua.
+- Tool chalane ke baad hi apne jawab me result batao. Bina tool
+  chalaye "kar dunga / ho jayega" wale waade bhi mat karo.
+
 TOOL PROTOCOL: If you need a tool, reply with ONLY a JSON object like
 {"tool": "list_files", "args": {"path": ""}} and nothing else.
+FORMAT RULE (bahut zaroori): tool call wala jawab SIRF wahi ek JSON
+object hoga - usse pehle ya baad me EK SHABD bhi nahi, koi prose,
+koi "main kar deta hu" wali line nahi. "args" hamesha ek asli JSON
+object hoga {"url": "..."} - kabhi bhi string ke andar band kiya
+hua JSON nahi bhejoge.
 Available tools:
 - list_files(path)           list files/folders inside the work folder
 - read_file(path)            read a text file inside the work folder
@@ -397,15 +420,25 @@ def tool_open_url(url: str) -> str:
     url = (url or "").strip()
     if not re.match(r"^https?://", url):
         return "Sirf http/https wala link khol sakta hu - sahi URL do."
+    opened = False
+    err = None
     try:
-        opened = webbrowser.open(url)
+        opened = webbrowser.open(url, new=2)
     except Exception as exc:
-        return (f"Browser kholne me dikkat aayi: {exc}. "
-                f"Link haath se kholo: {url}")
+        err = exc
+    if not opened and platform.system() == "Windows" and hasattr(os, "startfile"):
+        # webbrowser kabhi kabhi Windows par bina error ke False de deta
+        # hai - tab OS ke apne tareeke (startfile) se ek koshish aur.
+        try:
+            os.startfile(url)  # noqa: S606 - user ka apna PC, usi ka hukum
+            opened = True
+        except Exception as exc:
+            err = exc
     if opened:
         return f"Browser me khol diya: {url}"
-    return ("Is computer par browser/display nahi mila, isliye page khud "
-            f"nahi khula. Link haath se kholo: {url}")
+    detail = f" ({err})" if err else ""
+    return ("Browser kholne me dikkat aayi" + detail +
+            f". Link haath se kholo: {url}")
 
 
 # --------------------------------------------------------------------------
@@ -679,6 +712,61 @@ def _is_update_command(low: str) -> bool:
     return low in _UPDATE_TRIGGERS or low.startswith("update ")
 
 
+# --------------------------------------------------------------------------
+# Instant site commands (v8.1) - 'facebook kholo' type ke hukum bina
+# Gemini ke, turant isi PC ke browser me khulte hain. Update command ki
+# tarah ye bhi demo/Gemini dispatch se pehle pakde jate hain, isliye
+# inmein na intezaar hai na model ki galti ki gunjaish.
+# --------------------------------------------------------------------------
+
+_SITE_MAP = {
+    "facebook": ("Facebook", "https://www.facebook.com"),
+    "youtube": ("YouTube", "https://www.youtube.com"),
+    "instagram": ("Instagram", "https://www.instagram.com"),
+    "tiktok": ("TikTok", "https://www.tiktok.com"),
+    "whatsapp": ("WhatsApp", "https://web.whatsapp.com"),
+    "google": ("Google", "https://www.google.com"),
+    "gmail": ("Gmail", "https://mail.google.com"),
+    "x": ("X", "https://x.com"),
+    "twitter": ("X (Twitter)", "https://x.com"),
+    "mindbendmovies": ("MindBendMovies",
+                       "https://mindbendmovies.github.io/mindbendmovies-site/"),
+}
+
+_OPEN_WORDS = {"kholo", "khol", "kholna", "open", "chalao", "chala",
+               "launch"}
+
+
+def _site_open_command(message: str):
+    """'facebook kholo' / 'open youtube' jaisa hukum ho to site ka
+    (label, url) return karo, warna None.
+
+    Pehchan shabdon (tokens) par hoti hai: ek kholne wala shabd
+    (kholo/khol/open/chalao...) AUR ek site ka naam - dono hon tabhi.
+    Sirf site ka naam (jaise 'facebook par post karo') ismein nahi
+    fasna chahiye, wo Gemini ke paas jayega.
+    """
+    words = re.findall(r"[a-z0-9]+", (message or "").lower())
+    if not any(w in _OPEN_WORDS for w in words):
+        return None
+    for w in words:
+        if w in _SITE_MAP:
+            return _SITE_MAP[w]
+    return None
+
+
+def _site_open_reply(message: str):
+    """Site hukum chala kar Hinglish jawab do; hukum na ho to None."""
+    found = _site_open_command(message)
+    if found is None:
+        return None
+    label, url = found
+    result = run_tool("open_url", {"url": url})
+    if result.startswith("Browser me khol diya"):
+        return f"{label} khol diya hai - browser me naya tab khul gaya hoga."
+    return result
+
+
 TOOLS = {
     "list_files": tool_list_files,
     "read_file": tool_read_file,
@@ -741,6 +829,9 @@ HELP_TEXT = """Demo mode commands (type them as-is):
   update                      - check for a newer agent version and
                                 update myself (engine restart ke baad
                                 naya version lagega)
+  facebook kholo              - mashhoor site seedha browser me khol
+                                do (youtube, instagram, tiktok,
+                                whatsapp, google, gmail bhi chalega)
   help                        - this list
   quit                        - stop
 For free chatting like Muse, add your free Gemini key in config.env."""
@@ -870,8 +961,16 @@ class _GeminiBusyError(_GeminiSlowError):
 
 # HTTP codes jo kuch der ki baat hain: server busy / rate limit.
 _BUSY_CODES = (503, 429)
-# Retry ke beech badhti hui rukawat (seconds): pehli fail par 3s, dusri par 8s.
-_RETRY_DELAYS = (3, 8)
+# Fail-fast neeti (v8.1): har call ka timeout 40s (pehle 120s tha - user
+# ko bahut slow lagta tha). Retry class ke hisaab se:
+# - timeout / network gadbad: kul 2 koshish, beech me 2s ki rukawat.
+# - busy (503/429): kul 3 koshish, beech me 2s phir 5s ki rukawat.
+# Isse ek model zyada se zyada ~2 minute me haar man leta hai aur
+# ladder dusre model ko mauka deti hai - jawab jaldi ya to aata hai
+# ya saaf wajah ke saath rukta hai.
+_GEMINI_TIMEOUT = 40
+_TIMEOUT_DELAYS = (2,)
+_BUSY_DELAYS = (2, 5)
 
 
 def _gemini_call(contents: list, model: str = None) -> str:
@@ -888,16 +987,17 @@ def _gemini_call(contents: list, model: str = None) -> str:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    # Slow model / dheela internet / busy server: har koshish me 120s tak
-    # wait, aur timeout, network gadbad ya HTTP 503/429 (server busy /
-    # rate limit) par kul 3 koshish - beech me badhti rukawat (3s, phir 8s).
-    # Baaki HTTP errors (404/400 jaisi) par retry NAHI - wo turant upar
-    # jati hain aur pehle ki tarah report hoti hain.
+    # Fail-fast (v8.1): har koshish me 40s tak wait. Timeout/network
+    # par kul 2 koshish (2s ki rukawat), busy server (503/429) par kul
+    # 3 koshish (2s, phir 5s ki rukawat). Baaki HTTP errors (404/400
+    # jaisi) par retry NAHI - wo turant upar jati hain aur pehle ki
+    # tarah report hoti hain.
     last_exc = None
     last_kind = None  # "timeout" | "busy" | "other"
-    for attempt in range(3):
+    attempt = 0
+    while True:
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=_GEMINI_TIMEOUT) as resp:  # noqa: S310
                 data = json.loads(resp.read().decode("utf-8"))
             parts = data["candidates"][0]["content"]["parts"]
             return "".join(p.get("text", "") for p in parts).strip()
@@ -906,8 +1006,10 @@ def _gemini_call(contents: list, model: str = None) -> str:
                 raise
             last_exc = exc
             last_kind = "busy"
-            log(f"GEMINI[{model}] attempt {attempt + 1}/3 fail: "
-                f"HTTP {exc.code} (server busy / rate limit, retry)")
+            max_attempts = 3
+            log(f"GEMINI[{model}] attempt {attempt + 1}/{max_attempts} "
+                f"fail: HTTP {exc.code} (server busy / rate limit, retry)")
+            delays = _BUSY_DELAYS
         except (urllib.error.URLError, socket.timeout, TimeoutError,
                 ConnectionError) as exc:
             last_exc = exc
@@ -916,9 +1018,14 @@ def _gemini_call(contents: list, model: str = None) -> str:
                 isinstance(exc, urllib.error.URLError)
                 and isinstance(exc.reason, (socket.timeout, TimeoutError)))
             last_kind = "timeout" if is_timeout else "other"
-            log(f"GEMINI[{model}] attempt {attempt + 1}/3 fail: {exc}")
-        if attempt < 2:
-            time.sleep(_RETRY_DELAYS[attempt])
+            max_attempts = 2
+            log(f"GEMINI[{model}] attempt {attempt + 1}/{max_attempts} "
+                f"fail: {exc}")
+            delays = _TIMEOUT_DELAYS
+        if attempt + 1 >= max_attempts:
+            break
+        time.sleep(delays[min(attempt, len(delays) - 1)])
+        attempt += 1
     if last_kind == "busy":
         raise _GeminiBusyError(f"HTTP {last_exc.code}")
     if last_kind == "timeout":
@@ -931,34 +1038,114 @@ _history: list = []
 _history_lock = threading.Lock()
 
 
-def _gemini_converse(contents: list, model: str) -> str:
+def _balanced_blocks(text: str):
+    """Text ke saare balanced {...} blocks ek-ek karke do.
+
+    String ke andar ke braces ginne me nahi aate (escape ka bhi
+    dhyaan rakha gaya hai), taaki prose ke beech chipka JSON aur
+    string ke andar band JSON dono sahi pakde jayein.
+    """
+    blocks = []
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        depth = 0
+        in_str = False
+        esc = False
+        end = None
+        for j in range(i, n):
+            ch = text[j]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+            elif ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = j + 1
+                    break
+        if end is None:
+            break
+        blocks.append(text[i:end])
+        i = end
+    return blocks
+
+
+def _extract_tool_call(reply: str):
+    """Model ke jawab me se tool-call JSON nikalo - tolerant parsing.
+
+    Asal PC par dekha gaya (v8.1 ki wajah): model kabhi kabhi jawab
+    me prose ke saath JSON chipka deta hai, ya "args" ko object ki
+    jagah double-encoded STRING bana deta hai - purana parser use
+    plain text samajh kar dikha deta tha aur tool chalta hi nahi tha.
+    Ab: code fence hatao, pehle pura jawab, phir har balanced {...}
+    block try karo; jis me "tool" key parse ho jaye wahi action hai.
+    "args" string aaye to use bhi json.loads karke object banao.
+    Kuch salvage na ho to None (jawab plain text mana jayega).
+    """
+    if not reply:
+        return None
+    text = re.sub(r"```(?:json)?", "", reply).strip()
+    candidates = []
+    if text.startswith("{"):
+        candidates.append(text)
+    candidates.extend(_balanced_blocks(text))
+    for cand in candidates:
+        try:
+            parsed = json.loads(cand)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if not (isinstance(parsed, dict) and "tool" in parsed):
+            continue
+        args = parsed.get("args") or {}
+        if isinstance(args, str):
+            try:
+                decoded = json.loads(args)
+                if isinstance(decoded, dict):
+                    args = decoded
+            except (json.JSONDecodeError, ValueError):
+                pass
+        if not isinstance(args, dict):
+            args = {}
+        return {"tool": parsed["tool"], "args": args}
+    return None
+
+
+def _gemini_converse(contents: list, model: str):
     """Ek diye hue model ke saath pura tool-loop chalao.
 
-    Safal jawab return hota hai; Gemini wali errors (slow / HTTP /
-    baaki) caller ko dikhti hain taaki wo fallback try kar sake.
+    (jawab, tool_chala_kya) return hota hai; Gemini wali errors
+    (slow / HTTP / baaki) caller ko dikhti hain taaki wo fallback
+    try kar sake. tool_chala_kya isliye chahiye taaki discipline
+    re-ask (sirf salah wale jawab par) sahi faisla le sake.
     """
     contents = list(contents)
+    used_tool = False
     for _ in range(5):  # max 5 tool steps per message
         reply = _gemini_call(contents, model)
-        tool_call = None
-        candidate = reply.strip()
-        if candidate.startswith("{"):
-            try:
-                parsed = json.loads(candidate)
-                if isinstance(parsed, dict) and "tool" in parsed:
-                    tool_call = parsed
-            except json.JSONDecodeError:
-                pass
+        tool_call = _extract_tool_call(reply)
         if tool_call is None:
             with _history_lock:
                 _history.append({"role": "model",
                                  "parts": [{"text": reply}]})
-            return reply
+            return reply, used_tool
+        used_tool = True
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": f"Tool result: {result}"}]})
-    return "Tool steps zyada ho gaye, main ruk gaya. Thoda simple karke phir pucho."
+    return ("Tool steps zyada ho gaye, main ruk gaya. Thoda simple "
+            "karke phir pucho."), used_tool
 
 
 _SLOW_MESSAGE = ("Gemini se baat nahi ho payi: internet ya model slow tha, "
@@ -1013,34 +1200,55 @@ def _gemini_http_message(exc) -> str:
     return f"Gemini se baat nahi ho payi (HTTP {exc.code})."
 
 
-def gemini_ask(message: str) -> str:
-    """Model ladder: pehle primary model, fail ho to dusra - kul 2 model.
+# --------------------------------------------------------------------------
+# Tool discipline (v8.1) - 'khud kar lo' wali shikayat ka code ilaaj.
+# Hukum me action wala shabd ho (kholo, banao, likho...) aur model ne
+# BINA koi tool chalaye sirf text jawab de diya ho, to ek baar sakht
+# instruction ke saath dobara pucha jata hai. Kul EK re-ask per
+# message - loop kabhi nahi banta.
+# --------------------------------------------------------------------------
 
-    Har model apni 3-koshish wali retry (timeout/503/429 par, 3s/8s ki
-    rukawat ke saath) se chalta hai. Key ki galti (400/401/403) par
-    ladder turant rukti hai - dusra model bhi wahi key use karega,
-    uski koshish bekaar hai. Dono fail hon to jawab AAKHRI error ki
-    class se banta hai (busy -> busy message, timeout -> slow
-    message, 404 -> plain message).
+_ACTION_WORDS = ("kholo", "khol", "open", "banao", "bana", "create",
+                 "download", "likho", "save", "delete", "hatao",
+                 "bhejo", "chalao", "play")
+_ACTION_RE = re.compile(r"\b(?:" + "|".join(_ACTION_WORDS) + r")\b")
+
+_STRICT_REASK = (
+    "STRICT INSTRUCTION: Pichhle jawab me tumne koi tool NAHI chalaya, "
+    "sirf salah/text diya - ye GALAT hai, tum ek WORKER ho. User ne "
+    "kaam karne ko kaha hai. Ab bina kisi prose ke SIRF ek JSON "
+    "tool-call do aur asal me tool chalao. Agar kaam sach me kisi "
+    "bhi tool se ho hi nahi sakta, tabhi text me saaf wajah batao.")
+
+
+def _has_action_intent(message: str) -> bool:
+    """User ke hukum me kaam karne wala shabd hai ya nahi."""
+    return bool(_ACTION_RE.search((message or "").lower()))
+
+
+def _ladder_run(contents: list):
+    """Model ladder chalao: pehle primary, fail ho to dusra model.
+
+    Safal ho to (jawab, tool_chala_kya); dono fail hon ya key ki
+    galti ho to (error_message, None). Har model apni fail-fast
+    retry neeti (timeout/network 2 koshish, busy 3 koshish) se
+    chalta hai. Key ki galti (400/401/403) par ladder turant rukti
+    hai - dusra model bhi wahi key use karega, koshish bekaar hai.
     """
-    with _history_lock:
-        _history.append({"role": "user", "parts": [{"text": message}]})
-        del _history[:-20]  # keep the last ~10 exchanges
-        contents = list(_history)
     models = _ladder_models()
     last_exc = None
     for idx, model in enumerate(models):
         try:
-            reply = _gemini_converse(contents, model)
+            reply, used_tool = _gemini_converse(contents, model)
             if idx > 0:
-                return ("(pehle model se jawab nahi aaya, dusre model "
-                        "se laya hu)\n" + reply)
-            return reply
+                reply = ("(pehle model se jawab nahi aaya, dusre model "
+                         "se laya hu)\n" + reply)
+            return reply, used_tool
         except urllib.error.HTTPError as exc:
             if exc.code in _KEY_ERROR_CODES:
                 log(f"GEMINI key-type error (HTTP {exc.code}) - "
                     "ladder yahin ruk gayi")
-                return _gemini_http_message(exc)
+                return _gemini_http_message(exc), None
             last_exc = exc
             log(f"GEMINI ladder: {model} fail (HTTP {exc.code})")
         except Exception as exc:  # slow / busy / network - dusra try karo
@@ -1048,7 +1256,40 @@ def gemini_ask(message: str) -> str:
             log(f"GEMINI ladder: {model} fail: {exc}")
         if idx + 1 < len(models):
             log(f"GEMINI ladder: {model} -> {models[idx + 1]}")
-    return _final_error_message(last_exc)
+    return _final_error_message(last_exc), None
+
+
+def gemini_ask(message: str) -> str:
+    """Gemini se jawab lao - ladder ke saath, discipline ke saath.
+
+    Dono fail hon to jawab AAKHRI error ki class se banta hai (busy
+    -> busy message, timeout -> slow message, 404 -> plain message).
+    Jawab aa jaye lekin hukum action wala ho aur koi tool na chala
+    ho (sirf salah mili ho), to ek baar strict re-ask hota hai.
+    """
+    with _history_lock:
+        _history.append({"role": "user", "parts": [{"text": message}]})
+        del _history[:-20]  # keep the last ~10 exchanges
+        contents = list(_history)
+    reply, used_tool = _ladder_run(contents)
+    if used_tool is None:
+        return reply  # error message - re-ask ka koi matlab nahi
+    if used_tool or not _has_action_intent(message):
+        return reply
+    # Discipline re-ask: sirf EK baar. Pehle history se wo text-wala
+    # model jawab hatao (re-ask uski jagah lega), phir sakht hukum
+    # ke saath ladder dobara chalao.
+    log("DISCIPLINE: action hukum par koi tool nahi chala - strict "
+        "re-ask (ek baar)")
+    with _history_lock:
+        if _history and _history[-1].get("role") == "model":
+            _history.pop()
+    strict_contents = contents + [
+        {"role": "user", "parts": [{"text": _STRICT_REASK}]}]
+    reply2, used2 = _ladder_run(strict_contents)
+    if used2 is None:
+        return reply  # re-ask bhi fail - pehla jawab hi de do
+    return reply2
 
 
 def ask_agent(message: str) -> str:
@@ -1061,6 +1302,11 @@ def ask_agent(message: str) -> str:
         # 'update' wala hukum dono modes me sabse pehle pakda jata hai -
         # demo/Gemini dispatch se pehle, seedha self-update tool chalta hai.
         return run_tool("agent_update", {})
+    site_reply = _site_open_reply(message)
+    if site_reply is not None:
+        # 'facebook kholo' jaisa hukum - bina Gemini ke turant khulta
+        # hai, isliye demo/Gemini se pehle yahin nipta diya jata hai.
+        return site_reply
     demo_reply = demo_ask(message)
     if demo_reply is not None:
         return demo_reply
