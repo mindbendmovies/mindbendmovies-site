@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.10"
+AGENT_VERSION = "8.11"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -343,6 +343,21 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
    kaam tum abhi nahi kar sakte, aur saath me sabse kareebi hal
    batao - ya wahi hissa khud kar do jo tumhare tools se ho
    sakta hai.
+8. ADHURA KAAM - 'JAARI RAKHO': kabhi tumhara jawab
+   kadam-seema ki wajah se (ya ek hi kadam par atak kar)
+   adhura reh jaye, to tumhare jawab me "Ab tak ye ho gaya"
+   wali suchi aati hai. Uske baad Ankit 'jaari rakho',
+   'aage badho' ya 'continue' kahe to kaam NAYE SIRE se
+   shuru MAT karo - usi suchi ko dekho, jo kadam ho chuke
+   hain unhe DOBARA mat karo, aur thik wahi se aage badho
+   jahan ruke the.
+9. KAI CHEEZON WALA KAAM EK SAATH NIBTAO: kaam me kai
+   cheezein hon (jaise 3 design, 3 file, 3 photo) to
+   saari cheezein ek ke baad ek LAGATAR bana do - beech
+   me har cheez ke baad alag se verify karne ya suchi
+   banane wale fazool kadam ghuma kar kadam barbaad MAT
+   karo. Saari cheezein ban jayein, tab aakhir me ek
+   saath dikha do / verify kar lo.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tum ek WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
@@ -1848,7 +1863,9 @@ def tool_see_image(path: str) -> str:
 # kaha "story tv ke 3 design banao, logo aur banner" aur agent
 # ke paas image banane ka koi tool hi nahi tha - kamzor backup
 # dimag alag-alag tools ghumata raha aur step-cap par ruk gaya
-# ("Tool steps zyada ho gaye, main ruk gaya"). Ab asal tool hai.
+# (purana wala "ruk gaya, simple karke pucho" jawab). Ab asal
+# tool hai - aur v8.11 me cap-system bhi badal gaya hai (neeche
+# _StepTracker dekho): seema 20, loop-pehchan, progress suchi.
 # API ki shakal Google ke official docs se verify ki hui hai
 # (ai.google.dev/gemini-api/docs/image-generation): POST
 # v1beta/models/{model}:generateContent, body me
@@ -3661,6 +3678,121 @@ def _extract_tool_call(reply: str):
     return None
 
 
+# --------------------------------------------------------------------------
+# Tool-loop ki seema aur loop-pehchan (v8.11) - kadam-seema 8 se
+# badha kar 20. Wajah: seema asal me KAMZOR backup dimag ko
+# ghumne se rokne ke liye bani thi, lekin tez dimag (Groq)
+# chalne ke baad wahi seema asal bade kaamo ko marne lagi -
+# asal PC par "3 design banao" (3 design_banao + 3 open_file
+# + jaanch = 8 se zyada kadam) seema par kata, aur purana
+# jawab kaam ka bojh wapas user par daal deta tha. Ab teen
+# hisse hain:
+# 1. SEEMA 20: aam bada kaam aaram se pura hota hai.
+# 2. LOOP-PEHCHAN (asli ghumne-rok): ek hi tool-call (naam +
+#    args) LAGATAR do baar AYN wahi jawab de, to teesri
+#    koshish bekaar hai - run wahi rukta hai, atkane wale
+#    kadam ka naam aur ho chuka kaam bata kar. Sirf call ek
+#    hona kaafi NAHI hai: jawab alag ho (jaise browser_read
+#    par badla hua page) to ye bilkul aam baat hai, loop
+#    nahi mana jata.
+# 3. SEEMA = PROGRESS, DEAD END NAHI: 20 kadam sach me pure
+#    hon to jawab me ho chuke kadmo ki suchi aati hai aur
+#    'jaari rakho' bolne par dimag usi suchi se aage badhta
+#    hai (jawab history me bhi rehta hai - _record_final_reply).
+# --------------------------------------------------------------------------
+
+_MAX_TOOL_STEPS = 20
+
+
+def _tool_signature(tool_call: dict) -> str:
+    """Tool call ki pehchan: naam + args ka canonical JSON.
+
+    Args ke shabdon ka kram badalne se pehchan nahi badalti
+    (sort_keys), taaki ek hi hukum do shakal me aaye to bhi
+    ek hi kadam mana jaye.
+    """
+    args = tool_call.get("args") or {}
+    try:
+        canon = json.dumps(args, sort_keys=True, ensure_ascii=False,
+                           default=str)
+    except (TypeError, ValueError):
+        canon = str(args)
+    return f"{tool_call.get('tool')}|{canon}"
+
+
+def _result_snippet(result) -> str:
+    """Progress suchi ke liye tool ke jawab ka chhota saaf tukda."""
+    text = re.sub(r"\s+", " ", str(result or "")).strip()
+    if len(text) > 90:
+        text = text[:90].rstrip() + "…"
+    return text
+
+
+def _progress_text(progress: list) -> str:
+    """Ho chuke kadmo ki number-daar suchi."""
+    lines = []
+    for i, (name, snippet) in enumerate(progress, 1):
+        lines.append(f"{i}. {name}: {snippet}" if snippet
+                     else f"{i}. {name}")
+    return "\n".join(lines)
+
+
+def _cap_reached_message(progress: list) -> str:
+    """Seema (20) par rukne wala jawab - suchi + 'jaari rakho'."""
+    return (f"Is kaam ke kadam pure ho gaye ({_MAX_TOOL_STEPS}), "
+            "isliye yahan ruk raha hu.\n"
+            "Ab tak ye ho gaya:\n"
+            f"{_progress_text(progress)}\n"
+            "Ye kaam abhi adhura hai — 'jaari rakho' bolo to yahi "
+            "se aage badhunga.")
+
+
+def _loop_stuck_message(tool_name: str, progress: list) -> str:
+    """Ek hi kadam par atakne wala jawab - kadam ka naam + suchi."""
+    msg = (f"Main ek hi kadam par atak gaya hu: {tool_name} "
+           "baar-baar wahi jawab de raha hai, isliye ruk raha hu.")
+    if progress:
+        msg += f"\nJo kaam ho gaya:\n{_progress_text(progress)}"
+    return msg
+
+
+class _StepTracker:
+    """Ek converse run ke kadmo ka hisaab: progress suchi +
+    loop-pehchan (lagatar do baar ek hi call, ek hi jawab)."""
+
+    def __init__(self):
+        self.progress = []        # [(tool ka naam, jawab ka tukda)]
+        self._last_sig = None
+        self._last_result = None
+        self._same = 0            # lagatar ek-jaise (call, jawab)
+
+    def note(self, tool_call: dict, result: str) -> bool:
+        """Ek chala hua kadam note karo.
+
+        True mile to LOOP hai: ye call pichhli baar bhi ayn
+        wahi thi aur jawab bhi ayn wahi aaya tha - teesri
+        koshish bekaar hai, run yahi rok do.
+        """
+        name = tool_call.get("tool") or "?"
+        self.progress.append((name, _result_snippet(result)))
+        sig = _tool_signature(tool_call)
+        if sig == self._last_sig and result == self._last_result:
+            self._same += 1
+        else:
+            self._same = 1
+        self._last_sig = sig
+        self._last_result = result
+        return self._same >= 2
+
+
+def _record_final_reply(text: str):
+    """Cap/loop par rukne wala jawab bhi history me model ki
+    baari bankar rahe, taaki agle 'jaari rakho' par dimag ko
+    apni di hui progress suchi dikhe aur wahi se aage badhe."""
+    with _history_lock:
+        _history.append({"role": "model", "parts": [{"text": text}]})
+
+
 def _gemini_converse(contents: list, model: str):
     """Ek diye hue model ke saath pura tool-loop chalao.
 
@@ -3668,10 +3800,17 @@ def _gemini_converse(contents: list, model: str):
     (slow / HTTP / baaki) caller ko dikhti hain taaki wo fallback
     try kar sake. tool_chala_kya isliye chahiye taaki discipline
     re-ask (sirf salah wale jawab par) sahi faisla le sake.
+
+    Kadam-seema _MAX_TOOL_STEPS (20) hai; har kadam
+    _StepTracker me note hota hai - loop pehchane jane par
+    run beech me hi imaandaar jawab ke saath rukta hai, aur
+    seema pure hone par jawab me progress suchi + 'jaari
+    rakho' wala rasta aata hai (v8.11).
     """
     contents = list(contents)
     used_tool = False
-    for _ in range(8):  # max 8 tool steps per message (v8.8: 5 se 8)
+    tracker = _StepTracker()
+    for _ in range(_MAX_TOOL_STEPS):
         reply = _gemini_call(contents, model)
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
@@ -3681,11 +3820,17 @@ def _gemini_converse(contents: list, model: str):
             return reply, used_tool
         used_tool = True
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if tracker.note(tool_call, result):
+            stuck = _loop_stuck_message(tool_call["tool"],
+                                        tracker.progress)
+            _record_final_reply(stuck)
+            return stuck, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": f"Tool result: {result}"}]})
-    return ("Tool steps zyada ho gaye, main ruk gaya. Thoda simple "
-            "karke phir pucho."), used_tool
+    done = _cap_reached_message(tracker.progress)
+    _record_final_reply(done)
+    return done, used_tool
 
 
 _SLOW_MESSAGE = ("Gemini se baat nahi ho payi: internet ya model slow tha, "
@@ -3898,10 +4043,14 @@ def _groq_converse(contents: list):
     wahi hai: jawab me JSON mile to _extract_tool_call use pehchan
     kar tool chalata hai, warna jawab plain text hai. Groq ki haar
     par _GroqDownError (ya koi aur exception) upar jata hai.
+
+    Kadam-seema aur loop-pehchan _gemini_converse wali hi hai
+    (_MAX_TOOL_STEPS = 20 + _StepTracker, v8.11).
     """
     contents = list(contents)
     used_tool = False
-    for _ in range(8):  # max 8 tool steps per message (v8.8: 5 se 8)
+    tracker = _StepTracker()
+    for _ in range(_MAX_TOOL_STEPS):
         reply = _groq_call(_to_openai_messages(contents))
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
@@ -3911,11 +4060,17 @@ def _groq_converse(contents: list):
             return reply, used_tool
         used_tool = True
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if tracker.note(tool_call, result):
+            stuck = _loop_stuck_message(tool_call["tool"],
+                                        tracker.progress)
+            _record_final_reply(stuck)
+            return stuck, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": f"Tool result: {result}"}]})
-    return ("Tool steps zyada ho gaye, main ruk gaya. Thoda simple "
-            "karke phir pucho."), used_tool
+    done = _cap_reached_message(tracker.progress)
+    _record_final_reply(done)
+    return done, used_tool
 
 
 # --------------------------------------------------------------------------
