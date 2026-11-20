@@ -145,19 +145,11 @@ gtag('config', 'G-9XB8WR0RNL');
       <div class="ubarw"><div class="ubar" id="uBar"></div></div>
       <p class="unote">A sponsor page opens at 5 — close it and stay here, your part is loading.</p>
       <button class="utap" id="uTap">Tap here to continue →</button>
-      <div class="uad" id="uAdNative"></div>
-      <div class="uad" id="uAdBanner" style="text-align:center"></div>
     </div>
 
     <div class="ucard">
-      <div class="uapp">
-        <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
-        <div style="flex:1">
-          <h3>Or watch free in the app</h3>
-          <p>All 8 parts are free in the app — no waiting, watch anytime.</p>
-          <a class="getapp" href="app.html">▶ GET THE APP — WATCH FREE</a>
-        </div>
-      </div>
+      <div id="uAdMain"></div>
+      <div id="uAdMainBanner" style="text-align:center;margin-top:12px"></div>
     </div>
 
     <button class="uback" id="uBack">← Back to all parts</button>
@@ -253,6 +245,7 @@ function startUnlock(n) {
   uStep2.className = 'ucard ustep';
   uOv.className = 'uov open';
   uOv.scrollTop = 0;
+  injectMainAds();
 }
 function closeUnlock() {
   if (uTimer) { clearInterval(uTimer); uTimer = null; }
@@ -260,10 +253,10 @@ function closeUnlock() {
 }
 document.getElementById('uBack').addEventListener('click', closeUnlock);
 
-function injectUnlockAds() {
+function injectMainAds() {
   if (uAdsDone) { return; }
   uAdsDone = true;
-  var nSlot = document.getElementById('uAdNative');
+  var nSlot = document.getElementById('uAdMain');
   var nd = document.createElement('div');
   nd.id = 'container-80e3d4b38273e18de4e9dce240240458';
   nSlot.appendChild(nd);
@@ -275,13 +268,12 @@ function injectUnlockAds() {
   window.atOptions = { 'key': '079a1ad73dc1da4c27effe0efe9ef824', 'format': 'iframe', 'height': 50, 'width': 320, 'params': {} };
   var bs = document.createElement('script');
   bs.src = 'https://bancadeltempoidea.org/22/079a1ad73dc1da4c27effe0efe9ef824';
-  document.getElementById('uAdBanner').appendChild(bs);
+  document.getElementById('uAdMainBanner').appendChild(bs);
 }
 
 function startCountdown() {
   uStep1.className = 'ucard ustep';
   uStep2.className = 'ucard ustep on';
-  injectUnlockAds();
   var n = 10;
   var num = document.getElementById('uCount');
   var bar = document.getElementById('uBar');
