@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dragon Princess — AI Drama Series | MindBendMovies</title>
+<meta name="description" content="Dragon Princess — the AI drama series. An abandoned orphan girl rises to become the Dragon Clan's beloved princess. Watch the opening part free on MindBendMovies.">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1014; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  header { background: #16161c; border-bottom: 2px solid #0072ce; padding: 12px 16px; position: sticky; top: 0; z-index: 60; }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: .3px; max-width: 1150px; margin: 0 auto; }
+  .logo span { color: #0072ce; }
+  nav { display: flex; gap: 8px; margin: 10px auto 0; max-width: 1150px; overflow-x: auto; padding-bottom: 2px; }
+  nav a { background: #22222b; border: 1px solid #33333f; color: #e8e9ec; font-size: 13px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 16px; }
+  .back { color: #0072ce; font-size: 14px; font-weight: 600; }
+  .scrollline { color: #0072ce !important; font-weight: 800; text-align: center; font-size: 17px; margin: 14px 0 4px; }
+  .player { max-width: 420px; margin: 14px auto 6px; border-radius: 14px; overflow: hidden; border: 1px solid #26262f; background: #000; }
+  .player video { width: 100%; aspect-ratio: 9/16; background: #000; }
+  h1 { font-size: 24px; line-height: 1.3; margin: 14px 0 4px; }
+  .meta { color: #b8bcc4; font-size: 14px; margin-bottom: 12px; }
+  .story { color: #dfe1e6; font-size: 15px; line-height: 1.65; }
+  h2.sec { font-size: 19px; margin: 24px 0 12px; border-left: 4px solid #0072ce; padding-left: 10px; }
+  .part { display: flex; gap: 12px; align-items: center; background: #16161c; border: 1px solid #26262f; border-radius: 12px; padding: 12px; margin-bottom: 10px; cursor: pointer; width: 100%; text-align: left; color: #fff; font-family: inherit; }
+  .part .pn { background: #0072ce; color: #fff; font-weight: 800; font-size: 13px; border-radius: 8px; padding: 7px 9px; flex: none; }
+  .part .ph { font-size: 14px; line-height: 1.45; flex: 1; }
+  .part .pd { color: #8a8f98; font-size: 12.5px; white-space: nowrap; }
+  .part .play { color: #0072ce; font-size: 19px; flex: none; }
+  .getapp { display: block; width: 100%; background: #0072ce; color: #ffffff; font-weight: 800; font-size: 17px; text-align: center; padding: 15px; border-radius: 999px; margin: 20px 0 6px; box-shadow: 0 0 22px rgba(0,114,206,.75); }
+  footer { border-top: 1px solid #26262f; color: #8a8f98; font-size: 12px; line-height: 1.7; padding: 20px 16px 90px; text-align: center; margin-top: 26px; }
+  /* App popup */
+  .popbg { display: none; position: fixed; inset: 0; background: rgba(5,6,9,.82); z-index: 200; align-items: center; justify-content: center; padding: 18px; }
+  .popbg.open { display: flex; }
+  .pop { background: #16161c; border: 1px solid #2c2c38; border-radius: 18px; max-width: 340px; width: 100%; overflow: hidden; text-align: center; position: relative; box-shadow: 0 18px 50px rgba(0,0,0,.6); }
+  .pop img { width: 100%; height: 190px; object-fit: cover; object-position: top; }
+  .pop .pb { padding: 18px 20px 22px; }
+  .pop h3 { font-size: 21px; margin-bottom: 6px; }
+  .pop p { color: #b8bcc4; font-size: 14px; margin-bottom: 16px; }
+  .pop .getapp { margin: 0 0 10px; }
+  .pop .fine { color: #8a8f98; font-size: 12px; }
+  .pop .x { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(10,10,14,.72); color: #fff; font-size: 16px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">MindBend<span>Movies</span></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="index.html#latest">Movies</a>
+    <a href="index.html#top10">Top 10</a>
+    <a href="index.html#news">Movie News</a>
+    <a href="series.html">AI Drama Series</a>
+    <a href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.1/MindBendMovies.apk">Download App</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <a class="back" href="index.html">← Back to Home</a>
+  <div class="scrollline">⬇ Scroll Down — All 8 Parts Are Listed Below ⬇</div>
+
+  <div class="player">
+    <video id="sv" controls playsinline preload="metadata" poster="assets/dragon-princess-poster.jpg" src="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/series-v1/dragon-princess-part1.mp4"></video>
+  </div>
+
+  <h1>Dragon Princess — AI Drama Series</h1>
+  <div class="meta">2026 • Fantasy Drama • 8 Parts • 79 min</div>
+  <p class="story">Abandoned by the family who raised her, a poor orphan girl is taken in by the hidden Dragon Clan — and discovers a royal power sleeping in her blood. This is her rise from unwanted orphan to the Dragon Clan's beloved princess.</p>
+
+  <h2 class="sec">All Parts</h2>
+  <div id="parts"></div>
+
+  <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.1/MindBendMovies.apk">▶ WATCH FREE — GET THE APP</a>
+</div>
+
+<footer>
+  MindBendMovies — Disturbing Movies, Twisted Thrillers &amp; Hidden Gems.<br>
+  Dragon Princess is an original AI drama series, free to watch in the MindBendMovies app.
+</footer>
+
+<div class="popbg" id="appPop">
+  <div class="pop">
+    <button class="x" id="popClose" aria-label="Close">✕</button>
+    <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
+    <div class="pb">
+      <h3>Watch Free in the App</h3>
+      <p>All parts are free in the app.</p>
+      <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.1/MindBendMovies.apk">▶ WATCH FREE — GET THE APP</a>
+      <div class="fine">Free download • No sign-up needed</div>
+    </div>
+  </div>
+</div>
+
+<script data-cfasync="false" src="https://bancadeltempoidea.org/14/92377f4966b3ff17be810e03213f4eec"></script>
+<script>
+var PARTS = [
+  ['Thrown out by the family that raised her — with nowhere left to go.', '10:00'],
+  ['A Dragon Clan elder brings her to the hidden palace.', '10:00'],
+  ['A power sleeping in her blood begins to awaken.', '10:00'],
+  ['The old family tries to drag her back down.', '10:00'],
+  ['Rivals plot against her — but the clan stands behind her.', '10:00'],
+  ['Her true identity begins to surface.', '10:00'],
+  ['The old family comes back, begging for forgiveness.', '10:00'],
+  ['Crowned at last — the Dragon Clan\u2019s beloved princess.', '9:24']
+];
+var pop = document.getElementById('appPop');
+function openPop() { pop.className = 'popbg open'; }
+function closePop() { pop.className = 'popbg'; }
+document.getElementById('popClose').addEventListener('click', closePop);
+pop.addEventListener('click', function (e) { if (e.target === pop) closePop(); });
+var wrap = document.getElementById('parts');
+PARTS.forEach(function (p, i) {
+  var b = document.createElement('button');
+  b.className = 'part';
+  b.innerHTML = '<span class="pn">P' + (i + 1) + '</span><span class="ph">' + p[0] + '</span><span class="pd">' + p[1] + '</span><span class="play">▶</span>';
+  b.addEventListener('click', function () {
+    if (i === 0) {
+      var v = document.getElementById('sv');
+      v.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      v.play();
+    } else {
+      openPop();
+    }
+  });
+  wrap.appendChild(b);
+});
+document.getElementById('sv').addEventListener('ended', openPop);
+</script>
+</body>
+</html>
