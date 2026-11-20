@@ -115,7 +115,19 @@ gtag('config', 'G-9XB8WR0RNL');
 
 <script>
 var SMARTS = ['https://asiafilm.org/4/722ed74ebd82264062c28be2b74673a6', 'https://asiafilm.org/4/94a9bb2770c62b79eb368ac36c35225c']; function pickSmart() { return SMARTS[Math.floor(Math.random() * SMARTS.length)]; }
-var NATIVE = '<div class="adbox"><scr' + 'ipt async="async" data-cfasync="false" src="https://bancadeltempoidea.org/21/80e3d4b38273e18de4e9dce240240458"></scr' + 'ipt><div id="container-80e3d4b38273e18de4e9dce240240458"></div></div>';
+var NATIVE = '<div class="adbox"><div class="native-slot"></div></div>';
+function loadNativeAds() {
+  document.querySelectorAll('.native-slot').forEach(function (el) {
+    var c = document.createElement('div');
+    c.id = 'container-80e3d4b38273e18de4e9dce240240458';
+    el.appendChild(c);
+    var s = document.createElement('script');
+    s.async = true;
+    s.setAttribute('data-cfasync', 'false');
+    s.src = 'https://bancadeltempoidea.org/21/80e3d4b38273e18de4e9dce240240458';
+    el.appendChild(s);
+  });
+}
 var LANGS = { en: 'English', es: 'Spanish', ko: 'Korean', ja: 'Japanese', hi: 'Hindi', fr: 'French', de: 'German', it: 'Italian', zh: 'Chinese', ru: 'Russian', pt: 'Portuguese' };
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function money(n) { return n > 0 ? '$' + Number(n).toLocaleString('en-US') : 'Not disclosed'; }
@@ -176,6 +188,7 @@ fetch('data/movies.json').then(function (r) { return r.json(); }).then(function 
     window.open(pickSmart(), '_blank');
     window.location.href = dest;
   });
+  loadNativeAds();
 
 }).catch(function () {
   document.getElementById('movieSlot').innerHTML = '<h1>Could not load</h1><div class="meta">Please check your connection and try again.</div>';
