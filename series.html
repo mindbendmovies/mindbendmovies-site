@@ -31,6 +31,12 @@
   .part .ph { font-size: 14px; line-height: 1.45; flex: 1; }
   .part .pd { color: #8a8f98; font-size: 12.5px; white-space: nowrap; }
   .part .play { color: #0072ce; font-size: 19px; flex: none; }
+  .part.playing { border-color: #0072ce; background: rgba(0,114,206,.14); box-shadow: 0 0 0 1px #0072ce, 0 0 18px rgba(0,114,206,.28); }
+  .part .np { display: none; color: #35a2ff; font-size: 11px; font-weight: 800; letter-spacing: .4px; white-space: nowrap; flex: none; }
+  .part.playing .np { display: inline; }
+  .part.playing .play { display: none; }
+  .nowbar { text-align: center; color: #b8bcc4; font-size: 13.5px; margin-top: 10px; }
+  .nowbar b { color: #35a2ff; }
   .getapp { display: block; width: 100%; background: #0072ce; color: #ffffff; font-weight: 800; font-size: 17px; text-align: center; padding: 15px; border-radius: 999px; margin: 20px 0 6px; box-shadow: 0 0 22px rgba(0,114,206,.75); }
   /* Unlock flow (notification -> 10s countdown, Smartlink at 5 -> part plays here) */
   .uov { display: none; position: fixed; inset: 0; background: #0f1014; z-index: 300; overflow-y: auto; }
@@ -96,6 +102,7 @@ gtag('config', 'G-9XB8WR0RNL');
   <a class="back" href="index.html">← Back to Home</a>
   <div class="scrollline">⬇ Scroll Down — All 8 Parts Are Listed Below ⬇</div>
 
+  <div class="nowbar" id="nowBar">Now Playing: <b>Part 1</b></div>
   <div class="player">
     <video id="sv" controls playsinline preload="metadata" poster="assets/dragon-princess-poster.jpg" src="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/series-v1/dragon-princess-part1.mp4"></video>
     <button id="unmuteBtn" class="unmute" style="display:none">🔊 Tap for Sound</button>
@@ -188,8 +195,16 @@ var SBASE = 'https://github.com/mindbendmovies/mindbendmovies-app/releases/downl
 var video = document.getElementById('sv');
 var currentPart = 1;
 
+var partRows = [];
+function markPlaying(n) {
+  partRows.forEach(function (r, i) {
+    if (i === n - 1) { r.classList.add('playing'); } else { r.classList.remove('playing'); }
+  });
+  document.getElementById('nowBar').innerHTML = 'Now Playing: <b>Part ' + n + '</b>';
+}
 function playPart(n) {
   currentPart = n;
+  markPlaying(n);
   var url = SBASE + n + '.mp4';
   if (video.getAttribute('src') !== url) { video.src = url; }
   video.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -207,12 +222,14 @@ var wrap = document.getElementById('parts');
 PARTS.forEach(function (p, i) {
   var b = document.createElement('button');
   b.className = 'part';
-  b.innerHTML = '<span class="pn">P' + (i + 1) + '</span><span class="ph">' + p[0] + '</span><span class="pd">' + p[1] + '</span><span class="play">' + (i === 0 ? '▶' : '🔒') + '</span>';
+  b.innerHTML = '<span class="pn">P' + (i + 1) + '</span><span class="ph">' + p[0] + '</span><span class="pd">' + p[1] + '</span><span class="np">▶ NOW PLAYING</span><span class="play">' + (i === 0 ? '▶' : '🔒') + '</span>';
   b.addEventListener('click', function () {
     if (i === 0) { playPart(1); } else { startUnlock(i + 1); }
   });
   wrap.appendChild(b);
+  partRows.push(b);
 });
+markPlaying(1);
 video.addEventListener('ended', function () {
   if (currentPart >= 1 && currentPart < 8) { startUnlock(currentPart + 1); }
 });
