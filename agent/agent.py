@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.8"
+AGENT_VERSION = "8.9"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -331,6 +331,11 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
    atka hai, aur aage kya ho sakta hai.
 5. Jo baat aage bhi kaam aayegi (pasand, faisla, chal raha kaam) use
    yaad_likho se memory me save kar do.
+6. SEEKHNA: jab koi kaam ek NAYE tareeke se ban jaye ya kisi nayi
+   dikkat ka hal mil jaye, to use yaad_likho ya create_skill se
+   likh lo, taaki agli baar wahi dikkat aaye to tum khud sambhal
+   sako - har baar nayi shuruaat mat karo, aur har chhoti dikkat
+   ke liye Ankit ko pareshan mat karo.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tum ek WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
@@ -355,6 +360,10 @@ BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
   post, comments padhna) to pehle matching skill padho, phir
   browser tools se kaam karo: browser_open se page kholo,
   browser_read se dekho page par kya hai, phir click/type/upload.
+- Ankit POOCHE ki browser me kya khula hai ya kis naam/account
+  se login hai, to browser_read karke page KHUD dekho aur wahi
+  jawab do - andaz mat lagao, aur uske sawal ko site kholne ka
+  hukum mat samjho.
 - Password KABHI mat mango, mat bharo, mat store karo. Login
   sirf Ankit ke haath ka kaam hai.
 - Page par login check, CAPTCHA, 2FA ya "confirm it's you" jaisi
@@ -2425,6 +2434,63 @@ def _cdp_looks_like_ours(version) -> bool:
                for n in ("Chrome", "Chromium", "Edg"))
 
 
+def _repair_stale_agent_chrome() -> bool:
+    """Setup ki KHUD-MARAMMATT (v8.9): port 9222 par koi aisi
+    cheez baithi hai jo CDP jawab nahi de rahi. Agar wo hamara
+    hi purana, atka hua agent Chrome hai - uske processes ki
+    command line me hamari profile (agent_chrome_profile) ka
+    path hoga - to SIRF unhi processes ko band karo aur True
+    do, taaki setup aage launch kar sake. Kuch aur ho (ya
+    Windows na ho, ya kuch bhi gadbad ho) to False - purana
+    port-busy message hi jayega.
+
+    Sirf Windows par, PowerShell se process list (stdlib
+    subprocess hi). Apni profile path wale Chrome ke alawa
+    KISI process ko haath nahi lagta - user ka aam Chrome
+    hamesha surakshit hai.
+    """
+    if platform.system() != "Windows":
+        return False
+    profile = str(BROWSER_PROFILE_DIR)
+    try:
+        ps = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive",
+             "-Command",
+             "Get-CimInstance Win32_Process "
+             "-Filter \"Name='chrome.exe'\" | "
+             "Select-Object ProcessId, CommandLine | "
+             "ConvertTo-Json -Compress"],
+            capture_output=True, text=True, timeout=20)
+        out = (ps.stdout or "").strip()
+        if not out:
+            return False
+        data = json.loads(out)
+        if isinstance(data, dict):
+            data = [data]
+        pids = []
+        for item in data:
+            cmd = str((item or {}).get("CommandLine") or "")
+            if profile.lower() in cmd.lower():
+                try:
+                    pids.append(int(item.get("ProcessId")))
+                except (TypeError, ValueError):
+                    continue
+        if not pids:
+            return False
+        for pid in pids:
+            subprocess.run(["taskkill", "/PID", str(pid), "/F"],
+                           capture_output=True, text=True, timeout=10)
+        log(f"SETUP self-repair: apne purane Chrome ke "
+            f"{len(pids)} process band kiye (PIDs: {pids}) - "
+            f"ab launch dobara hoga")
+        time.sleep(1.0)
+        return True
+    except Exception as exc:
+        log(f"SETUP self-repair fail (purana message hi "
+            f"jayega): {exc}")
+        return False
+
+
 def tool_browser_setup() -> str:
     """Agent wala Chrome kholo - dedicated profile ke saath.
 
@@ -2438,6 +2504,12 @@ def tool_browser_setup() -> str:
     DevToolsActivePort marker file aur/ya port 9222 par CDP ka
     jawab. Marker ho lekin port band ho (stale marker) to aam
     launch wala rasta chalta hai.
+
+    v8.9 KHUD-MARAMMATT: port par apna hi ATKA hua Chrome ho
+    (CDP jawab band, lekin process hamari profile ke saath
+    zinda) to setup use khud band karke fresh launch karta hai
+    (_repair_stale_agent_chrome) - user ko Task Manager nahi
+    kholna padta.
     """
     marker = BROWSER_PROFILE_DIR / "DevToolsActivePort"
     marker_there = marker.is_file()
@@ -2463,11 +2535,17 @@ def tool_browser_setup() -> str:
                 "isliye agent wala Chrome nahi khol paya. Use band "
                 "karke 'browser setup karo' dobara likho.")
     if _port_occupied():
-        # Port par kuch sun raha hai, lekin CDP ka jawab nahi -
-        # wo agent wala Chrome nahi hai.
-        return ("Port 9222 par pehle se kuch aur chal raha hai, "
-                "isliye agent wala Chrome nahi khol paya. Use band "
-                "karke 'browser setup karo' dobara likho.")
+        # Port par kuch sun raha hai, lekin CDP ka jawab nahi.
+        # v8.9 KHUD-MARAMMATT: wo apna hi purana atka hua Chrome
+        # ho to use khud band karke aage badho; kuch aur ho to
+        # tab hi purana port-busy message.
+        if not _repair_stale_agent_chrome() or _port_occupied():
+            return ("Port 9222 par pehle se kuch aur chal raha "
+                    "hai, isliye agent wala Chrome nahi khol "
+                    "paya. Use band karke 'browser setup karo' "
+                    "dobara likho.")
+        log("BROWSER SETUP: self-repair ke baad port khaali - "
+            "ab fresh launch hoga")
     chrome = _find_chrome()
     if not chrome:
         log("BROWSER SETUP fail: is PC par Chrome nahi mila")
@@ -2897,6 +2975,43 @@ _SITE_MAP = {
 _OPEN_WORDS = {"kholo", "khol", "kholna", "open", "chalao", "chala",
                "launch"}
 
+# v8.9 SAWAL-GUARD: ye shabd/phrase dikhte hi message ek SAWAL
+# ya haalat-jaanch hai, site kholne ka hukum NAHI - chahe usme
+# site ka naam aur 'open' dono hi kyun na hon. Asal PC par yahi
+# hua tha: "dekho ki kay facebook open hai hai to kis name se
+# banao mujhe" (sawal) par matcher do baar "Facebook khol diya"
+# bol gaya tha.
+_QUESTION_WORDS = {"kya", "kay", "kis", "kaun", "dekho", "dekh"}
+_STATE_PHRASES = ("open hai", "khula hai", "khuli hai")
+
+
+def _looks_like_question(message: str, text: str, words) -> bool:
+    """Message site kholne ka hukum hai ya usi site ke baare me
+    SAWAL/haalat-jaanch - ye parkho (v8.9). Koi EK bhi nishaani
+    mile to sawal mana jata hai aur instant command NAHI chalta
+    (baat dimag ke paas jati hai, jo browser_read karke jawab
+    dega):
+
+    - aakhir me '?' (normalisation use kaat deta hai, isliye
+      asal message par jaanch hoti hai)
+    - sawal wale shabd: kya/kay (typo), kis, kaun, dekho/dekh
+    - batao/btao/bata wale shabd ('bata' se shuru)
+    - 'check karo' ki jodi
+    - haalat wale phrase: 'open hai', 'khula hai', 'khuli hai'
+      ('open karo' hukum hai, 'open hai' haalat hai)
+    """
+    raw = (message or "").strip().rstrip(_CMD_QUOTE_CHARS).strip()
+    if raw.endswith("?"):
+        return True
+    wset = set(words)
+    if wset & _QUESTION_WORDS:
+        return True
+    if any(w.startswith("bata") for w in words):
+        return True
+    if "check" in wset and "karo" in wset:
+        return True
+    return any(p in text for p in _STATE_PHRASES)
+
 
 def _site_open_command(message: str):
     """'facebook kholo' / 'open youtube' jaisa hukum ho to site ka
@@ -2912,10 +3027,16 @@ def _site_open_command(message: str):
     youtube open karo usme' me hukum youtube ka hai, gmail sirf
     bayaan hai (purana matcher pehla naam utha kar gmail khol deta
     tha - asal PC par yahi galti hui thi).
+
+    v8.9 SAWAL-GUARD: message sawal/haalat-jaanch ho (kya/kay,
+    dekho, batao, kis, 'open hai', aakhir me '?'...) to hukum
+    bilkul NAHI mana jata - dekho _looks_like_question.
     """
     text = _norm_command(message)
     tokens = [(m.group(0), m.start())
               for m in re.finditer(r"[a-z0-9]+", text)]
+    if _looks_like_question(message, text, [w for w, _ in tokens]):
+        return None
     verb_pos = [pos for w, pos in tokens if w in _OPEN_WORDS]
     if not verb_pos:
         return None
@@ -2935,6 +3056,15 @@ def _site_open_reply(message: str):
     v8.8: browser haath judaa hua ho to site AGENT wale Chrome me
     khulti hai (browser_open) - wahi Chrome jisme user login hai.
     Judaa na ho to purana rasta: aam browser me open_url.
+
+    v8.9: judaa na ho, lekin setup ho chuka ho (profile ki
+    marker file maujud) to seedha open_url par girne se pehle
+    EK halki connect koshish hoti hai - asal PC par yahi hua
+    tha: naya engine process chalu hua, uski session cache
+    khaali thi, aur site aam browser me khul gayi jabki agent
+    wala Chrome saamne khula khada tha. Marker hi na ho
+    (setup kabhi hua hi nahi) to koi koshish nahi - seedha
+    purana open_url rasta.
     """
     found = _site_open_command(message)
     if found is None:
@@ -2945,6 +3075,17 @@ def _site_open_reply(message: str):
         if result.startswith("Agent wale Chrome me page khul gaya"):
             return f"{label} agent wale Chrome me khol diya hai."
         return result
+    if (BROWSER_PROFILE_DIR / "DevToolsActivePort").is_file():
+        with _browser_lock:
+            client, _sess = _browser_connect()
+        if client is not None:
+            log("SITE OPEN: agent wale Chrome se khud jud kar "
+                "usi me site kholi (v8.9 connect koshish)")
+            result = run_tool("browser_open", {"url": url})
+            if result.startswith("Agent wale Chrome me page "
+                                  "khul gaya"):
+                return f"{label} agent wale Chrome me khol diya hai."
+            return result
     result = run_tool("open_url", {"url": url})
     if result.startswith("Browser me khol diya"):
         return f"{label} khol diya hai - browser me naya tab khul gaya hoga."
@@ -3768,12 +3909,37 @@ def _gemini_selftest(model: str) -> str:
         return f"❌ fail — {exc.__class__.__name__}"
 
 
+def _browser_state_line() -> str:
+    """Dimag test ke liye browser haath ki haalat (v8.9) - sirf
+    pehchan, koi launch/connect ki shuruaat nahi (cached
+    connection ki halki jaanch chalegi, bas)."""
+    if _browser_is_connected():
+        return "Browser: agent Chrome se juda hai ✅"
+    if (BROWSER_PROFILE_DIR / "DevToolsActivePort").is_file():
+        return ("Browser: agent Chrome khula hai lekin abhi "
+                "juda nahi hai")
+    return "Browser: setup nahi hua hai (agent Chrome abhi bana hi nahi)"
+
+
+def _config_state_line() -> str:
+    """Dimag test ke liye keys ki maujudgi (v8.9) - SIRF hai ya
+    nahi (✓/✗). Key ka koi hissa kabhi nahi dikhta."""
+    g = "✓" if GEMINI_API_KEY else "✗"
+    q = "✓" if GROQ_API_KEY else "✗"
+    return f"Config: Gemini key lagi hai {g}, Groq key lagi hai {q}"
+
+
 def tool_dimag_test() -> str:
     """'dimag test karo' ka jawab: har dimag ki ek line + aakhri salah.
 
     Pehle config hot-reload (taaki jo key abhi-abhi save hui hai
     wahi test ho), phir Groq (key ho to), phir Gemini ke dono
     ladder model (primary + lite; dono ek hi hon to ek baar).
+
+    v8.9: report me do lines aur - Browser ki haalat aur Config
+    me keys ki maujudgi (sirf ✓/✗) - taaki 'dimag theek hai
+    lekin browser setup hi nahi hua' wali haalat bhi ek hi
+    test me saaf dikh jaye.
     """
     _maybe_reload_config()
     lines = []
@@ -3805,6 +3971,11 @@ def tool_dimag_test() -> str:
         gemini_state = "pass" if any_pass else "fail"
     else:
         lines.append("Gemini: key config me hai hi nahi")
+    # v8.9: browser + config ki haalat bhi isi report me.
+    browser_line = _browser_state_line()
+    lines.append(browser_line)
+    lines.append(_config_state_line())
+    browser_setup_done = "setup nahi hua hai" not in browser_line
     # Aakhri salah - haalat ke hisaab se ek saaf line.
     if groq_state == "pass" and gemini_state == "pass":
         lines.append("Sab theek hai — ab kaam bolo, agent poori "
@@ -3836,6 +4007,15 @@ def tool_dimag_test() -> str:
     else:
         lines.append("Dono dimag abhi fail hain — internet connection "
                      "check karo, phir 'dimag test karo' phir se bolo.")
+    # v8.9: dono dimag pass hon lekin browser setup hi na hua ho
+    # to ek line aur - warna 'sab theek' sunkar bhi asal kaam
+    # (logged-in sites) atka rehta hai.
+    if groq_state == "pass" and gemini_state == "pass" \
+            and not browser_setup_done:
+        lines.append("Ek kaam baki hai: 'browser setup karo' "
+                     "likho taaki agent wala Chrome taiyaar ho "
+                     "jaye — phir logged-in sites (Facebook/"
+                     "YouTube upload) ka kaam bhi hoga.")
     return "\n".join(lines)
 
 
