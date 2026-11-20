@@ -74,6 +74,7 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
+import zipfile
 from urllib.parse import unquote
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -98,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.4"
+AGENT_VERSION = "8.5"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -311,6 +312,17 @@ FILES (poora computer - koi seema nahi):
   ko KABHI mat bolo - file jahan hai, wahi se kaam karo:
   list_files / read_file poore computer me padh sakte
   hain (poora path do), video aur photo wale tools bhi.
+- Ankit kisi file ko CHALA kar dikhane ko kahe (video
+  play karna, photo/document kholna) to open_file chalao -
+  file uske default player/app me khul jayegi. Pehle
+  find_file se path nikalo, phir open_file se chalao -
+  "video play karna chahiye tha" wala hukum sirf baat se
+  nahi, asal me khol kar pura hota hai.
+- .zip ke andar ki file ka kaam ho (Drive se aayi zip me
+  band video jaisa) to pehle extract_zip se zip kholo,
+  phir andar nikli file par kaam karo - zip ke andar ki
+  file seedha play/upload NAHI hoti, pehle kholna
+  zaroori hai.
 - Likhne ka kaam (write_file, create_folder, download ki
   file, video ka output) work/ folder ya Ankit ke apne
   folders (Desktop, Downloads, Documents, poora home
@@ -327,6 +339,11 @@ PHOTO (screenshot / tasveer dekhna):
 - PC par padi kisi photo file ko dekhna ho to see_image
   chalao (poora path do) - photo me kya hai samajh kar
   milega, phir usi par kaam aage badhao.
+- Photo ke saath koi HUKUM aaye ("is se video le kar
+  upload kar do", "ye wala folder kholo") to photo ke
+  vivaran me dikhe naam/path ko sach maan kar wahi kaam
+  aam tools se asal me karo - sirf photo ka vivaran
+  suna kar mat ruk jao.
 
 PROGRAM CHALANA (software install karna / chalana):
 - Ankit koi software install karne ya koi program chalane ko
@@ -363,6 +380,13 @@ Available tools:
                              dhoondo (aadha naam bhi chalega) - Ankit
                              kisi file ka naam bole to PEHLE yahi
                              chalao
+- open_file(path)            file ko uske default app me kholo -
+                             video play karna ho ya photo/document
+                             kholna ho to yahi chalao (path pehle
+                             find_file se nikaal sakte ho)
+- extract_zip(path)          .zip file ko uske paas wale folder me
+                             kholo - zip ke andar ki video/file par
+                             kaam karne se pehle yahi chalao
 - see_image(path)            PC par padi photo/screenshot dekho -
                              usme kya hai samajh kar milega
 - write_file(path, content)  text file likho - work folder ya Ankit
@@ -630,6 +654,131 @@ def tool_find_file(name: str) -> str:
         f"{scanned} entries scanned")
     return (f"'{name}' ke liye {len(matches)} jagah mili{stopped}:\n"
             + "\n".join(matches))
+
+
+# --------------------------------------------------------------------------
+# open_file - koi file uske DEFAULT app me kholna (video -> default
+# player, photo -> viewer, document -> uska app). Ankit ki spasht
+# ummeed (2026-11-20): "jaise bola to usko mere file main ja ke
+# video play karna chahiye tha na" - hukum mile to agent folder
+# me ja kar video asal me PLAY karke dikhaye, sirf baat na kare.
+# --------------------------------------------------------------------------
+
+
+def tool_open_file(path: str) -> str:
+    """File ko OS ke default app me kholo (video play karna,
+    photo/document kholna). Absolute path ya work/ wala naam."""
+    raw = (path or "").strip().strip('"').strip("'")
+    if not raw:
+        return "Kaunsi file kholu - uska path to do."
+    target = _safe_path(raw)
+    if not target.exists():
+        return (f"File mili nahi: {raw} - sirf naam pata ho to "
+                "pehle find_file se poore computer me uska path "
+                "nikalo, phir wahi path do.")
+    try:
+        system = platform.system()
+        if system == "Windows" and hasattr(os, "startfile"):
+            os.startfile(str(target))  # noqa: S606 - user ka apna PC, usi ka hukum
+        elif system == "Darwin":
+            subprocess.Popen(["open", str(target)])
+        else:
+            subprocess.Popen(["xdg-open", str(target)])
+    except Exception as exc:
+        log(f"OPEN_FILE fail: {target}: {exc}")
+        return (f"File kholne me dikkat aayi: {exc}. File yahan "
+                f"hai: {target}")
+    log(f"OPEN_FILE: {target}")
+    return (f"File khol di hai - default app me khul gayi hogi: "
+            f"{_rel(target)}")
+
+
+# --------------------------------------------------------------------------
+# extract_zip - .zip kholna. Ankit ke video Google Drive se ZIP
+# bankar aate hain (jaise "Dragon Princess Hook Reels-....zip" ke
+# andar folder, usme hook-reel-01.mp4) - zip ke andar ki file
+# seedha play/upload NAHI hoti, pehle kholna padta hai (Windows
+# khud bhi andar double-click par error deta hai). Suraksha:
+# zip-slip (../ ya bahar ki entries) destination se bahar nahi
+# ja sakti; kul size ~2 GB aur entries ~1000 ki hadd;
+# destination hamesha write-bounds (work/ ya home) ke andar.
+# --------------------------------------------------------------------------
+
+_EXTRACT_MAX_TOTAL = 2 * 1024 * 1024 * 1024  # ~2 GB
+_EXTRACT_MAX_ENTRIES = 1000
+_EXTRACT_LIST_CAP = 50
+
+
+def tool_extract_zip(path: str) -> str:
+    """Ek .zip ko uske paas wale naye folder me kholo.
+
+    Destination = zip ke saath wala folder, naam = zip ka naam
+    bina '.zip' ke. Nikli files ki list + destination wapas
+    milta hai, taaki agla kaam (play/upload) un par ho sake.
+    """
+    raw = (path or "").strip().strip('"').strip("'")
+    if not raw:
+        return "Kaunsi zip kholu - uska path to do."
+    src = _safe_path(raw)
+    if not src.is_file():
+        return (f"Zip file mili nahi: {raw} - sirf naam pata ho "
+                "to pehle find_file se poore computer me uska "
+                "path nikalo, phir wahi path do.")
+    if src.suffix.lower() != ".zip":
+        return (f"Ye .zip file nahi lagti: {src.name} - main "
+                "sirf .zip khol sakta hu.")
+    try:
+        dest = _write_path(str(src.with_suffix("")))
+    except ValueError as exc:
+        return str(exc)
+    try:
+        zf = zipfile.ZipFile(src)
+    except zipfile.BadZipFile:
+        return (f"Ye zip file kharab lagti hai, khul nahi "
+                f"payi: {src.name}")
+    with zf:
+        all_infos = zf.infolist()
+        if len(all_infos) > _EXTRACT_MAX_ENTRIES:
+            return (f"Is zip me bahut zyada cheezein hain "
+                    f"({len(all_infos)} entries) - kholne ki "
+                    f"hadd {_EXTRACT_MAX_ENTRIES} entries hai. "
+                    "Itni badi zip main nahi kholunga.")
+        infos = [i for i in all_infos if not i.is_dir()]
+        total_size = sum(i.file_size for i in infos)
+        if total_size > _EXTRACT_MAX_TOTAL:
+            return (f"Is zip ke andar kul "
+                    f"{total_size / 1073741824:.1f} GB hai - "
+                    "kholne ki hadd 2 GB hai. Main ise nahi "
+                    "kholunga.")
+        dest.mkdir(parents=True, exist_ok=True)
+        dest_resolved = dest.resolve()
+        extracted = []
+        skipped = []
+        for info in infos:
+            target = (dest / info.filename).resolve()
+            if (target != dest_resolved
+                    and dest_resolved not in target.parents):
+                skipped.append(info.filename)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as fsrc, open(target, "wb") as fdst:
+                shutil.copyfileobj(fsrc, fdst, 1024 * 256)
+            extracted.append((info.filename, info.file_size))
+    log(f"EXTRACT_ZIP: {src} -> {dest} ({len(extracted)} files, "
+        f"{len(skipped)} skipped)")
+    if not extracted and not skipped:
+        return f"Zip kholi, lekin uske andar koi file nahi thi: {dest}"
+    lines = [f"Zip khul gayi. Files is folder me nikli hain: {dest}"]
+    for name, size in extracted[:_EXTRACT_LIST_CAP]:
+        lines.append(f"  FILE  {name} ({_fmt_size(size)})")
+    if len(extracted) > _EXTRACT_LIST_CAP:
+        lines.append(f"  ... aur {len(extracted) - _EXTRACT_LIST_CAP} "
+                     "files (list lambi hai, baaki bhi nikal gayi hain)")
+    if skipped:
+        lines.append(f"Note: {len(skipped)} entries suraksha ki wajah "
+                     "se chhod di gayin (wo folder se bahar ja rahi "
+                     "thi).")
+    return "\n".join(lines)
 
 
 def tool_get_time() -> str:
@@ -1476,7 +1625,8 @@ def tool_watch_video(source: str) -> str:
 # --------------------------------------------------------------------------
 # Photo dekhna (v8.4) - PC par padi photo/screenshot ko Gemini
 # vision se dekhna. Chat me bheji photo ka rasta alag hai (wo
-# seedha _vision_ask se jata hai); ye tool file wali photo ke
+# _vision_describe se vivaran bankar brain loop me jata hai -
+# v8.5 ka vision->tools bridge); ye tool file wali photo ke
 # liye hai. Request ki shakal watch_video wali hi hai:
 # contents[].parts[] me {"inline_data": {"mime_type": "image/...",
 # "data": "<base64>"}} + ek text prompt.
@@ -2574,6 +2724,8 @@ TOOLS = {
     "run_program": tool_run_program,
     "find_file": tool_find_file,
     "see_image": tool_see_image,
+    "open_file": tool_open_file,
+    "extract_zip": tool_extract_zip,
 }
 
 
@@ -2771,14 +2923,19 @@ _TIMEOUT_DELAYS = (2,)
 _BUSY_DELAYS = (2, 5)
 
 
-def _gemini_call(contents: list, model: str = None) -> str:
+def _gemini_call(contents: list, model: str = None,
+                 system_instruction: bool = True) -> str:
     model = model or GEMINI_MODEL
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{model}:generateContent?key={GEMINI_API_KEY}")
-    body = {
-        "system_instruction": {"parts": [{"text": _system_prompt()}]},
-        "contents": contents,
-    }
+    body = {"contents": contents}
+    if system_instruction:
+        body["system_instruction"] = {
+            "parts": [{"text": _system_prompt()}]}
+    # system_instruction=False sirf photo ke VIVARAN wali call ke
+    # liye hai: wahan agent wala system prompt model ko tool-call
+    # JSON ki taraf dhakelta hai, jabki wahan sirf "photo me kya
+    # hai" wala saaf vivaran chahiye (v8.5 ka vision->tools bridge).
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
@@ -3222,6 +3379,35 @@ def _brain_run(contents: list):
     return reply, used_tool
 
 
+_TOOL_JSON_SHAPE = re.compile(r'"tool"\s*:\s*"[A-Za-z_][A-Za-z0-9_]*"')
+
+
+def _guard_no_tool_json(reply: str) -> str:
+    """Aakhri suraksha: model ka KACCHA tool-call JSON user ko
+    kabhi text bankar nahi dikhna chahiye.
+
+    Asal PC par yahi hua tha (v8.4, 2026-11-20): photo wale
+    turn par model ne {"tool": "list_skills", ...} bhej diya
+    aur wo jawab bankar user ko dikh gaya - user ne pucha
+    "ye kay hai". Tool-loop aam taur par tool-call ko chala
+    kar alag kar deta hai, lekin koi jawab phir bhi tool-call
+    wali shakal me aakhri text bankar reh jaye (parse na ho
+    paya ho, aadha kata hua ho, ya prose ke beech ghula ho)
+    to use saaf Hinglish line se badal do. Shakal matlab
+    jawab me kahin bhi "tool": "naam" wala pattern - aam
+    jawab me ye kabhi nahi aata, isliye jahan dikhe wahi
+    leak hai.
+    """
+    if not reply or not _TOOL_JSON_SHAPE.search(reply):
+        return reply
+    log("GUARD: jawab me kaccha tool-call JSON tha - user ko "
+        "saaf jawab diya")
+    return ("Kaam karne ki koshish ki, lekin mera jawab gadbad "
+            "ho gaya (andar ki takneeki cheez bahar aa gayi). "
+            "Ek baar phir se bolo - main dobara koshish karta "
+            "hu.")
+
+
 def brain_ask(message: str) -> str:
     """Dimag se jawab lao - Groq pehle (key ho to), Gemini ladder
     peeche, aur discipline re-ask ke saath.
@@ -3231,6 +3417,8 @@ def brain_ask(message: str) -> str:
     message). Jawab aa jaye lekin hukum action wala ho aur koi tool
     na chala ho (sirf salah mili ho), to ek baar strict re-ask
     hota hai - ye niyam dono dimagon par lagta hai.
+    Har bahar jane wala jawab _guard_no_tool_json se guzarta
+    hai - kaccha tool-call JSON user ko kabhi nahi dikhta.
     """
     with _history_lock:
         _history.append({"role": "user", "parts": [{"text": message}]})
@@ -3238,9 +3426,9 @@ def brain_ask(message: str) -> str:
         contents = list(_history)
     reply, used_tool = _brain_run(contents)
     if used_tool is None:
-        return reply  # error message - re-ask ka koi matlab nahi
+        return _guard_no_tool_json(reply)  # error message
     if used_tool or not _has_action_intent(message):
-        return reply
+        return _guard_no_tool_json(reply)
     # Discipline re-ask: sirf EK baar. Pehle history se wo text-wala
     # model jawab hatao (re-ask uski jagah lega), phir sakht hukum
     # ke saath dimag dobara chalao.
@@ -3253,8 +3441,8 @@ def brain_ask(message: str) -> str:
         {"role": "user", "parts": [{"text": _STRICT_REASK}]}]
     reply2, used2 = _brain_run(strict_contents)
     if used2 is None:
-        return reply  # re-ask bhi fail - pehla jawab hi de do
-    return reply2
+        return _guard_no_tool_json(reply)  # re-ask bhi fail
+    return _guard_no_tool_json(reply2)
 
 
 _VISION_DEFAULT_TEXT = (
@@ -3263,51 +3451,62 @@ _VISION_DEFAULT_TEXT = (
     "dikhe to use padh kar uska matlab bhi batao.")
 
 
-def _vision_ask(message: str, image_b64: str, image_mime: str) -> str:
-    """Chat me bheji photo ke saath wala turn - seedha Gemini vision.
+_VISION_DESCRIBE_PROMPT = (
+    "Neeche user ki bheji hui ek photo hai. Photo me jo kuch hai "
+    "uska saaf VIVARAN do - screen par dikh raha saara text, "
+    "file/folder ke naam, poora path, error message, button, "
+    "jo hai jaisa hai waisa likho. Ye vivaran ek dusre AI agent "
+    "ko milega jo is par asal me kaam karega, isliye naam, path "
+    "aur text bilkul sahi-sahi likho. SIRF vivaran do - koi "
+    "JSON, koi tool-call, koi code block mat likho.\n"
+    "User ne photo ke saath ye likha hai: {user_text}")
 
-    Photo wale turn par Groq (sirf-text dimag) chalta hi nahi -
-    Gemini ke model ladder par seedha vision call jata hai,
-    isliye jawab par koi 'tez wale model' wala note nahi lagta.
-    Photo par tool-calling nahi hoti - jawab seedha text me
-    aata hai (photo par pehla kaam use samajhna hi hai).
-    Gemini fail ho to aam ladder wale error messages milte
-    hain (busy/slow/key-hint apni class ke hisaab se).
+
+def _vision_describe(message: str, image_b64: str, image_mime: str):
+    """Photo ka VIVARAN lao - vision -> tools bridge ka pehla kadam.
+
+    Safal ho to (vivaran, None); haar ho to (None, error_jawab)
+    jahan error_jawab v8.4 ke _vision_ask wala hi ladder wala
+    jawab hai (busy/slow/key-hint apni class ke hisaab se).
+
+    Do jaan-boojh wale faisle:
+    1. Vivaran wali call par agent ka SYSTEM PROMPT NAHI jata
+       (system_instruction=False). v8.4 me wahi gadbad thi:
+       system prompt tool protocol sikha raha tha, to model ne
+       vivaran ki jagah {"tool": ...} wala JSON bhej diya jo
+       user ko kaccha dikh gaya.
+    2. Vivaran user ko seedha NAHI dikhta - wo brain loop ke
+       liye context banta hai (ask_agent dekho), taaki photo ke
+       saath aaya hukum asal tools se ho sake.
     """
     mime = (image_mime or "").strip().lower()
     if mime not in _VISION_MIMES:
         mime = "image/jpeg"
     if len(image_b64) > 14_000_000:  # ~10 MB base64 me
-        return ("Photo bahut badi hai - 10 MB se chhoti photo "
-                "bhejo, main use dekh kar bata dunga.")
-    text = (message or "").strip() or _VISION_DEFAULT_TEXT
+        return None, ("Photo bahut badi hai - 10 MB se chhoti "
+                      "photo bhejo, main use dekh kar bata dunga.")
+    user_text = (message or "").strip() or _VISION_DEFAULT_TEXT
     contents = [{"role": "user", "parts": [
-        {"text": text},
+        {"text": _VISION_DESCRIBE_PROMPT.format(user_text=user_text)},
         {"inline_data": {"mime_type": mime, "data": image_b64}},
     ]}]
     last_exc = None
     for model in _ladder_models():
         try:
-            reply = _gemini_call(contents, model)
-            log(f"VISION: jawab Gemini[{model}] se aaya")
-            with _history_lock:
-                _history.append({"role": "user", "parts": [
-                    {"text": ((message or "").strip()
-                              or "(photo bheji)") + " [photo ke saath]"}]})
-                _history.append({"role": "model",
-                                 "parts": [{"text": reply}]})
-                del _history[:-20]
-            return reply
+            reply = _gemini_call(contents, model,
+                                 system_instruction=False)
+            log(f"VISION: vivaran Gemini[{model}] se aaya")
+            return reply, None
         except urllib.error.HTTPError as exc:
             if exc.code in _KEY_ERROR_CODES:
                 log(f"VISION key-type error (HTTP {exc.code})")
-                return _gemini_http_message(exc)
+                return None, _gemini_http_message(exc)
             last_exc = exc
             log(f"VISION: {model} fail (HTTP {exc.code})")
         except Exception as exc:
             last_exc = exc
             log(f"VISION: {model} fail: {exc}")
-    return _final_error_message(last_exc)
+    return None, _final_error_message(last_exc)
 
 
 def ask_agent(message: str, image: str = None,
@@ -3315,8 +3514,12 @@ def ask_agent(message: str, image: str = None,
     """Single entry point used by both the chat loop and the HTTP hook.
 
     image (optional) = chat me bheji photo ka base64 data (bina
-    data-URL prefix ke); ho to turn seedha Gemini vision par
-    jata hai (neeche _vision_ask dekho).
+    data-URL prefix ke). Photo ho to pehle Gemini vision se
+    uska VIVARAN aata hai (_vision_describe), phir wahi vivaran
+    context bankar AAM brain loop me jata hai - taaki photo ke
+    saath aaya hukum (upload kar do, kholo, dhoondo) asal
+    tools se ho sake, sirf vivaran par ruk na jaye. Vision
+    fail ho to v8.4 wala hi ladder error jawab milta hai.
     """
     message = (message or "").strip()
     if image:
@@ -3326,7 +3529,23 @@ def ask_agent(message: str, image: str = None,
                     "Gemini ki key chahiye - config.env me "
                     "GEMINI_API_KEY daal kar phir photo bhejo, "
                     "main dekh kar bata dunga usme kya hai.")
-        return _vision_ask(message, str(image), str(image_mime or ""))
+        description, error_reply = _vision_describe(
+            message, str(image), str(image_mime or ""))
+        if description is None:
+            return error_reply
+        photo_ctx = ("[User ne ek photo bheji hai. Photo me ye "
+                     f"dikh raha hai: {description}]")
+        augmented = (f"{message}\n{photo_ctx}" if message
+                     else photo_ctx)
+        log("VISION->TOOLS: photo ka vivaran brain loop ko diya")
+        if _is_update_command(message):
+            return run_tool("agent_update", {})
+        site_reply = _site_open_reply(message)
+        if site_reply is not None:
+            return site_reply
+        if _is_browser_setup_command(message):
+            return tool_browser_setup()
+        return brain_ask(augmented)
     if not message:
         return "Kuch likho to sahi, bhai."
     log(f"ASK: {message[:200]}")
