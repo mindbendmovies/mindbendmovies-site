@@ -84,7 +84,7 @@
   .news .ncard .nt { font-size: 14px; font-weight: 600; line-height: 1.4; }
   .news .ncard .nd { color: #0072ce; font-size: 12px; margin-top: 4px; }
   .adbox { max-width: 100%; overflow: hidden; text-align: center; margin: 22px auto; }
-  #searchSec { display: none; }
+  #searchSec { display: none; scroll-margin-top: 120px; }
   .nores { color: #b8bcc4; font-size: 14px; padding: 8px 0 4px; }
   footer { border-top: 1px solid #26262f; color: #8a8f98; font-size: 12px; line-height: 1.7; padding: 20px 16px 90px; text-align: center; }
   @media (max-width: 760px) {
@@ -96,6 +96,7 @@
     .hrow { flex-wrap: wrap; }
     .search { flex: 1 1 100%; max-width: none; margin: 10px 0 0; }
     .upnext .u .ut { min-width: 0; }
+    #searchSec { scroll-margin-top: 178px; }
   }
   @media (min-width: 700px) { .grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
   @media (min-width: 1000px) { .grid { grid-template-columns: repeat(6, 1fr); } }
@@ -373,13 +374,15 @@ function runSearch(q) {
   }
   document.getElementById('noRes').style.display = hits.length ? 'none' : 'block';
   sec.style.display = 'block';
-  sec.scrollIntoView({ behavior: 'smooth' });
+  setTimeout(function () { sec.scrollIntoView({ behavior: 'smooth' }); }, 90);
 }
 document.getElementById('searchForm').addEventListener('submit', function (e) {
   e.preventDefault();
   var q = document.getElementById('searchInput').value.trim().toLowerCase();
+  document.getElementById('searchInput').blur();
   if (LIB) { runSearch(q); return; }
-  fetch('data/movies.json').then(function (r) { return r.json(); }).then(function (data) { LIB = data; runSearch(q); }).catch(function () { runSearch(q); });
+  runSearch(q);
+  fetch('data/movies.json').then(function (r) { return r.json(); }).then(function (data) { LIB = data; runSearch(q); }).catch(function () {});
 });
 </script>
 </body>
