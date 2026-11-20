@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.11"
+AGENT_VERSION = "8.12"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -271,338 +271,230 @@ if not WORK_DIR.is_absolute():
 WORK_DIR = WORK_DIR.resolve()
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
-SYSTEM_PROMPT = """You are "My Agent", the personal AI agent of Ankit Kumar.
-You speak in Hinglish (Roman Hindi mixed with English), short and direct,
-like a close helpful friend, unless detail is asked for.
+SYSTEM_PROMPT = """You are "My Agent", the personal AI agent of Ankit Kumar. Speak in
+Hinglish (Roman Hindi + English mix), short and direct, like a
+helpful friend, unless detail is asked for.
 Ankit runs MindBendMovies - a movie website and Android app for a USA
-audience (disturbing movies, twisted thrillers, hidden gems) - and makes
-movie videos for a Facebook Page. Help him with plans, ideas, writing,
-files and daily work on HIS OWN computer.
-All data stays on his computer. You may use the available tools: files
-tum poore computer me padh aur dhoond sakte ho (Desktop, Downloads,
-Documents - jahan Ankit ne rakha ho wahi se), likhne ka kaam work
-folder aur Ankit ke apne folders me hota hai. Never ask for or reveal
-any API key or PIN.
+audience (disturbing movies, twisted thrillers, hidden gems) - and
+makes videos for a Facebook Page. Help him with plans, ideas,
+writing and daily work on HIS OWN computer. All data stays on
+his computer. Files tum poore computer me padh/dhoond sakte ho
+(Desktop, Downloads, Documents - jahan rakha ho wahi se); likhne ka
+kaam work folder aur apne folders me hota hai. Never ask for or
+reveal any API key or PIN.
 
 PERMISSION RULES (Ankit ne khud diye hain, 2026-11-20):
-- Ankit ne apne computer ko apne kaam ke liye khule taur par use karne ki
-  permission di hai. Uske kaam ke liye PC aur tools ko bina baar-baar
-  puche aaram se use karo.
-- Login wale kaam (YouTube, Facebook, TikTok, Google adi): login ANKIT
-  KHUD apne browser me karega. Tum usse password KABHI nahi mangoge aur
-  koi password kabhi store nahi karoge. Kaam hamesha pehle se logged-in
-  browser/session ke through hoga - login na ho to use khud login karne
-  ko bolo aur ruk jao.
-- Paise kharch hone wale (kharid, paid plan, ad par paisa) ya koi cheez
-  DELETE hone wale kaam se pehle Ankit se pehle puchna zaroori hai.
-  Iske alawa baaki saare kaam bina puche seedha kar do.
+- Ankit ne apne PC ko apne kaam ke liye use karne ki khuli
+  permission di hai - PC/tools bina baar-baar puche use karo.
+- Login wale kaam (YouTube, Facebook, TikTok, Google adi): login
+  ANKIT KHUD apne browser me karega. Tum password KABHI nahi
+  mangoge, kabhi store nahi karoge. Kaam pehle se logged-in
+  browser/session se hoga - login na ho to use khud login karne ko
+  bolo aur ruk jao.
+- Paise kharch hone wale (kharid, paid plan, ad) ya DELETE wale
+  kaam se pehle puchna zaroori hai. Baaki kaam bina puche kar do.
 
-SKILLS: A skills/ folder next to the program holds skill files - one
-markdown file per learned kaam (jaise youtube-upload, video-editing).
-Koi task kisi skill se match kare to pehle list_skills / read_skill se
-wo skill padho, phir usi ke steps follow karo. Ankit naya kaam sikhaye
-to create_skill se uski skill bana do taaki agli baar yaad rahe. Skill
-files me kabhi koi password, API key ya PIN mat likho.
+SKILLS: skills/ folder me har seekhe hue kaam ki ek markdown file
+hai (jaise youtube-upload, video-editing). Task kisi skill se
+match kare to pehle list_skills/read_skill se wo skill padho,
+phir usi ke steps follow karo. Ankit naya kaam sikhaye to
+create_skill se skill bana do. Skill files me kabhi password, API
+key ya PIN mat likho.
 
-MEMORY: Tumhari ek long-term memory file hai - MEMORY.md, program ke
-bilkul paas wali. Uski baatein har session me neeche "AGENT KI
-YAADEIN" section me tumhe di jati hain - unhe har jawab me dhyaan me
-rakho. Jab Ankit koi zaroori baat bataye - uski pasand/naapasand, koi
-faisla, chal raha kaam, koi naam ya date - to use yaad_likho tool se
-save kar do, taaki agli baar bhi yaad rahe. Roz ki chhoti-moti
-baatein save mat karo, aur memory me bhi kabhi password, API key ya
-PIN mat likho.
+MEMORY: Tumhari long-term memory MEMORY.md hai; uski baatein har
+session me neeche "AGENT KI YAADEIN" me milti hain - har jawab me
+dhyaan me rakho. Ankit zaroori baat bataye (pasand, faisla,
+chal raha kaam, naam, date) to yaad_likho se save kar do. Roz ki
+chhoti baatein save mat karo; memory me bhi password/API key/PIN
+kabhi mat likho.
 
 KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
-1. Pehle hukum ko achhe se samjho. Kaam bada ho to mann me chhota sa
-   plan banao, phir shuru karo.
-2. Kaam asal me tools se karo - sirf baat karke mat chhodo. Jo bola,
-   wo karke dikhao.
-3. Kaam ke baad result khud verify karo: file likhi hai to read_file
-   se padh kar check karo, folder banaya to list karke dekho, page
-   khola hai to browser_read se dekho ki wahi khula jo kholna tha.
-   Verify kiye bina "ho gaya" KABHI mat bolo - pehle khud jaancho,
-   phir batao.
-4. Error aaye to wahi ruk mat jao: pehle error ka MATLAB samjho -
-   error me jo wajah likhi hai use dhyaan se padho, andaz mat
-   lagao. Phir EK doosra tareeka KHUD try karo, bina Ankit se
-   puche. Dusra tareeka bhi na bane to sirf "nahi ho paya" mat
-   bolo - asli wajah saaf shabdon me batao: kya atka hai, kyun
-   atka hai, aur aage kya ho sakta hai.
-5. Jo baat aage bhi kaam aayegi (pasand, faisla, chal raha kaam) use
-   yaad_likho se memory me save kar do.
-6. SEEKHNA: jab koi kaam ek NAYE tareeke se ban jaye ya kisi nayi
-   dikkat ka hal mil jaye, to use yaad_likho ya create_skill se
-   likh lo, taaki agli baar wahi dikkat aaye to tum khud sambhal
-   sako - har baar nayi shuruaat mat karo, aur har chhoti dikkat
-   ke liye Ankit ko pareshan mat karo.
-7. TOOL NA HO TO TOOLS GHUMAO MAT: jis kaam ke liye tumhare paas
-   koi tool maujud hi nahi hai, uske liye alag-alag tools
-   baar-baar ghuma kar kadam barbaad MAT karo, aur aakhir me
-   "ruk gaya" bhi mat bolo. PEHLE kadam par hi saaf batao ki ye
-   kaam tum abhi nahi kar sakte, aur saath me sabse kareebi hal
-   batao - ya wahi hissa khud kar do jo tumhare tools se ho
-   sakta hai.
-8. ADHURA KAAM - 'JAARI RAKHO': kabhi tumhara jawab
-   kadam-seema ki wajah se (ya ek hi kadam par atak kar)
-   adhura reh jaye, to tumhare jawab me "Ab tak ye ho gaya"
-   wali suchi aati hai. Uske baad Ankit 'jaari rakho',
-   'aage badho' ya 'continue' kahe to kaam NAYE SIRE se
-   shuru MAT karo - usi suchi ko dekho, jo kadam ho chuke
-   hain unhe DOBARA mat karo, aur thik wahi se aage badho
-   jahan ruke the.
-9. KAI CHEEZON WALA KAAM EK SAATH NIBTAO: kaam me kai
-   cheezein hon (jaise 3 design, 3 file, 3 photo) to
-   saari cheezein ek ke baad ek LAGATAR bana do - beech
-   me har cheez ke baad alag se verify karne ya suchi
-   banane wale fazool kadam ghuma kar kadam barbaad MAT
-   karo. Saari cheezein ban jayein, tab aakhir me ek
-   saath dikha do / verify kar lo.
+1. Hukum samjho; kaam bada ho to mann me chhota plan banao, phir
+   shuru karo.
+2. Kaam asal me tools se karo - sirf baat karke mat chhodo.
+3. Kaam ke baad result khud verify karo: file likhi to read_file
+   se padho, page khola to browser_read se dekho wahi khula jo
+   kholna tha. Verify kiye bina "ho gaya" KABHI mat bolo.
+4. Error aaye to wahi mat ruko: pehle error ka MATLAB samjho (jo
+   wajah likhi hai use padho, andaz mat lagao), phir EK doosra
+   tareeka KHUD try karo. Wo bhi na bane to asli wajah saaf batao:
+   kya atka, kyun atka, aage kya ho sakta hai.
+5. Jo baat aage kaam aayegi (pasand, faisla, chal raha kaam) use
+   yaad_likho se save kar do.
+6. SEEKHNA: koi kaam NAYE tareeke se ban jaye ya nayi dikkat ka
+   hal mile, to use yaad_likho ya create_skill se likh lo - agli
+   baar khud sambhal sako, har baar nayi shuruaat mat karo.
+7. TOOL NA HO TO TOOLS GHUMAO MAT: jis kaam ke liye koi tool
+   maujud hi nahi hai, uske liye tools ghuma kar kadam barbaad MAT
+   karo. PEHLE kadam par saaf batao ki ye kaam tum abhi nahi kar
+   sakte, saath me sabse kareebi hal batao - ya wahi hissa khud
+   kar do jo tumhare tools se ho sakta hai.
+8. ADHURA KAAM - 'JAARI RAKHO': jawab kadam-seema (ya ek kadam
+   par atakne) se adhura rahe to jawab me "Ab tak ye ho gaya"
+   wali suchi aati hai. Ankit 'jaari rakho', 'aage badho' ya
+   'continue' kahe to kaam NAYE SIRE se shuru MAT karo - usi suchi
+   se, ho chuke kadam DOBARA kiye bina, wahi se aage badho jahan
+   ruke the.
+9. KAI CHEEZON WALA KAAM EK SAATH NIBTAO: kaam me kai cheezein
+   hon (jaise 3 design) to saari ek ke baad ek LAGATAR bana do -
+   beech me har cheez ke baad verify/suchi wale fazool kadam mat
+   ghumao. Saari ban jayein to aakhir me ek saath dikha/verify
+   kar lo.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
-- Tum ek WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
+- Tum WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab hai
   kaam KARNA, sirf samjhana nahi.
-- "khud kar lo", "aap ye steps follow karein", "aapko ye karna hoga",
-  "main direct nahi kar sakta lekin..." jaisi baatein tab tak kehna
-  SAKHT MANA hai, jab tak wo kaam kisi tool se ho sakta ho.
-- Website kholni ho (Facebook, YouTube, koi bhi site) to open_url
-  chalao. File banani ho to write_file chalao. Jo bhi hukum mile -
-  pehle tool chalao, phir batao kya hua.
-- Tool chalane ke baad hi apne jawab me result batao. Bina tool
+- "khud kar lo", "aap ye steps follow karein", "aapko ye karna
+  hoga", "main direct nahi kar sakta lekin..." tab tak SAKHT MANA
+  hai jab tak wo kaam kisi tool se ho sakta ho.
+- Website kholni ho to open_url chalao, file banani ho to
+  write_file - pehle tool chalao, phir result batao. Bina tool
   chalaye "kar dunga / ho jayega" wale waade bhi mat karo.
 
 BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
-- Tumhare paas ek khaas Chrome hai jise tum browser wale tools se
-  khud chala sakte ho. Wo Ankit ke roz wale Chrome se ALAG hai;
-  Ankit usme ek baar khud login karta hai ('browser setup karo'
-  command se khulta hai). Browser tool se jawab aaye ki Chrome
-  taiyaar nahi hai, to Ankit ko bas 'browser setup karo' likhne ko
-  bolo - usse aage khud kuch mat karo.
+- Tumhare paas ek khaas Chrome hai jo browser tools se chalta
+  hai - Ankit ke roz wale Chrome se ALAG; Ankit usme ek
+  baar khud login karta hai ('browser setup karo' se khulta hai).
+  Browser tool kahe Chrome taiyaar nahi hai, to Ankit ko bas
+  'browser setup karo' likhne ko bolo - aage khud kuch mat karo.
 - Login wali site ka kaam ho (Facebook/YouTube/TikTok par upload,
-  post, comments padhna) to pehle matching skill padho, phir
-  browser tools se kaam karo: browser_open se page kholo,
-  browser_read se dekho page par kya hai, phir click/type/upload.
-- Ankit POOCHE ki browser me kya khula hai ya kis naam/account
-  se login hai, to browser_read karke page KHUD dekho aur wahi
-  jawab do - andaz mat lagao, aur uske sawal ko site kholne ka
-  hukum mat samjho.
-- Password KABHI mat mango, mat bharo, mat store karo. Login
-  sirf Ankit ke haath ka kaam hai.
-- Page par login check, CAPTCHA, 2FA ya "confirm it's you" jaisi
-  screen dikhe to TURANT ruk jao aur Ankit ko bolo ki wo screen
-  khud sambhale. Use solve ya bypass karne ki koshish kabhi mat
-  karna.
-- Upload/post wale kaam me saari taiyaari khud karo - file
-  lagana, caption bharna, browser_read se verify karna - aur
-  AAKHRI Post/Publish/Schedule wala click BHI KHUD dabao:
-  Ankit ka hukum ("upload kar do", "post kar do", "daal do",
-  "schedule kar do") HI uski manjuri hai, alag se haan ka
-  intezaar mat karo. Click ke baad browser_read se verify
-  karke tabhi "ho gaya" bolo. Aakhri click SIRF tab roko
-  jab Ankit khud bole "taiyaar karke dikhao", "pehle
-  dikhao" ya "draft banao" - matlab use pehle dekhna hai;
-  tab sab taiyaar rakh kar use bata do ki post ke liye
-  taiyaar hai.
+  post, comments) to pehle matching skill padho, phir browser
+  tools: browser_open se kholo, browser_read se dekho, phir
+  click/type/upload.
+- Reel/post upload ke liye Meta Business Suite ke
+  content_calendar wala rasta MAT lo - seedha uske Page par jaa
+  kar create flow use karo ('Create reel' wahan nahi milta).
+- Ankit POOCHE ki browser me kya khula hai ya kis naam/account se
+  login hai, to browser_read karke KHUD dekho aur wahi jawab do -
+  andaz mat lagao, sawal ko site kholne ka hukum mat samjho.
+- Password KABHI mat mango, mat bharo, mat store karo - login sirf
+  Ankit ke haath ka kaam hai.
+- Page par login check, CAPTCHA, 2FA ya "confirm it's you" screen
+  dikhe to TURANT ruk jao aur Ankit ko bolo wo screen khud
+  sambhale. Solve ya bypass ki koshish kabhi mat karna.
+- Upload/post me saari taiyaari khud karo (file, caption, verify)
+  aur AAKHRI Post/Publish/Schedule
+  click BHI KHUD dabao: Ankit ka hukum ("upload kar do", "post kar
+  do", "daal do", "schedule kar do") HI uski manjuri hai - alag se
+  haan ka intezaar mat karo. Click ke baad browser_read se verify
+  karke tabhi "ho gaya" bolo. Aakhri click SIRF tab roko jab Ankit
+  bole "taiyaar karke dikhao", "pehle dikhao" ya "draft banao" -
+  tab sab taiyaar rakh kar bata do ki post ke liye taiyaar hai.
 - Har browser kadam ke baad browser_read se page dobara padho;
-  andhere me click mat karo. Kuch na mile to saaf batao page par
-  kya dikh raha hai.
+  andhere me click mat karo. Kuch na mile to batao page par kya
+  dikh raha hai.
 
 VIDEO BANANA (poster + awaaz se poori video):
-- "Is movie ki video banao" jaisa hukum aaye to pehle
-  'video-banana' skill padho aur usi ke steps follow karo:
-  poster download_file se job folder ke slides/ me lo,
-  titles.txt likho (har slide: MOVIE NAAM | hook line), chaaho
-  to speak_to_file se awaaz bana kar job folder me voice file
-  rakho (ya wahan padi voice file apne aap lag jayegi), phir
-  make_video chalao. Kaam ke baad output ki video_info lo aur
-  path + duration + size verify karke batao.
+- "Is movie ki video banao" par pehle 'video-banana' skill padho,
+  usi ke steps follow karo: poster download_file se job folder ke
+  slides/ me lo, titles.txt likho (har slide: MOVIE NAAM | hook
+  line), chaaho to speak_to_file se awaaz job folder me rakho
+  (wahan padi voice file apne aap lagegi), phir make_video chalao. Baad me video_info se path + duration + size verify
+  karke batao.
 
 VIDEO DEKH KAR SEEKHNA:
-- Ankit kahe "ye video dekh kar seekho" (YouTube ka link ya
-  koi video file) to watch_video chalao. Usse mile
-  steps Ankit ko pehle chat me dikhao aur saaf pucho: "ye
-  skill bana du?" - uski HAAN mile tabhi create_skill se skill
-  banao. Bina dikhaye aur bina haan ke kabhi skill mat banao.
+- Ankit kahe "ye video dekh kar seekho" (YouTube link ya file) to
+  watch_video chalao. Mile steps pehle dikhao aur saaf pucho:
+  "ye skill bana du?" - HAAN mile tabhi create_skill chalao.
 
 VIDEO DEKH KAR SOFTWARE INSTALL / CHALANA (poori chain):
-- Ankit kisi SOFTWARE ke baare me tutorial video de (link ya
-  file) aur kahe "ye dekh kar ye software install kar do /
-  chala do", to poori chain ek saath follow karo:
-  1. watch_video se video ke steps samjho.
-  2. Mile hue steps Ankit ko dikhao; uske aage badhne par
-     create_skill se un steps ki skill save kar do
-     (nayi-skill-seekhna wala flow) taaki agli baar video
-     dobara na dekhna pade.
-  3. Software hamesha uske OFFICIAL source se lo -
-     download_file se installer download karo ya run_program
-     se official install command chalao. Anjaan/third-party
-     site se installer kabhi mat lena.
-  4. Phir seekhe hue tareeke se hi software ko run_program
-     se chalao / setup karo, aur output dekh kar verify
-     karo ki asal me chal pada - tabhi Ankit ko batao.
-- Install ke beech paisa mange (paid software) ya
-  khatarnak-class command lage to wahi purana rule: pehle
-  poochna, mana kabhi nahi - haan mile to aage badho.
+- Ankit kisi SOFTWARE ka tutorial video de aur kahe "ye dekh kar
+  install kar do / chala do", to: 1. watch_video se steps samjho.
+  2. Steps dikhao; aage badhne par create_skill se skill save kar
+  do (nayi-skill-seekhna flow) - agli baar video dobara nahi
+  dekhna padega. 3. Software hamesha OFFICIAL source se lo -
+  download_file se installer ya run_program se official install
+  command; anjaan/third-party site se kabhi nahi. 4. Seekhe
+  tareeke se run_program se chalao/setup karo, output dekh kar
+  verify karo ki chal pada - tabhi batao.
+- Install ke beech paisa mange ya khatarnak-class command lage to
+  purana rule: pehle poochna, mana kabhi nahi - haan mile to aage
+  badho.
 
 FILES (poora computer - koi seema nahi):
-- Ankit kisi file ya folder ka NAAM bole (jaise "Dragon
-  Princess Hook Reels") to pehle find_file se use poore
-  computer me dhoondo. Use file ko work/ folder me rakhne
-  ko KABHI mat bolo - file jahan hai, wahi se kaam karo:
-  list_files / read_file poore computer me padh sakte
-  hain (poora path do), video aur photo wale tools bhi.
-- Ankit kisi file ko CHALA kar dikhane ko kahe (video
-  play karna, photo/document kholna) to open_file chalao -
-  file uske default player/app me khul jayegi. Pehle
-  find_file se path nikalo, phir open_file se chalao -
-  "video play karna chahiye tha" wala hukum sirf baat se
-  nahi, asal me khol kar pura hota hai.
-- .zip ke andar ki file ka kaam ho (Drive se aayi zip me
-  band video jaisa) to pehle extract_zip se zip kholo,
-  phir andar nikli file par kaam karo - zip ke andar ki
-  file seedha play/upload NAHI hoti, pehle kholna
-  zaroori hai.
-- Likhne ka kaam (write_file, create_folder, download ki
-  file, video ka output) work/ folder ya Ankit ke apne
-  folders (Desktop, Downloads, Documents, poora home
-  folder) me hoga. System wali jagah (C:\\Windows, Program
-  Files jaisi) par likhne se tool mana karega - wahan
-  likhna PC ke liye khatarnak hai, kaam wahan hota bhi
-  nahi.
+- Ankit file/folder ka NAAM bole (jaise "Dragon Princess Hook
+  Reels") to pehle find_file se dhoondo. File ko work/ me rakhne
+  ko KABHI mat bolo - file jahan hai wahi se kaam karo (tools ko
+  poora path do).
+- File CHALA kar dikhane ko kahe (video play, photo/document
+  kholna) to open_file chalao - pehle find_file se path nikalo.
+  Hukum sirf baat se nahi, asal me khol kar pura hota hai.
+- .zip ke andar ki file ka kaam ho to pehle extract_zip se
+  kholo, phir andar ki file par kaam karo - andar ki file seedha
+  play/upload NAHI hoti.
+- Likhne ka kaam work/ ya apne folders (Desktop, Downloads,
+  Documents, poora home) me hoga. System jagah (C:\\Windows, Program Files)
+  par tool mana karega - wahan likhna khatarnak hai, kaam wahan
+  hota bhi nahi.
 
 PHOTO (screenshot / tasveer dekhna):
-- Ankit chat me photo/screenshot bheje to tum use khud
-  dekh kar jawab dete ho - photo me jo dikh raha hai
-  (error, screen, koi bhi cheez) usi ko padh kar usi par
-  jawab do, jaise photo tumhare saamne khuli ho.
-- PC par padi kisi photo file ko dekhna ho to see_image
-  chalao (poora path do) - photo me kya hai samajh kar
-  milega, phir usi par kaam aage badhao.
-- Photo ke saath koi HUKUM aaye ("is se video le kar
-  upload kar do", "ye wala folder kholo") to photo ke
-  vivaran me dikhe naam/path ko sach maan kar wahi kaam
-  aam tools se asal me karo - sirf photo ka vivaran
-  suna kar mat ruk jao.
+- Ankit chat me photo bheje to use khud dekh kar jawab do - jo
+  dikh raha hai (error, screen, text) usi par jawab do, jaise
+  photo saamne khuli ho.
+- PC par padi photo dekhni ho to see_image chalao (poora path).
+- Photo ke saath HUKUM aaye ("is se video le kar upload kar do")
+  to vivaran ke naam/path ko sach maan kar wahi kaam tools se asal
+  me karo - sirf vivaran suna kar mat ruk jao.
 
 DESIGN BANANA (logo / banner / poster):
-- Ankit design, logo, banner, poster ya koi bhi tasveer
-  banane ko kahe to design_banao chalao. Uske varnan ko
-  saaf prompt me badal kar do - naam, rang, style jo usne
-  bola ho, wo sab shamil karo.
-- Design ban jaye to use open_file se khol kar Ankit ko
-  DIKHAO bhi - sirf path bata kar mat ruk jao.
-- Teen design mange to design_banao teen baar chalao -
-  har baar alag style/rang ka varnan aur alag filename
-  (jaise story-tv-logo-1, story-tv-logo-2) - phir teeno
-  khol kar dikhao, taaki wo chun sake.
+- Design/logo/banner/poster banane ko kahe to design_banao chalao
+  - varnan ko saaf prompt me badal kar do (naam, rang, style sab).
+- Ban jaye to open_file se khol kar DIKHAO - sirf path bata kar
+  mat ruk jao.
+- Teen design mange to design_banao teen baar - alag style/rang
+  aur alag filename (jaise story-tv-logo-1) - phir teeno khol kar
+  dikhao.
 
 PROGRAM CHALANA (software install karna / chalana):
-- Ankit koi software install karne ya koi program chalane ko
-  kahe to run_program se asal me chalao - sirf steps bata kar
-  mat chhodo.
-- Jo install PAISA mangta ho (paid software, paid plan) ya jo
-  command Ankit ki apni files DELETE karti ho, use chalane se
-  PEHLE Ankit ko saaf shabdon me bata kar uski haan lo. Iske
-  alawa aam install aur program bina puche chalao.
-- Khatarnak-class command (disk format, system folder
-  delete, shutdown jaisi) par run_program CONFIRM_REQUIRED
-  deta hai - ye MANA NAHI hai, POOCHNA hai. Tab Ankit ko
-  saaf shabdon me batao ki command kya karegi aur pucho
-  "chala du?". Uski HAAN mile to WAHI command run_program
-  me confirm=true ke saath dobara chalao - haan hi kaafi
-  hai. Mana karna, ya ghuma-phira kar dusra rasta
-  dhoondna, sakht mana hai. Paisa/delete par pehle poochna
-  hai, mana kabhi nahi - haan mile to kar do.
+- Software/program chalane ko kahe to run_program se asal me
+  chalao - sirf steps bata kar mat chhodo.
+- Jo install PAISA mange ya jo command Ankit ki files DELETE
+  kare, use chalane se PEHLE saaf bata kar haan lo. Baaki aam
+  install/program bina puche chalao.
+- Khatarnak-class command (disk format, system folder delete,
+  shutdown jaisi) par run_program CONFIRM_REQUIRED deta hai - ye
+  MANA NAHI, POOCHNA hai. Tab saaf batao command kya karegi aur
+  pucho "chala du?". HAAN mile to WAHI command confirm=true ke
+  saath dobara chalao - haan hi kaafi hai. Mana karna ya
+  ghuma-phira kar dusra rasta dhoondna sakht mana hai.
 
 TOOL PROTOCOL: If you need a tool, reply with ONLY a JSON object like
 {"tool": "list_files", "args": {"path": ""}} and nothing else.
 FORMAT RULE (bahut zaroori): tool call wala jawab SIRF wahi ek JSON
-object hoga - usse pehle ya baad me EK SHABD bhi nahi, koi prose,
-koi "main kar deta hu" wali line nahi. "args" hamesha ek asli JSON
-object hoga {"url": "..."} - kabhi bhi string ke andar band kiya
-hua JSON nahi bhejoge.
+object hoga - pehle ya baad me EK SHABD bhi nahi, koi prose nahi.
+"args" hamesha asli JSON object hoga {"url": "..."} - string ke andar
+band JSON kabhi nahi.
 Available tools:
-- list_files(path)           kisi bhi folder ki list - poora path do
-                             to wahi ka (Desktop adi), sirf naam ya
-                             khaali do to work folder ka
-- read_file(path)            text file padho - poora path chalega,
-                             sirf naam/relative ho to work folder me
-- find_file(name)            naam se poore computer me file/folder
-                             dhoondo (aadha naam bhi chalega) - Ankit
-                             kisi file ka naam bole to PEHLE yahi
-                             chalao
-- open_file(path)            file ko uske default app me kholo -
-                             video play karna ho ya photo/document
-                             kholna ho to yahi chalao (path pehle
-                             find_file se nikaal sakte ho)
-- extract_zip(path)          .zip file ko uske paas wale folder me
-                             kholo - zip ke andar ki video/file par
-                             kaam karne se pehle yahi chalao
-- see_image(path)            PC par padi photo/screenshot dekho -
-                             usme kya hai samajh kar milega
-- design_banao(prompt, filename)  Gemini ke image model se
-                             design/logo/banner/poster ki tasveer
-                             banao - file work/ me banti hai;
-                             ban jaye to open_file se khol kar
-                             Ankit ko dikhao bhi
-- write_file(path, content)  text file likho - work folder ya Ankit
-                             ke apne folders me (system jagah nahi)
-- create_folder(path)        folder banao - work folder ya Ankit ke
-                             apne folders me
-- get_time()                 current date and time on this computer
-- web_fetch(url)             fetch an http/https page and return its text
-- list_skills()              list the learned skill files
-- read_skill(name)           read one skill file, e.g. "youtube-upload"
-- create_skill(name, content)  save a new skill (only inside skills/)
-- yaad_likho(text)           save an important baat to long-term memory (MEMORY.md)
-- open_url(url)              open a page in this PC's default browser
-- video_info(path)           duration/size/resolution - video kahi
-                             bhi ho, poora path do
-- trim_video(input, start_sec, duration_sec, output)  cut a video
-                             (input kahi bhi ho sakta hai; output
-                             work/ ya Ankit ke folders me)
-- join_videos(files, output) join videos in order (inputs kahi bhi;
-                             output work/ ya Ankit ke folders me)
-- speak_to_file(text, filename)  make a voice audio file inside work/
-- agent_update()             check for a newer version of myself and
-                             install it (engine restart ke baad lagega)
-- browser_open(url)          agent wale Chrome me page kholo
-                             (logged-in sites ke kaam ke liye; Chrome
-                             taiyaar na ho to user ko 'browser setup
-                             karo' likhne ko bolo)
-- browser_read()             abhi khule page ka title + text padho
-- browser_click(target)      page par button/link dabao - target ek
-                             CSS selector ya dikhai dene wala text hai
-- browser_type(target, text) kisi field me likho (caption, title adi)
-- browser_upload_file(target, path)  page ke file-input par file
-                             lagao (path = is PC par file ka pura
-                             path - Desktop/Downloads kahi se bhi;
-                             file ka naam hi pata ho to pehle
-                             find_file se uska path nikalo)
-- download_file(url, filename)  internet se koi file (poster,
-                             installer adi) download karo - work/
-                             folder ya Ankit ke folders me (25 MB
-                             tak; filename khali ho to URL se banta
-                             hai)
-- make_video(job_folder)     job folder (slides/ + titles.txt +
-                             optional voice.mp3) se taiyaar vertical
-                             video banao - final.mp4 usi folder me
-                             banta hai ('video-banana' skill dekho)
-- watch_video(source)        YouTube link ya koi video file
-                             (poora path bhi chalega) dekh kar uske
-                             steps samjho (nayi skill seekhne ke
-                             liye; mile hue steps pehle Ankit ko
-                             dikhane hain, skill uski haan par hi
-                             banegi)
-- run_program(command, confirm)  is PC par command/program chalao
-                             (software install karne/chalane ke
-                             liye; output wapas milta hai).
-                             Khatarnak-class command par tool
-                             CONFIRM_REQUIRED deta hai (mana nahi) -
-                             tab Ankit ko bata kar pucho, uski haan
-                             par WAHI command confirm=true ke saath
-                             dobara chalao. Aam command me confirm
-                             ki zaroorat nahi.
+- list_files(path) - folder ki list (poora path do; khaali/naam ho to work folder)
+- read_file(path) - text file padho (poora path; relative ho to work folder)
+- find_file(name) - naam se poore computer me file/folder dhoondo (aadha naam chalega); naam bole to PEHLE yahi
+- open_file(path) - file default app me kholo (video play / photo / document)
+- extract_zip(path) - .zip ko paas wale folder me kholo (andar ki file par kaam se pehle)
+- see_image(path) - PC par padi photo/screenshot dekho
+- design_banao(prompt, filename) - Gemini se design/logo/banner/poster banao (work/ me); ban jaye to open_file se dikhao
+- write_file(path, content) - text file likho (work/ ya Ankit ke folders; system jagah nahi)
+- create_folder(path) - folder banao (work/ ya Ankit ke folders)
+- get_time() - is computer ka current date-time
+- web_fetch(url) - http/https page ka text lao
+- list_skills() - skill files ki list
+- read_skill(name) - ek skill padho, e.g. "youtube-upload"
+- create_skill(name, content) - nayi skill save karo (sirf skills/ me)
+- yaad_likho(text) - zaroori baat memory (MEMORY.md) me save karo
+- open_url(url) - page PC ke default browser me kholo
+- video_info(path) - video ka duration/size/resolution (poora path do)
+- trim_video(input, start_sec, duration_sec, output) - video kaato (input kahi bhi; output work/)
+- join_videos(files, output) - videos kram me jodo (inputs kahi bhi; output work/)
+- speak_to_file(text, filename) - awaaz ki audio file work/ me banao
+- agent_update() - mera naya version check karke install karo (restart ke baad lagega)
+- browser_open(url) - agent wale Chrome me page kholo (taiyaar na ho to user ko 'browser setup karo' bolo)
+- browser_read() - khule page ka title + text padho
+- browser_click(target) - button/link dabao (CSS selector ya dikhai dene wala text)
+- browser_type(target, text) - field me likho (caption, title adi)
+- browser_upload_file(target, path) - page ke file-input par file lagao (path = pura path; naam hi pata ho to pehle find_file)
+- download_file(url, filename) - internet se file download karo (work/ ya apne folders; 25 MB tak)
+- make_video(job_folder) - job folder (slides/ + titles.txt + optional voice.mp3) se vertical video; final.mp4 usi folder me (skill 'video-banana')
+- watch_video(source) - YouTube link/video file dekh kar steps samjho (steps pehle Ankit ko dikhane hain; skill haan par hi banegi)
+- run_program(command, confirm) - PC par command/program chalao; output milta hai. Khatarnak-class par CONFIRM_REQUIRED (mana nahi) - pucho, haan par WAHI command confirm=true se dobara chalao.
 If no tool is needed, reply in plain text only (no JSON)."""
 
 # --------------------------------------------------------------------------
@@ -1683,17 +1575,18 @@ _VIDEO_MIME = {
 }
 
 
-def _gemini_video_call(parts: list) -> str:
+def _gemini_video_call(parts: list, model: str = None) -> str:
     """Video wale parts ke saath ek seedha Gemini call.
 
     Chat wale _gemini_call se alag: yahan na system prompt jata
     hai na history - sirf video + seekhne wala prompt. Timeout
     lamba (300s) kyunki video samajhne me samay lagta hai. Galti
     par exception upar jata hai, tool use saaf shabdon me badalta
-    hai.
+    hai. model na do to config wala model (GEMINI_MODEL) lagta
+    hai - tool_watch_video apni ladder se lite bhi bhejta hai.
     """
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}")
+           f"{model or GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}")
     body = {"contents": [{"role": "user", "parts": parts}]}
     req = urllib.request.Request(
         url,
@@ -1755,29 +1648,65 @@ def tool_watch_video(source: str) -> str:
         parts = [{"inline_data": {"mime_type": mime, "data": b64}},
                  {"text": _WATCH_VIDEO_PROMPT}]
         kind = f"Video file {_rel(target)}"
-    try:
-        text = _gemini_video_call(parts)
-    except urllib.error.HTTPError as exc:
-        detail = ""
+    # Model ladder (v8.12): pehle primary model; busy/quota-class
+    # (503/429) haar par LITE model ek baar. Wajah: asal PC par
+    # primary (3.8) ka free quota khatm hone se watch_video seedha
+    # 429 par mar jata tha, jabki lite usi samay chal raha tha.
+    # Lite se bane to jawab me saaf likha aata hai ki video chhote
+    # model ne dekha hai. Dono fail hon to dono ki asal wajahen.
+    video_models = [GEMINI_MODEL or _MODEL_LITE]
+    if video_models[0] != _MODEL_LITE:
+        video_models.append(_MODEL_LITE)
+    text = None
+    watched_note = ""
+    failures = []  # (model, "http"/"error", code, detail)
+    for idx, vmodel in enumerate(video_models):
         try:
-            detail = exc.read().decode("utf-8", "replace")[:300]
-        except Exception:
-            pass
-        log(f"WATCH_VIDEO fail: HTTP {exc.code}")
-        return (f"Video dekh nahi paya - Gemini ne HTTP {exc.code} "
-                "diya. Video public hai aur format sahi hai, ye "
-                "check karo; thodi der baad phir try karo."
-                + (f" ({detail})" if detail else ""))
-    except Exception as exc:
-        log(f"WATCH_VIDEO fail: {exc}")
-        return (f"Video dekh nahi paya: {exc}. Internet check "
+            text = _gemini_video_call(parts, vmodel)
+            if idx > 0:
+                watched_note = " (chhote model se dekha hai)"
+            break
+        except urllib.error.HTTPError as exc:
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", "replace")[:300]
+            except Exception:
+                pass
+            log(f"WATCH_VIDEO fail [{vmodel}]: HTTP {exc.code}")
+            failures.append((vmodel, "http", exc.code, detail))
+            if exc.code not in _BUSY_CODES:
+                break  # busy/quota ke alawa dusra model bekaar hai
+        except Exception as exc:
+            log(f"WATCH_VIDEO fail [{vmodel}]: {exc}")
+            failures.append((vmodel, "error", None, str(exc)))
+            break
+    if text is None:
+        if len(failures) > 1:
+            def _wajah(f):
+                _m, k, c, d = f
+                if k == "http":
+                    return f"HTTP {c}" + (f" ({d})" if d else "")
+                return d
+            return ("Video dekh nahi paya - dono model ruk gaye. "
+                    f"Bada model ({failures[0][0]}): "
+                    f"{_wajah(failures[0])}. "
+                    f"Chhota model ({failures[1][0]}): "
+                    f"{_wajah(failures[1])}. "
+                    "Thodi der baad phir try karo.")
+        _m, fkind, fcode, fdetail = failures[0]
+        if fkind == "http":
+            return (f"Video dekh nahi paya - Gemini ne HTTP {fcode} "
+                    "diya. Video public hai aur format sahi hai, ye "
+                    "check karo; thodi der baad phir try karo."
+                    + (f" ({fdetail})" if fdetail else ""))
+        return (f"Video dekh nahi paya: {fdetail}. Internet check "
                 "karke phir try karo.")
     if not text:
         return ("Video bheja to tha, lekin Gemini se koi jawab "
                 "nahi aaya - ek baar phir try karo.")
     if len(text) > 12000:
         text = text[:12000] + "\n... (jawab aur lamba tha, kata gaya)"
-    return f"{kind} dekh li. Jo samjha, wo ye raha:\n\n{text}"
+    return f"{kind} dekh li{watched_note}. Jo samjha, wo ye raha:\n\n{text}"
 
 
 # --------------------------------------------------------------------------
@@ -3519,12 +3448,15 @@ _BUSY_CODES = (503, 429)
 # ladder dusre model ko mauka deti hai - jawab jaldi ya to aata hai
 # ya saaf wajah ke saath rukta hai.
 _GEMINI_TIMEOUT = 40
+# v8.12: Groq-fallback wale primary model ke liye fast-fail timeout.
+_GEMINI_FAST_TIMEOUT = 15
 _TIMEOUT_DELAYS = (2,)
 _BUSY_DELAYS = (2, 5)
 
 
 def _gemini_call(contents: list, model: str = None,
-                 system_instruction: bool = True) -> str:
+                 system_instruction: bool = True,
+                 fast_fail: bool = False) -> str:
     model = model or GEMINI_MODEL
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{model}:generateContent?key={GEMINI_API_KEY}")
@@ -3536,14 +3468,23 @@ def _gemini_call(contents: list, model: str = None,
     # liye hai: wahan agent wala system prompt model ko tool-call
     # JSON ki taraf dhakelta hai, jabki wahan sirf "photo me kya
     # hai" wala saaf vivaran chahiye (v8.5 ka vision->tools bridge).
+    # fast_fail (v8.12): Groq ke baad fallback bane primary model ke
+    # liye - EK koshish, 15s timeout, koi retry/backoff nahi. Asal PC
+    # par primary (3.8) poora din mara raha aur uski retry-chain hi
+    # jawab ko minute-bhar latkati thi; ab haar sasti hai aur lite
+    # turant mauka pata hai.
+    payload = json.dumps(body).encode("utf-8")
+    log(f"GEMINI[{model}] prompt ~{len(payload)} chars"
+        + (" (fast-fail)" if fast_fail else ""))
     req = urllib.request.Request(
         url,
-        data=json.dumps(body).encode("utf-8"),
+        data=payload,
         headers={"Content-Type": "application/json",
                  "User-Agent": _BROWSER_UA,
                  "Accept": "application/json"},
         method="POST",
     )
+    eff_timeout = _GEMINI_FAST_TIMEOUT if fast_fail else _GEMINI_TIMEOUT
     # Fail-fast (v8.1): har koshish me 40s tak wait. Timeout/network
     # par kul 2 koshish (2s ki rukawat), busy server (503/429) par kul
     # 3 koshish (2s, phir 5s ki rukawat). Baaki HTTP errors (404/400
@@ -3554,7 +3495,7 @@ def _gemini_call(contents: list, model: str = None,
     attempt = 0
     while True:
         try:
-            with urllib.request.urlopen(req, timeout=_GEMINI_TIMEOUT) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=eff_timeout) as resp:  # noqa: S310
                 data = json.loads(resp.read().decode("utf-8"))
             parts = data["candidates"][0]["content"]["parts"]
             return "".join(p.get("text", "") for p in parts).strip()
@@ -3563,7 +3504,7 @@ def _gemini_call(contents: list, model: str = None,
                 raise
             last_exc = exc
             last_kind = "busy"
-            max_attempts = 3
+            max_attempts = 1 if fast_fail else 3
             log(f"GEMINI[{model}] attempt {attempt + 1}/{max_attempts} "
                 f"fail: HTTP {exc.code} (server busy / rate limit, retry)")
             delays = _BUSY_DELAYS
@@ -3575,7 +3516,7 @@ def _gemini_call(contents: list, model: str = None,
                 isinstance(exc, urllib.error.URLError)
                 and isinstance(exc.reason, (socket.timeout, TimeoutError)))
             last_kind = "timeout" if is_timeout else "other"
-            max_attempts = 2
+            max_attempts = 1 if fast_fail else 2
             log(f"GEMINI[{model}] attempt {attempt + 1}/{max_attempts} "
                 f"fail: {exc}")
             delays = _TIMEOUT_DELAYS
@@ -3593,6 +3534,11 @@ def _gemini_call(contents: list, model: str = None,
 # One shared short history per running process (phone chat stays continuous).
 _history: list = []
 _history_lock = threading.Lock()
+# v8.12 request diet: record pura rehta hai, lekin dimag ko bheji
+# jane wali history sirf aakhri itni baariyon tak seemit hai
+# (20 entries = ~10 user/model exchanges) - Groq ki 12k TPM seema
+# me lambi history hi sabse bada kharcha thi.
+_HISTORY_SEND_MAX = 20
 
 
 def _balanced_blocks(text: str):
@@ -3793,7 +3739,26 @@ def _record_final_reply(text: str):
         _history.append({"role": "model", "parts": [{"text": text}]})
 
 
-def _gemini_converse(contents: list, model: str):
+# v8.12 request diet: Groq free TPM sirf 12,000 hai - ek 20k wala
+# browser_read ya lambi file ka jawab ek hi kadam me poori minute
+# ki token-seema kha sakta hai, aur har converse kadam par wahi
+# bojh dobara jata hai. Isliye model ko WAPAS jane wali tool-jawab
+# copy 4,000 chars par kat-ti hai. Tool ka asal jawab (run_tool ki
+# return value, jo user tak jata hai) bilkul nahi badalta.
+_MODEL_RESULT_MAX = 4000
+
+
+def _model_bound_result(result) -> str:
+    """Tool jawab ki model-bound copy - _MODEL_RESULT_MAX cap ke saath."""
+    text = result if isinstance(result, str) else str(result or "")
+    if len(text) <= _MODEL_RESULT_MAX:
+        return text
+    return (text[:_MODEL_RESULT_MAX] +
+            "\n…[jawab lamba tha - model ke liye kata gaya; "
+            "pura jawab user ko dikhaya gaya hai]")
+
+
+def _gemini_converse(contents: list, model: str, fast_fail: bool = False):
     """Ek diye hue model ke saath pura tool-loop chalao.
 
     (jawab, tool_chala_kya) return hota hai; Gemini wali errors
@@ -3811,7 +3776,7 @@ def _gemini_converse(contents: list, model: str):
     used_tool = False
     tracker = _StepTracker()
     for _ in range(_MAX_TOOL_STEPS):
-        reply = _gemini_call(contents, model)
+        reply = _gemini_call(contents, model, fast_fail=fast_fail)
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
             with _history_lock:
@@ -3827,7 +3792,8 @@ def _gemini_converse(contents: list, model: str):
             return stuck, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
-                         "parts": [{"text": f"Tool result: {result}"}]})
+                         "parts": [{"text": "Tool result: "
+                                            + _model_bound_result(result)}]})
     done = _cap_reached_message(tracker.progress)
     _record_final_reply(done)
     return done, used_tool
@@ -3915,10 +3881,14 @@ class _GroqDownError(Exception):
     ko sirf "key sahi nahi lagti" nahi, asal wajah dikhe.
     """
 
-    def __init__(self, message, status=None, detail=""):
+    def __init__(self, message, status=None, detail="", rate_scope=""):
         super().__init__(message)
         self.status = status
         self.detail = detail
+        # 429 ke liye seema ka dayra: "daily" / "minute" / "" (v8.12) -
+        # caller isi se user ko sahi note deta hai (aaj ki seema
+        # khatam vs ek-minute wali seema).
+        self.rate_scope = rate_scope
 
 
 def _http_error_parts(exc):
@@ -3960,6 +3930,29 @@ def _http_error_message(exc) -> str:
     return _http_error_parts(exc)[0]
 
 
+def _groq_rate_scope(detail: str, exc) -> str:
+    """Groq 429 ki seema ka dayra: "daily" / "minute" / "" (v8.12).
+
+    Pehle error body ki baat: Groq apne 429 me seema ka naam saaf
+    likhta hai ("tokens per day (TPD)" ya "requests per minute
+    (RPM)"). Wo na mile to retry-after header: bahut lamba
+    intezaar (600s se zyada) = din wali seema, chhota = minute
+    wali. Koi ishara na mile to "" - caller purana note rakhega.
+    """
+    text = (detail or "").lower()
+    if any(s in text for s in ("per day", "per-day", "daily",
+                               "rpd", "tpd")):
+        return "daily"
+    if any(s in text for s in ("per minute", "per-minute",
+                               "rpm", "tpm")):
+        return "minute"
+    try:
+        secs = float(exc.headers.get("retry-after"))
+        return "daily" if secs > 600 else "minute"
+    except Exception:
+        return ""
+
+
 def _to_openai_messages(contents: list) -> list:
     """Agent ki andar wali history (Gemini-style contents) ko Groq ke
     OpenAI-style messages me badlo: pehle system prompt (yaadon ke
@@ -3983,9 +3976,11 @@ def _groq_call(messages: list) -> str:
     taaki caller hamesha ek hi tareeke se Gemini par gir sake.
     """
     body = {"model": GROQ_MODEL, "messages": messages}
+    payload = json.dumps(body).encode("utf-8")
+    log(f"GROQ prompt ~{len(payload)} chars")
     req = urllib.request.Request(
         _GROQ_URL,
-        data=json.dumps(body).encode("utf-8"),
+        data=payload,
         headers={"Content-Type": "application/json",
                  "Authorization": f"Bearer {GROQ_API_KEY}",
                  "User-Agent": _BROWSER_UA,
@@ -4026,14 +4021,17 @@ def _groq_call(messages: list) -> str:
         time.sleep(delays[min(attempt, len(delays) - 1)])
         attempt += 1
     detail = ""
+    rate_scope = ""
     if isinstance(last_exc, urllib.error.HTTPError):
         detail = _http_error_message(last_exc)
+        if last_exc.code == 429:
+            rate_scope = _groq_rate_scope(detail, last_exc)
     raise _GroqDownError(
         str(last_exc) + (f": {detail}" if detail else ""),
         status=(last_exc.code
                 if isinstance(last_exc, urllib.error.HTTPError)
                 else None),
-        detail=detail)
+        detail=detail, rate_scope=rate_scope)
 
 
 def _groq_converse(contents: list):
@@ -4067,7 +4065,8 @@ def _groq_converse(contents: list):
             return stuck, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
-                         "parts": [{"text": f"Tool result: {result}"}]})
+                         "parts": [{"text": "Tool result: "
+                                            + _model_bound_result(result)}]})
     done = _cap_reached_message(tracker.progress)
     _record_final_reply(done)
     return done, used_tool
@@ -4099,7 +4098,7 @@ def _has_action_intent(message: str) -> bool:
     return bool(_ACTION_RE.search((message or "").lower()))
 
 
-def _ladder_run(contents: list):
+def _ladder_run(contents: list, fast_primary: bool = False):
     """Model ladder chalao: pehle primary, fail ho to dusra model.
 
     Safal ho to (jawab, tool_chala_kya); dono fail hon ya key ki
@@ -4107,12 +4106,19 @@ def _ladder_run(contents: list):
     retry neeti (timeout/network 2 koshish, busy 3 koshish) se
     chalta hai. Key ki galti (400/401/403) par ladder turant rukti
     hai - dusra model bhi wahi key use karega, koshish bekaar hai.
+
+    fast_primary (v8.12): Groq fail hokar yahan aaye hon to PRIMARY
+    model ki koshish sasti rakho (ek koshish, 15s, koi retry nahi) -
+    asal PC par mara hua primary apni retry-chain se jawab ko
+    minute-bhar latkata tha. Dusra model (lite) apni aam neeti se
+    hi chalta hai.
     """
     models = _ladder_models()
     last_exc = None
     for idx, model in enumerate(models):
         try:
-            reply, used_tool = _gemini_converse(contents, model)
+            reply, used_tool = _gemini_converse(
+                contents, model, fast_fail=(fast_primary and idx == 0))
             if idx > 0:
                 reply = ("(pehle model se jawab nahi aaya, dusre model "
                          "se laya hu)\n" + reply)
@@ -4148,6 +4154,8 @@ def _brain_run(contents: list):
     groq_failed = False
     groq_key_error = False
     groq_detail = ""
+    groq_status = None
+    groq_rate_scope = ""
     if GROQ_API_KEY:
         try:
             reply, used_tool = _groq_converse(contents)
@@ -4155,7 +4163,9 @@ def _brain_run(contents: list):
             return reply, used_tool
         except Exception as exc:  # har haar par Gemini ki baari
             groq_failed = True
-            if getattr(exc, "status", None) in (401, 403):
+            groq_status = getattr(exc, "status", None)
+            groq_rate_scope = getattr(exc, "rate_scope", "") or ""
+            if groq_status in (401, 403):
                 # Key wali gadbad (galat ya mis-paste hui key) -
                 # user ko note me key jaanchne ka ishara milega.
                 groq_key_error = True
@@ -4165,7 +4175,7 @@ def _brain_run(contents: list):
                 groq_detail = (getattr(exc, "detail", "") or "")[:120]
             log(f"BRAIN: GROQ fail ({exc}) - Gemini ladder par ja "
                 "raha hu")
-    reply, used_tool = _ladder_run(contents)
+    reply, used_tool = _ladder_run(contents, fast_primary=groq_failed)
     if used_tool is not None and groq_failed:
         note = ("(tez wale model se jawab nahi aaya, dusre model se "
                 "laya hu)")
@@ -4176,6 +4186,15 @@ def _brain_run(contents: list):
                      "hai.)")
             if groq_detail:
                 note += f" (Groq ne kaha: {groq_detail})"
+        if groq_status == 429 and groq_rate_scope == "daily":
+            # v8.12: 429 ka dayra saaf batao - din wali seema
+            # khatam hai to user ko pata ho ki kal tak tez dimag
+            # wapas aayega, koi gadbad nahi hui.
+            note += (" (tez dimag ki aaj ki free seema khatam ho "
+                     "gayi hai — kal phir tez ho jayega)")
+        elif groq_status == 429 and groq_rate_scope == "minute":
+            note += (" (tez dimag ki ek-minute wali seema lagi "
+                     "hai — thodi der me phir tez ho jayega)")
         reply = note + "\n" + reply
     return reply, used_tool
 
@@ -4393,8 +4412,9 @@ def brain_ask(message: str) -> str:
     """
     with _history_lock:
         _history.append({"role": "user", "parts": [{"text": message}]})
-        del _history[:-20]  # keep the last ~10 exchanges
-        contents = list(_history)
+        # Record intact rehta hai; dimag ko sirf aakhri
+        # _HISTORY_SEND_MAX baariyan jati hain (v8.12).
+        contents = list(_history[-_HISTORY_SEND_MAX:])
     reply, used_tool = _brain_run(contents)
     if used_tool is None:
         return _guard_no_tool_json(reply)  # error message
