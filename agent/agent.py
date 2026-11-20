@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.7"
+AGENT_VERSION = "8.8"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -319,10 +319,16 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
 2. Kaam asal me tools se karo - sirf baat karke mat chhodo. Jo bola,
    wo karke dikhao.
 3. Kaam ke baad result khud verify karo: file likhi hai to read_file
-   se padh kar check karo, folder banaya to list karke dekho. Verify
-   kiye bina "ho gaya" mat bolo.
-4. Error aaye to wahi ruk mat jao - kaaran samjho aur dusra tareeka
-   try karo. Tab bhi na ho to saaf batao kya atka hai.
+   se padh kar check karo, folder banaya to list karke dekho, page
+   khola hai to browser_read se dekho ki wahi khula jo kholna tha.
+   Verify kiye bina "ho gaya" KABHI mat bolo - pehle khud jaancho,
+   phir batao.
+4. Error aaye to wahi ruk mat jao: pehle error ka MATLAB samjho -
+   error me jo wajah likhi hai use dhyaan se padho, andaz mat
+   lagao. Phir EK doosra tareeka KHUD try karo, bina Ankit se
+   puche. Dusra tareeka bhi na bane to sirf "nahi ho paya" mat
+   bolo - asli wajah saaf shabdon me batao: kya atka hai, kyun
+   atka hai, aur aage kya ho sakta hai.
 5. Jo baat aage bhi kaam aayegi (pasand, faisla, chal raha kaam) use
    yaad_likho se memory me save kar do.
 
@@ -1969,12 +1975,31 @@ def tool_agent_update() -> str:
             "naam se surakshit rakhi hai.")
 
 
+_CMD_QUOTE_CHARS = "'\"`‘’“”"
+
+
+def _norm_command(text: str) -> str:
+    """Intercept hue commands ki pehchan ke liye text ka saaf roop
+    (v8.8): lowercase, aas-paas ke quotes (', ", `, ‘’, “”) hata
+    kar, beech ke extra spaces sameet kar, aakhir ka punctuation
+    (., !, ?) hata kar. User aksar hukum quotes ke saath bhej deta
+    hai ('browser setup karo') - bare form aur quoted form ab
+    EK jaise fire hote hain. Ye sirf command-matching ke liye hai;
+    asal message kahin aur ayn waisa hi jata hai."""
+    t = (text or "").strip().lower()
+    t = t.strip(_CMD_QUOTE_CHARS).strip()
+    t = re.sub(r"\s+", " ", t)
+    t = t.rstrip(".!?").strip()
+    t = t.strip(_CMD_QUOTE_CHARS).strip()
+    return t
+
+
 _UPDATE_TRIGGERS = ("update", "update karo", "agent update", "update agent")
 
 
 def _is_update_command(low: str) -> bool:
     """User ke 'update' wale hukum ko pehchano (dono modes ke liye)."""
-    low = (low or "").strip().lower()
+    low = _norm_command(low)
     return low in _UPDATE_TRIGGERS or low.startswith("update ")
 
 
@@ -1983,7 +2008,7 @@ _DIMAG_TEST_TRIGGERS = ("dimag test karo", "dimag test", "test karo dimag")
 
 def _is_dimag_test_command(low: str) -> bool:
     """'dimag test karo' - dono dimagon ki asal jaanch wala hukum (v8.6)."""
-    low = (low or "").strip().lower()
+    low = _norm_command(low)
     return low in _DIMAG_TEST_TRIGGERS
 
 
@@ -2350,11 +2375,54 @@ def _browser_setup_needed_msg() -> str:
 # ----------------------------------------------------------------------
 
 _BROWSER_SETUP_TRIGGERS = ("browser setup karo", "browser setup")
+_BROWSER_SETUP_OPENERS = ("setup", "khol", "kholo", "open", "chalu",
+                          "start")
 
 
 def _is_browser_setup_command(low: str) -> bool:
-    """'browser setup karo' hukum ki pehchan (dono modes ke liye)."""
-    return (low or "").strip().lower() in _BROWSER_SETUP_TRIGGERS
+    """'browser setup karo' hukum ki pehchan (dono modes ke liye).
+
+    v8.8: exact hukum ke alawa AAM bol-chaal wale roop bhi chalte
+    hain - (browser|chrome) ke saath setup/khol/open/chalu/start
+    jaisa shabd ho to setup hi mana jata hai ('chrome setup kar
+    do', 'browser khol do'). LEKIN message me kisi site ka naam
+    ho (facebook, youtube...) to wo NAVIGATION hai, setup nahi -
+    'browser me facebook kholo' setup nahi chalata.
+    """
+    t = _norm_command(low)
+    if t in _BROWSER_SETUP_TRIGGERS:
+        return True
+    words = re.findall(r"[a-z0-9]+", t)
+    if not any(w in ("browser", "chrome") for w in words):
+        return False
+    if any(w in _SITE_MAP for w in words):
+        return False
+    if "set up" in t:
+        return True
+    return any(w in _BROWSER_SETUP_OPENERS for w in words)
+
+
+def _port_occupied(port: int = BROWSER_DEBUG_PORT) -> bool:
+    """Port par koi sun raha hai kya - sirf socket connect ki
+    jaanch (CDP jawab de ya na de, usse alag). 'Port par kuch
+    hai lekin wo CDP nahi hai' wali haalat pakadne ke liye."""
+    try:
+        with socket.create_connection(("127.0.0.1", port),
+                                      timeout=1.5):
+            return True
+    except Exception:
+        return False
+
+
+def _cdp_looks_like_ours(version) -> bool:
+    """/json/version ke jawab se pehchan: Browser naam me
+    Chrome/Chromium/Edge ho to ye ek Chrome-parivaar ka CDP
+    endpoint hai. Hamare khaas port (9222) par aisa jawab
+    asal me agent wale Chrome ka hi hota hai - aam Chrome
+    (default profile) is port par jawab deta hi nahi."""
+    browser_name = str((version or {}).get("Browser", ""))
+    return any(n in browser_name
+               for n in ("Chrome", "Chromium", "Edg"))
 
 
 def tool_browser_setup() -> str:
@@ -2363,18 +2431,40 @@ def tool_browser_setup() -> str:
     User us window me EK BAAR khud login karega. Password agent
     kabhi nahi mangta, dekhta ya store karta - login hamesha user
     ke haath me hai, aur ye baat jawab me saaf kahi jati hai.
+
+    v8.8 REUSE: pehle se chalta hua APNA Chrome ab rok nahi hai -
+    purani koshish wala Chrome khula reh gaya ho to setup usi se
+    jud jata hai (dobara launch nahi karta). Pehchan: profile ki
+    DevToolsActivePort marker file aur/ya port 9222 par CDP ka
+    jawab. Marker ho lekin port band ho (stale marker) to aam
+    launch wala rasta chalta hai.
     """
     marker = BROWSER_PROFILE_DIR / "DevToolsActivePort"
+    marker_there = marker.is_file()
     try:
-        http_json(BROWSER_DEBUG_PORT, "/json/version", timeout=2.0)
-        port_alive = True
+        version = http_json(BROWSER_DEBUG_PORT, "/json/version",
+                            timeout=2.0)
     except Exception:
-        port_alive = False
-    if port_alive and marker.is_file():
-        return ("Agent wala Chrome pehle se khula hua hai - kaam "
-                "usi window me hoga. Agar usme login nahi hai to "
-                "pehle khud login kar lo, phir hukum do.")
-    if port_alive:
+        version = None
+    if version is not None:
+        if marker_there or _cdp_looks_like_ours(version):
+            with _browser_lock:
+                client, _sess = _browser_connect()
+            if client is not None:
+                log("BROWSER SETUP: agent wala Chrome pehle se "
+                    "khula tha - usi se jud gaya (reuse)")
+                return ("Agent wala Chrome pehle se khula tha — "
+                        "usi se jud gaya hu. Us window me login "
+                        "karke batao, ya seedha kaam bolo.")
+            return ("Agent wala Chrome khula to hai, lekin usse "
+                    "jud nahi paya. Us window ko band karke "
+                    "'browser setup karo' dobara likho.")
+        return ("Port 9222 par pehle se kuch aur chal raha hai, "
+                "isliye agent wala Chrome nahi khol paya. Use band "
+                "karke 'browser setup karo' dobara likho.")
+    if _port_occupied():
+        # Port par kuch sun raha hai, lekin CDP ka jawab nahi -
+        # wo agent wala Chrome nahi hai.
         return ("Port 9222 par pehle se kuch aur chal raha hai, "
                 "isliye agent wala Chrome nahi khol paya. Use band "
                 "karke 'browser setup karo' dobara likho.")
@@ -2455,7 +2545,9 @@ def _browser_connect():
     Safal ho to (client, session_id); warna (None, wajah) - wajah
     user ko dikhane layak Hinglish message hai. Sirf WAHI Chrome
     qabool hai jo hamari dedicated profile se chala ho - uski
-    pehchan profile folder ki DevToolsActivePort file hai.
+    pehchan profile folder ki DevToolsActivePort file hai
+    (v8.8: marker na ho to bhi hamare port par Chrome-parivaar
+    ka CDP jawab hi pehchan maan liya jata hai).
     """
     global _browser_client, _browser_session
     if _browser_client is not None and _browser_session:
@@ -2465,15 +2557,24 @@ def _browser_connect():
         except Exception:
             _browser_reset()
     try:
-        http_json(BROWSER_DEBUG_PORT, "/json/version", timeout=3.0)
+        version = http_json(BROWSER_DEBUG_PORT, "/json/version",
+                            timeout=3.0)
     except Exception:
         return None, _browser_setup_needed_msg()
     if not (BROWSER_PROFILE_DIR / "DevToolsActivePort").is_file():
-        return None, ("Port 9222 par kuch chal raha hai, lekin wo "
-                      "agent wala Chrome nahi lagta - uski profile "
-                      "(agent_chrome_profile) yahan nahi mili. Chat "
-                      "me likho: 'browser setup karo' - sahi Chrome "
-                      "wahi se khulega.")
+        # v8.8: marker file na ho, lekin hamare khaas port par
+        # Chrome-parivaar ka CDP jawab aa raha ho, to wahi agent
+        # wala Chrome hai (purani koshish wala chalta hua Chrome
+        # aksar yahi haalat me milta hai) - usi ko qabool karo.
+        if not _cdp_looks_like_ours(version):
+            return None, ("Port 9222 par kuch chal raha hai, lekin wo "
+                          "agent wala Chrome nahi lagta - uski profile "
+                          "(agent_chrome_profile) yahan nahi mili. Chat "
+                          "me likho: 'browser setup karo' - sahi Chrome "
+                          "wahi se khulega.")
+        log("BROWSER: marker file nahi mili, lekin port 9222 par "
+            "Chrome ka CDP jawab mil raha hai - usi ko agent wala "
+            "Chrome maan kar jud raha hu")
     try:
         client = CDPClient(port=BROWSER_DEBUG_PORT, timeout=20.0)
         session = None
@@ -2503,6 +2604,23 @@ def _browser_connect():
         _browser_reset()
         return None, (f"Browser se connect nahi ho paya ({exc}). "
                       + _browser_setup_needed_msg())
+
+
+def _browser_is_connected() -> bool:
+    """Browser haath is samay sach me judaa hua hai kya (v8.8) -
+    cached connection ko halki jaanch (evaluate '1') se parkho;
+    kharab nikle to reset karke False. Naya connection KHUD nahi
+    banata - ye sirf 'abhi judaa hai ya nahi' batata hai (site
+    commands isse tay karte hain ki kholna agent wale Chrome me
+    hai ya aam browser me)."""
+    with _browser_lock:
+        if _browser_client is not None and _browser_session:
+            try:
+                _browser_client.evaluate(_browser_session, "1")
+                return True
+            except Exception:
+                _browser_reset()
+    return False
 
 
 def _with_browser(work) -> str:
@@ -2788,22 +2906,45 @@ def _site_open_command(message: str):
     (kholo/khol/open/chalao...) AUR ek site ka naam - dono hon tabhi.
     Sirf site ka naam (jaise 'facebook par post karo') ismein nahi
     fasna chahiye, wo Gemini ke paas jayega.
+
+    v8.8 VERB-ATTACHMENT: jumle me KAI site naam hon to jeetta wahi
+    hai jo kisi open-verb ke SABSE PAAS ho - 'gmail login hai tum
+    youtube open karo usme' me hukum youtube ka hai, gmail sirf
+    bayaan hai (purana matcher pehla naam utha kar gmail khol deta
+    tha - asal PC par yahi galti hui thi).
     """
-    words = re.findall(r"[a-z0-9]+", (message or "").lower())
-    if not any(w in _OPEN_WORDS for w in words):
+    text = _norm_command(message)
+    tokens = [(m.group(0), m.start())
+              for m in re.finditer(r"[a-z0-9]+", text)]
+    verb_pos = [pos for w, pos in tokens if w in _OPEN_WORDS]
+    if not verb_pos:
         return None
-    for w in words:
-        if w in _SITE_MAP:
-            return _SITE_MAP[w]
-    return None
+    sites = [(w, pos) for w, pos in tokens if w in _SITE_MAP]
+    if not sites:
+        return None
+    if len(sites) == 1:
+        return _SITE_MAP[sites[0][0]]
+    best = min(sites,
+               key=lambda sp: min(abs(sp[1] - vp) for vp in verb_pos))
+    return _SITE_MAP[best[0]]
 
 
 def _site_open_reply(message: str):
-    """Site hukum chala kar Hinglish jawab do; hukum na ho to None."""
+    """Site hukum chala kar Hinglish jawab do; hukum na ho to None.
+
+    v8.8: browser haath judaa hua ho to site AGENT wale Chrome me
+    khulti hai (browser_open) - wahi Chrome jisme user login hai.
+    Judaa na ho to purana rasta: aam browser me open_url.
+    """
     found = _site_open_command(message)
     if found is None:
         return None
     label, url = found
+    if _browser_is_connected():
+        result = run_tool("browser_open", {"url": url})
+        if result.startswith("Agent wale Chrome me page khul gaya"):
+            return f"{label} agent wale Chrome me khol diya hai."
+        return result
     result = run_tool("open_url", {"url": url})
     if result.startswith("Browser me khol diya"):
         return f"{label} khol diya hai - browser me naya tab khul gaya hoga."
@@ -2905,10 +3046,17 @@ def demo_ask(message: str):
     """Return a reply string, or None if the message is not a demo command."""
     text = message.strip()
     low = text.lower()
+    # v8.8: quotes/punctuation saaf wala roop bhi exact-match
+    # commands ke liye qabool hai ('time batao' quotes ke saath
+    # bhi chalega) - regex wale commands ayn raw text par hi
+    # chalte hain (unme file ke naam hote hain).
+    nlow = _norm_command(text)
 
-    if low in ("help", "madad", "?"):
+    if low in ("help", "madad", "?") or nlow in ("help", "madad"):
         return HELP_TEXT
     if low in ("time", "what time is it", "samay", "time batao", "date",
+               "what is the time") or nlow in (
+               "time", "what time is it", "samay", "time batao", "date",
                "what is the time"):
         return run_tool("get_time", {})
 
@@ -2931,10 +3079,14 @@ def demo_ask(message: str):
     if m:
         return run_tool("create_folder", {"path": m.group(1).strip()})
 
-    if low in ("skills", "skill", "skills dikhao", "list skills"):
+    if low in ("skills", "skill", "skills dikhao", "list skills") \
+            or nlow in ("skills", "skill", "skills dikhao",
+                        "list skills"):
         return run_tool("list_skills", {})
 
     if low in ("yaadein", "yaadein dikhao", "memories", "memory",
+               "meri yaadein") or nlow in (
+               "yaadein", "yaadein dikhao", "memories", "memory",
                "meri yaadein"):
         memory = load_memory()
         if not memory:
@@ -3202,7 +3354,7 @@ def _gemini_converse(contents: list, model: str):
     """
     contents = list(contents)
     used_tool = False
-    for _ in range(5):  # max 5 tool steps per message
+    for _ in range(8):  # max 8 tool steps per message (v8.8: 5 se 8)
         reply = _gemini_call(contents, model)
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
@@ -3432,7 +3584,7 @@ def _groq_converse(contents: list):
     """
     contents = list(contents)
     used_tool = False
-    for _ in range(5):  # max 5 tool steps per message
+    for _ in range(8):  # max 8 tool steps per message (v8.8: 5 se 8)
         reply = _groq_call(_to_openai_messages(contents))
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
