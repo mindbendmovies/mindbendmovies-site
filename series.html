@@ -32,6 +32,31 @@
   .part .pd { color: #8a8f98; font-size: 12.5px; white-space: nowrap; }
   .part .play { color: #0072ce; font-size: 19px; flex: none; }
   .getapp { display: block; width: 100%; background: #0072ce; color: #ffffff; font-weight: 800; font-size: 17px; text-align: center; padding: 15px; border-radius: 999px; margin: 20px 0 6px; box-shadow: 0 0 22px rgba(0,114,206,.75); }
+  /* Unlock flow (notification -> 10s countdown, Smartlink at 5 -> part plays here) */
+  .uov { display: none; position: fixed; inset: 0; background: #0f1014; z-index: 300; overflow-y: auto; }
+  .uov.open { display: block; }
+  .uin { max-width: 560px; margin: 0 auto; padding: 20px 14px 44px; }
+  .uin h2 { font-size: 19px; margin-bottom: 4px; }
+  .uhook { color: #b8bcc4; font-size: 14px; line-height: 1.5; }
+  .ucard { background: #16161c; border: 1px solid #26262f; border-radius: 16px; padding: 18px 16px; margin-top: 16px; }
+  .ucard h3 { font-size: 18px; }
+  .ucard p { color: #b8bcc4; font-size: 14px; line-height: 1.5; margin-top: 6px; }
+  .ustep { display: none; }
+  .ustep.on { display: block; }
+  .ubell { width: 46px; height: 46px; border-radius: 50%; background: rgba(0,114,206,.15); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .uallow { display: block; width: 100%; margin-top: 14px; background: #0072ce; color: #fff; border: 0; border-radius: 999px; padding: 13px; font-size: 15.5px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .uskip { display: block; margin: 10px auto 0; background: none; border: 0; color: #8a8f98; font-size: 13.5px; cursor: pointer; text-decoration: underline; font-family: inherit; }
+  .usub { display: none; text-align: center; color: #4ade80; font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+  .ucount { font-size: 46px; font-weight: 800; text-align: center; margin: 6px 0 2px; }
+  .ubarw { height: 10px; background: #232329; border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .ubar { height: 100%; width: 100%; background: linear-gradient(90deg, #0072ce, #35a2ff); border-radius: 999px; transition: width 1s linear; }
+  .unote { color: #8a8f98; font-size: 12.5px; text-align: center; margin-top: 8px; }
+  .uad { margin-top: 14px; min-height: 60px; }
+  .utap { display: none; width: 100%; margin-top: 14px; background: #b8860b; color: #fff; border: 0; border-radius: 999px; padding: 13px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .uapp { display: flex; gap: 12px; align-items: center; }
+  .uapp img { width: 54px; height: 76px; object-fit: cover; border-radius: 8px; flex: none; }
+  .uapp .getapp { margin: 8px 0 0; font-size: 14.5px; padding: 11px; }
+  .uback { display: inline-block; margin-top: 18px; color: #8a8f98; font-size: 13.5px; background: none; border: 0; cursor: pointer; text-decoration: underline; font-family: inherit; }
   footer { border-top: 1px solid #26262f; color: #8a8f98; font-size: 12px; line-height: 1.7; padding: 20px 16px 90px; text-align: center; margin-top: 26px; }
   /* App popup */
   .popbg { display: none; position: fixed; inset: 0; background: rgba(5,6,9,.82); z-index: 200; align-items: center; justify-content: center; padding: 18px; }
@@ -91,6 +116,47 @@ gtag('config', 'G-9XB8WR0RNL');
   Dragon Princess is an original AI drama series, free to watch in the MindBendMovies app.
 </footer>
 
+<div class="uov" id="unlockOv">
+  <div class="uin">
+    <h2 id="uTitle">Unlocking Part 2</h2>
+    <p class="uhook" id="uHook"></p>
+
+    <div class="ucard ustep on" id="uStep1">
+      <div class="ubell">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.3 0 2.4-1 2.4-2.4H9.6C9.6 21 10.7 22 12 22Zm7-5.3v.8H5v-.8l1.9-1.9V9.6a5.4 5.4 0 0 1 4.3-5.3V4a.9.9 0 0 1 1.6 0v.3a5.4 5.4 0 0 1 4.3 5.3v5.2L19 16.7Z" fill="#35a2ff"/></svg>
+      </div>
+      <h3>Never miss a new episode</h3>
+      <p>Allow notifications and we will tell you the moment a new part or movie is added — no spam, only new episodes.</p>
+      <button class="uallow" id="uAllow">🔔 Allow Notifications</button>
+      <button class="uskip" id="uSkip">Skip this step</button>
+    </div>
+
+    <div class="ucard ustep" id="uStep2">
+      <div class="usub" id="uSub">✓ Subscribed — new episode alerts are ON</div>
+      <h3 style="text-align:center">Your part is getting ready…</h3>
+      <div class="ucount" id="uCount">10</div>
+      <div class="ubarw"><div class="ubar" id="uBar"></div></div>
+      <p class="unote">A sponsor page opens at 5 — close it and stay here, your part is loading.</p>
+      <button class="utap" id="uTap">Tap here to continue →</button>
+      <div class="uad" id="uAdNative"></div>
+      <div class="uad" id="uAdBanner" style="text-align:center"></div>
+    </div>
+
+    <div class="ucard">
+      <div class="uapp">
+        <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
+        <div style="flex:1">
+          <h3>Or watch free in the app</h3>
+          <p>All 8 parts are free in the app — no waiting, watch anytime.</p>
+          <a class="getapp" href="https://github.com/mindbendmovies/mindbendmovies-app/releases/download/v2.3/MindBendMovies.apk">▶ GET THE APP — WATCH FREE</a>
+        </div>
+      </div>
+    </div>
+
+    <button class="uback" id="uBack">← Back to all parts</button>
+  </div>
+</div>
+
 <div class="popbg" id="appPop">
   <div class="pop">
     <button class="x" id="popClose" aria-label="Close">✕</button>
@@ -116,28 +182,143 @@ var PARTS = [
   ['The old family comes back, begging for forgiveness.', '10:00'],
   ['Crowned at last — the Dragon Clan\u2019s beloved princess.', '9:24']
 ];
-var pop = document.getElementById('appPop');
-function openPop() { pop.className = 'popbg open'; }
-function closePop() { pop.className = 'popbg'; }
-document.getElementById('popClose').addEventListener('click', closePop);
-pop.addEventListener('click', function (e) { if (e.target === pop) closePop(); });
+var SMARTS = ['https://asiafilm.org/4/722ed74ebd82264062c28be2b74673a6', 'https://asiafilm.org/4/94a9bb2770c62b79eb368ac36c35225c'];
+function pickSmart() { return SMARTS[Math.floor(Math.random() * SMARTS.length)]; }
+var SBASE = 'https://github.com/mindbendmovies/mindbendmovies-app/releases/download/series-v1/dragon-princess-part';
+var video = document.getElementById('sv');
+var currentPart = 1;
+
+function playPart(n) {
+  currentPart = n;
+  var url = SBASE + n + '.mp4';
+  if (video.getAttribute('src') !== url) { video.src = url; }
+  video.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  var pr = video.play();
+  if (pr && pr.catch) {
+    pr.catch(function () {
+      video.muted = true;
+      video.play().catch(function () {});
+      document.getElementById('unmuteBtn').style.display = 'block';
+    });
+  }
+}
+
 var wrap = document.getElementById('parts');
 PARTS.forEach(function (p, i) {
   var b = document.createElement('button');
   b.className = 'part';
-  b.innerHTML = '<span class="pn">P' + (i + 1) + '</span><span class="ph">' + p[0] + '</span><span class="pd">' + p[1] + '</span><span class="play">▶</span>';
+  b.innerHTML = '<span class="pn">P' + (i + 1) + '</span><span class="ph">' + p[0] + '</span><span class="pd">' + p[1] + '</span><span class="play">' + (i === 0 ? '▶' : '🔒') + '</span>';
   b.addEventListener('click', function () {
-    if (i === 0) {
-      var v = document.getElementById('sv');
-      v.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      v.play();
-    } else {
-      openPop();
-    }
+    if (i === 0) { playPart(1); } else { startUnlock(i + 1); }
   });
   wrap.appendChild(b);
 });
-document.getElementById('sv').addEventListener('ended', openPop);
+video.addEventListener('ended', function () {
+  if (currentPart >= 1 && currentPart < 8) { startUnlock(currentPart + 1); }
+});
+
+/* Unlock flow: notification -> 10s countdown (Smartlink at 5) -> part plays on this page.
+   The app card in the overlay stays visible the whole time as the no-wait option. */
+var uOv = document.getElementById('unlockOv');
+var uStep1 = document.getElementById('uStep1');
+var uStep2 = document.getElementById('uStep2');
+var unlockTarget = 2;
+var uTimer = null;
+var uAdsDone = false;
+
+function startUnlock(n) {
+  unlockTarget = n;
+  document.getElementById('uTitle').textContent = 'Unlocking Part ' + n;
+  document.getElementById('uHook').textContent = PARTS[n - 1][0] + ' • ' + PARTS[n - 1][1];
+  document.getElementById('uSub').style.display = 'none';
+  document.getElementById('uTap').style.display = 'none';
+  uStep1.className = 'ucard ustep on';
+  uStep2.className = 'ucard ustep';
+  uOv.className = 'uov open';
+  uOv.scrollTop = 0;
+}
+function closeUnlock() {
+  if (uTimer) { clearInterval(uTimer); uTimer = null; }
+  uOv.className = 'uov';
+}
+document.getElementById('uBack').addEventListener('click', closeUnlock);
+
+function injectUnlockAds() {
+  if (uAdsDone) { return; }
+  uAdsDone = true;
+  var nSlot = document.getElementById('uAdNative');
+  var nd = document.createElement('div');
+  nd.id = 'container-80e3d4b38273e18de4e9dce240240458';
+  nSlot.appendChild(nd);
+  var ns = document.createElement('script');
+  ns.async = true;
+  ns.setAttribute('data-cfasync', 'false');
+  ns.src = 'https://bancadeltempoidea.org/21/80e3d4b38273e18de4e9dce240240458';
+  nSlot.appendChild(ns);
+  window.atOptions = { 'key': '079a1ad73dc1da4c27effe0efe9ef824', 'format': 'iframe', 'height': 50, 'width': 320, 'params': {} };
+  var bs = document.createElement('script');
+  bs.src = 'https://bancadeltempoidea.org/22/079a1ad73dc1da4c27effe0efe9ef824';
+  document.getElementById('uAdBanner').appendChild(bs);
+}
+
+function startCountdown() {
+  uStep1.className = 'ucard ustep';
+  uStep2.className = 'ucard ustep on';
+  injectUnlockAds();
+  var n = 10;
+  var num = document.getElementById('uCount');
+  var bar = document.getElementById('uBar');
+  var tap = document.getElementById('uTap');
+  num.textContent = '10';
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+  setTimeout(function () { bar.style.transition = 'width 1s linear'; }, 40);
+  if (uTimer) { clearInterval(uTimer); }
+  function finish() {
+    if (uTimer) { clearInterval(uTimer); uTimer = null; }
+    closeUnlock();
+    playPart(unlockTarget);
+  }
+  function tick() {
+    n--;
+    bar.style.width = (n * 10) + '%';
+    if (n === 5) {
+      num.textContent = n;
+      var w = window.open(pickSmart(), '_blank');
+      if (!w) {
+        /* Browser blocked the auto-open: pause at 5 until the user taps. */
+        clearInterval(uTimer); uTimer = null;
+        tap.style.display = 'block';
+        tap.onclick = function () {
+          window.open(pickSmart(), '_blank');
+          tap.style.display = 'none';
+          uTimer = setInterval(tick, 1000);
+        };
+      }
+    } else if (n <= 0) {
+      num.textContent = '✓';
+      finish();
+    } else {
+      num.textContent = n;
+    }
+  }
+  uTimer = setInterval(tick, 1000);
+}
+
+document.getElementById('uAllow').addEventListener('click', function () {
+  var done = function (granted) {
+    if (granted) { document.getElementById('uSub').style.display = 'block'; }
+    startCountdown();
+  };
+  if ('Notification' in window && Notification.requestPermission) {
+    try {
+      var r = Notification.requestPermission();
+      if (r && r.then) { r.then(function (res) { done(res === 'granted'); }); }
+      else { done(false); }
+    } catch (e) { done(false); }
+  } else { done(false); }
+});
+document.getElementById('uSkip').addEventListener('click', startCountdown);
 /* Autoplay: try with sound first; if the browser blocks sound (its autoplay
    policy), start muted and offer a one-tap sound button. */
 (function () {
