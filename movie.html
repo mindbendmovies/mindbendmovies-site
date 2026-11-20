@@ -25,8 +25,13 @@
   .meta { color: #b8bcc4; font-size: 14px; margin-bottom: 8px; }
   .rate { display: inline-block; background: #16161c; border: 1px solid #26262f; border-radius: 999px; padding: 5px 12px; font-size: 14px; font-weight: 700; margin-bottom: 16px; }
   .rate .star { color: #f5c518; }
-  .top { display: flex; gap: 16px; }
-  .top img { width: 140px; border-radius: 10px; flex: none; align-self: flex-start; }
+  .top { display: flex; gap: 16px; align-items: flex-start; }
+  .top img.poster { width: 150px; border-radius: 10px; flex: none; align-self: flex-start; }
+  .trailer { flex: 1; min-width: 0; aspect-ratio: 16/9; background: #000; border: 1px solid #26262f; border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; }
+  .trailer img { width: 100%; height: 100%; object-fit: cover; }
+  .trailer .tplay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(0,114,206,.95); color: #fff; border: 0; font-size: 15px; font-weight: 800; padding: 12px 22px; border-radius: 999px; cursor: pointer; box-shadow: 0 8px 26px rgba(0,0,0,.55); white-space: nowrap; }
+  .trailer .tlabel { position: absolute; left: 10px; bottom: 8px; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.9); }
+  .trailer iframe { width: 100%; height: 100%; border: 0; display: block; }
   .story { color: #dfe1e6; font-size: 15px; line-height: 1.65; margin-top: 14px; }
   .story p { margin-bottom: 12px; }
   .facts { background: #16161c; border: 1px solid #26262f; border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-size: 14px; line-height: 1.9; }
@@ -44,7 +49,7 @@
   .adbox { max-width: 100%; overflow: hidden; text-align: center; margin: 20px auto; }
   .loading { color: #b8bcc4; padding: 40px 0; text-align: center; font-size: 15px; }
   footer { border-top: 1px solid #26262f; color: #8a8f98; font-size: 12px; line-height: 1.7; padding: 20px 16px 90px; text-align: center; }
-  @media (max-width: 560px) { .top { flex-direction: column; } .top img { width: 170px; } .hero { height: 130px; } }
+  @media (max-width: 560px) { .top { flex-direction: column; } .top img.poster { width: 170px; } .trailer { width: 100%; flex: none; } .hero { height: 130px; } }
 </style>
 <script>
 (function () {
@@ -142,13 +147,18 @@ fetch('data/movies.json').then(function (r) { return r.json(); }).then(function 
     return '<a class="card" href="movie.html?id=' + x.id + '"><img loading="lazy" src="' + esc(x.poster) + '" alt="' + esc(x.title) + ' poster"><div class="t">' + esc(x.title) + (x.year ? ' (' + x.year + ')' : '') + '</div><div class="r">★ ' + (x.rating ? x.rating.toFixed(1) : '—') + '</div></a>';
   }).join('') + '</div>' : '';
 
+  var trailerHtml = '';
+  if (m.trailer) {
+    trailerHtml = '<div class="trailer"><iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(m.trailer) + '?autoplay=1&mute=1&rel=0&playsinline=1" title="' + esc(m.title) + ' trailer" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
+  }
+
   slot.innerHTML =
     '<h1>' + esc(m.title) + (m.year ? ' (' + m.year + ')' : '') + '</h1>' +
     '<div class="meta">' + esc(meta) + '</div>' +
     (m.rating ? '<span class="rate"><span class="star">★</span> ' + m.rating.toFixed(1) + '/10' + (m.votes ? ' · ' + Number(m.votes).toLocaleString('en-US') + ' votes' : '') + '</span>' : '') +
-    '<div class="top"><img src="' + esc(m.poster) + '" alt="' + esc(m.title) + ' poster"></div>' +
-    NATIVE +
+    '<div class="top"><img class="poster" src="' + esc(m.poster) + '" alt="' + esc(m.title) + ' poster">' + trailerHtml + '</div>' +
     '<button class="watch" id="watchNow">▶ Watch Now</button>' +
+    NATIVE +
     '<div class="story"><p>' + esc(m.overview || 'Story details coming soon.') + '</p></div>' +
     '<div class="facts">' +
       '<div><b>Director</b> ' + esc(m.director || 'Not disclosed') + '</div>' +
@@ -166,6 +176,7 @@ fetch('data/movies.json').then(function (r) { return r.json(); }).then(function 
     window.open(pickSmart(), '_blank');
     window.location.href = dest;
   });
+
 }).catch(function () {
   document.getElementById('movieSlot').innerHTML = '<h1>Could not load</h1><div class="meta">Please check your connection and try again.</div>';
 });
