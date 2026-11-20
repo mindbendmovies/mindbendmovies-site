@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Watch Now — MindBendMovies (Sample)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0f; color: #f2f2f2; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .hdr { padding: 14px 16px; border-bottom: 2px solid #0072ce; font-size: 22px; font-weight: 800; }
+  .hdr span { color: #0072ce; }
+  .samplebar { background: #3a2f00; color: #ffd54a; text-align: center; font-size: 12.5px; font-weight: 700; padding: 7px 10px; letter-spacing: .3px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 14px 40px; }
+  .movie { display: flex; gap: 14px; align-items: flex-start; }
+  .movie img { width: 118px; border-radius: 12px; display: block; }
+  .movie h1 { font-size: 21px; line-height: 1.25; }
+  .meta { color: #9a9aa3; font-size: 13px; margin-top: 6px; }
+  .rate { color: #ffd54a; font-weight: 700; margin-top: 6px; font-size: 14px; }
+  .wnbtn { display: block; width: 100%; margin-top: 20px; background: #0072ce; color: #fff; border: 0; border-radius: 999px; padding: 15px; font-size: 17px; font-weight: 800; cursor: pointer; }
+  .wnbtn:active { transform: scale(.99); }
+  .card { background: #16161c; border: 1px solid #26262e; border-radius: 16px; padding: 18px 16px; margin-top: 16px; }
+  .step { display: none; }
+  .step.on { display: block; }
+  .bell { width: 46px; height: 46px; border-radius: 50%; background: rgba(0,114,206,.15); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .card h2 { font-size: 18px; }
+  .card p { color: #b9b9c2; font-size: 14px; line-height: 1.5; margin-top: 6px; }
+  .allowbtn { display: block; width: 100%; margin-top: 14px; background: #0072ce; color: #fff; border: 0; border-radius: 999px; padding: 13px; font-size: 15.5px; font-weight: 800; cursor: pointer; }
+  .skip { display: block; margin: 10px auto 0; background: none; border: 0; color: #8a8a93; font-size: 13.5px; cursor: pointer; text-decoration: underline; }
+  .ok { color: #4ade80; font-weight: 800; font-size: 16px; }
+  .count { font-size: 40px; font-weight: 800; text-align: center; margin: 6px 0 2px; }
+  .barwrap { height: 10px; background: #232329; border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .bar { height: 100%; width: 100%; background: linear-gradient(90deg, #0072ce, #35a2ff); border-radius: 999px; transition: width 1s linear; }
+  .adbox { border: 1.5px dashed #3d3d47; border-radius: 12px; color: #8a8a93; text-align: center; padding: 18px 10px; margin-top: 14px; font-size: 13px; position: relative; }
+  .adbox .adchip { position: absolute; top: 6px; left: 8px; background: #3d3d47; color: #d7d7de; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; letter-spacing: .5px; }
+  .adbox.small { padding: 12px 10px; }
+  .readybtn { display: block; text-align: center; margin-top: 18px; background: #0a7d33; color: #fff; text-decoration: none; border-radius: 999px; padding: 15px; font-size: 17px; font-weight: 800; box-shadow: 0 0 22px rgba(10,125,51,.55); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(10,125,51,.55); } 70% { box-shadow: 0 0 0 14px rgba(10,125,51,0); } 100% { box-shadow: 0 0 0 0 rgba(10,125,51,0); } }
+  .hidden { display: none; }
+  .again { display: block; text-align: center; margin-top: 22px; color: #8a8a93; font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="hdr">MindBend<span>Movies</span></div>
+<div class="samplebar">SAMPLE PREVIEW — ads shown here are placeholders</div>
+<div class="wrap">
+
+  <!-- STEP 0: the movie -->
+  <div id="step0">
+    <div class="movie">
+      <img src="https://image.tmdb.org/t/p/w500/d43fvHQsIMa4kpyhKXw0haEJIvI.jpg" alt="Dune: Part Three poster">
+      <div>
+        <h1>Dune: Part Three (2026)</h1>
+        <div class="meta">Science Fiction • Adventure</div>
+        <div class="rate">★ 8.5 / 10</div>
+      </div>
+    </div>
+    <button class="wnbtn" id="wnBtn">▶ Watch Now</button>
+  </div>
+
+  <!-- STEP 1: notification ask -->
+  <div class="card step" id="step1">
+    <div class="bell">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.3 0 2.4-1 2.4-2.4H9.6C9.6 21 10.7 22 12 22Zm7-5.3v.8H5v-.8l1.9-1.9V9.6a5.4 5.4 0 0 1 4.3-5.3V4a.9.9 0 0 1 1.6 0v.3a5.4 5.4 0 0 1 4.3 5.3v5.2L19 16.7Z" fill="#35a2ff"/></svg>
+    </div>
+    <div id="askBox">
+      <h2>Never miss a new movie</h2>
+      <p>Allow notifications and we will tell you the moment a new movie is added — no spam, only new movies.</p>
+      <button class="allowbtn" id="allowBtn">🔔 Allow Notifications</button>
+      <button class="skip" id="skipBtn">Skip this step</button>
+    </div>
+    <div id="okBox" class="hidden">
+      <div class="ok">✓ You are subscribed</div>
+      <p>New movie alerts are ON for this phone. Taking you to your movie…</p>
+    </div>
+  </div>
+
+  <!-- STEP 2: 5-second unlock with ads -->
+  <div class="card step" id="step2">
+    <h2 style="text-align:center">Your movie link is getting ready…</h2>
+    <div class="count" id="countNum">5</div>
+    <div class="barwrap"><div class="bar" id="bar"></div></div>
+    <div class="adbox"><span class="adchip">AD</span>Sponsor ad space — a real Native ad runs here in the live version</div>
+    <div class="adbox small"><span class="adchip">AD</span>Sponsor banner space — 320 × 50</div>
+    <a class="readybtn hidden" id="readyBtn" href="https://mindbendmovies.github.io/mindbendmovies-site/movie.html?id=1170608">▶ Watch Now — Dune: Part Three</a>
+    <a class="again" href="sample-unlock.html">↺ Try the sample again</a>
+  </div>
+
+</div>
+<script>
+  var step0 = document.getElementById('step0');
+  var step1 = document.getElementById('step1');
+  var step2 = document.getElementById('step2');
+  document.getElementById('wnBtn').addEventListener('click', function () {
+    step0.style.display = 'none';
+    step1.classList.add('on');
+    step1.scrollIntoView({ behavior: 'smooth' });
+  });
+  function startTimer() {
+    step1.classList.remove('on');
+    step2.classList.add('on');
+    step2.scrollIntoView({ behavior: 'smooth' });
+    var n = 5;
+    var num = document.getElementById('countNum');
+    var bar = document.getElementById('bar');
+    setTimeout(function () { bar.style.width = '0%'; }, 60);
+    var iv = setInterval(function () {
+      n--;
+      if (n <= 0) {
+        clearInterval(iv);
+        num.textContent = '✓';
+        document.getElementById('readyBtn').classList.remove('hidden');
+      } else {
+        num.textContent = n;
+      }
+    }, 1000);
+  }
+  document.getElementById('allowBtn').addEventListener('click', function () {
+    /* In the live version the phone's own Allow popup opens here. */
+    document.getElementById('askBox').classList.add('hidden');
+    document.getElementById('okBox').classList.remove('hidden');
+    setTimeout(startTimer, 1100);
+  });
+  document.getElementById('skipBtn').addEventListener('click', startTimer);
+</script>
+</body>
+</html>
