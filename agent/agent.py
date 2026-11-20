@@ -99,10 +99,24 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.6"
+AGENT_VERSION = "8.7"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
+
+# Har bahari HTTP request ke saath browser jaisi pehchan (v8.7).
+# Jad wajah (live probe se pakki): Groq ki API Cloudflare ke
+# peeche hai aur Cloudflare Python-urllib ki default pehchan
+# (User-Agent) ko KEY JAANCHNE SE PEHLE hi rok deta hai -
+# HTTP 403, body "error code: 1010" (ban-by-signature). Dummy
+# key ke saath bhi wahi 403 aata tha; browser wali pehchan
+# lagate hi request asal API tak pahunchti hai aur galat key
+# par asal 401 "Invalid API Key" milta hai. Isliye agent ki
+# HAR request ab Chrome (Windows) wali pehchan ke saath jati
+# hai - Groq, Gemini, update fetch, web fetch/download sab.
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+               "AppleWebKit/537.36 (KHTML, like Gecko) "
+               "Chrome/140.0.0.0 Safari/537.36")
 
 _log_lock = threading.Lock()
 
@@ -878,7 +892,7 @@ def tool_web_fetch(url: str) -> str:
     url = (url or "").strip()
     if not re.match(r"^https?://", url):
         return "Only http/https URLs are allowed."
-    req = urllib.request.Request(url, headers={"User-Agent": "MyAgent/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
     with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310 (http/https checked above)
         raw = resp.read(500_000)
     text = raw.decode("utf-8", errors="replace")
@@ -1247,7 +1261,7 @@ def tool_download_file(url: str, filename: str = "") -> str:
     except ValueError as exc:
         return str(exc)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(url, headers={"User-Agent": "MyAgent/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
             data = resp.read(DOWNLOAD_MAX_BYTES + 1)
@@ -1630,7 +1644,9 @@ def _gemini_video_call(parts: list) -> str:
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "application/json"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=300) as resp:  # noqa: S310
@@ -1913,7 +1929,7 @@ def tool_agent_update() -> str:
     """
     try:
         req = urllib.request.Request(
-            UPDATE_URL, headers={"User-Agent": "MyAgent-Updater"})
+            UPDATE_URL, headers={"User-Agent": _BROWSER_UA})
         with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310
             source = resp.read().decode("utf-8", errors="replace")
     except Exception as exc:
@@ -2154,9 +2170,10 @@ class CDPError(Exception):
 
 
 def http_json(port, path, host="127.0.0.1", timeout=5.0):
-    with urllib.request.urlopen(
-        "http://%s:%d%s" % (host, port, path), timeout=timeout
-    ) as resp:
+    req = urllib.request.Request(
+        "http://%s:%d%s" % (host, port, path),
+        headers={"User-Agent": _BROWSER_UA})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -3036,7 +3053,9 @@ def _gemini_call(contents: list, model: str = None,
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "application/json"},
         method="POST",
     )
     # Fail-fast (v8.1): har koshish me 40s tak wait. Timeout/network
@@ -3288,6 +3307,34 @@ class _GroqDownError(Exception):
         self.detail = detail
 
 
+def _http_error_parts(exc):
+    """HTTPError ke body se (asal message, kaccha snippet) nikalo.
+
+    Body EK hi baar, bounded (~1000 bytes) padha jata hai. Pehle
+    Groq/OpenAI shakal {"error": {"message": ...}} try hoti hai;
+    wo na mile (jaise Cloudflare ki rok - seedha text "error
+    code: 1010") to body ka saaf kiya hua chhota tukda snippet
+    banta hai: HTML tags hata kar, whitespace sameet kar, 80
+    chars tak (v8.7). Isme kabhi key material ya headers nahi
+    hote - sirf server ke bheje body ka hissa hota hai.
+    """
+    try:
+        raw = exc.read(1000)
+    except Exception:
+        return "", ""
+    text = raw.decode("utf-8", errors="ignore")
+    try:
+        data = json.loads(text)
+        msg = (data.get("error") or {}).get("message")
+        if isinstance(msg, str) and msg.strip():
+            return msg.strip(), ""
+    except Exception:
+        pass
+    snippet = re.sub(r"<[^>]+>", " ", text)
+    snippet = re.sub(r"\s+", " ", snippet).strip()
+    return "", snippet[:80]
+
+
 def _http_error_message(exc) -> str:
     """HTTPError ke body se server ki asal baat nikalo (v8.6).
 
@@ -3296,18 +3343,7 @@ def _http_error_message(exc) -> str:
     gadbad par khaali string. Isme kabhi key material nahi hota -
     sirf server ka kaha hua sandesh hota hai.
     """
-    try:
-        raw = exc.read(1000)
-    except Exception:
-        return ""
-    try:
-        data = json.loads(raw.decode("utf-8", errors="ignore"))
-        msg = (data.get("error") or {}).get("message")
-        if isinstance(msg, str) and msg.strip():
-            return msg.strip()
-    except Exception:
-        pass
-    return ""
+    return _http_error_parts(exc)[0]
 
 
 def _to_openai_messages(contents: list) -> list:
@@ -3337,7 +3373,9 @@ def _groq_call(messages: list) -> str:
         _GROQ_URL,
         data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {GROQ_API_KEY}"},
+                 "Authorization": f"Bearer {GROQ_API_KEY}",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "application/json"},
         method="POST",
     )
     last_exc = None
@@ -3535,7 +3573,9 @@ def _groq_selftest() -> str:
     """Groq ki key sach me chal rahi hai ya nahi - /models par halki GET."""
     req = urllib.request.Request(
         _GROQ_MODELS_URL,
-        headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+        headers={"Authorization": f"Bearer {GROQ_API_KEY}",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "application/json"},
         method="GET",
     )
     try:
@@ -3544,11 +3584,18 @@ def _groq_selftest() -> str:
         log("DIMAG TEST: Groq PASS")
         return "✅ chal raha hai"
     except urllib.error.HTTPError as exc:
-        detail = _http_error_message(exc)
+        detail, snippet = _http_error_parts(exc)
+        shown = detail if detail else snippet
         log(f"DIMAG TEST: Groq FAIL HTTP {exc.code}"
-            + (f" - {detail}" if detail else ""))
-        return (f"❌ fail — HTTP {exc.code}"
-                + (f": {detail[:120]}" if detail else ""))
+            + (f" - {shown}" if shown else ""))
+        if detail:
+            return f"❌ fail — HTTP {exc.code}: {detail[:120]}"
+        if snippet:
+            # JSON wali asal baat nahi mili (jaise Cloudflare ki
+            # rok) - body ka saaf tukda hi dikhao, taaki rok
+            # dikhai de: "HTTP 403 — error code: 1010" (v8.7).
+            return f"❌ fail — HTTP {exc.code} — {snippet}"
+        return f"❌ fail — HTTP {exc.code}"
     except Exception as exc:
         log(f"DIMAG TEST: Groq FAIL {exc}")
         return f"❌ fail — {exc.__class__.__name__}"
