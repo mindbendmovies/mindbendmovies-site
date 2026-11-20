@@ -99,7 +99,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.5"
+AGENT_VERSION = "8.6"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -151,13 +151,101 @@ def load_config() -> dict:
     return cfg
 
 
+def _heal_key(value: str) -> str:
+    """API key ki khud-marammat (v8.6) - startup aur har hot-reload par.
+
+    Asal PC par do galtiyan baar-baar huin: key copy-paste me DO-BAARI
+    lag gayi (wahi key chipki hui do baar), aur beech me space/newline
+    ghus gaya. Dono par Groq/Gemini sirf 401 dete hain aur asal wajah
+    kahin dikhti nahi thi. Isliye:
+    - key ke ANDAR ki saari whitespace hata do (asli key me space
+      hota hi nahi);
+    - value agar bilkul do barabar hisson me banti ho (pehla hissa ==
+      dusra hissa) to use ek hissa kar do.
+    Quotes wala strip load_config pehle hi kar deta hai.
+    """
+    if not value:
+        return value
+    cleaned = re.sub(r"\s+", "", value)
+    if cleaned != value:
+        log("CONFIG: key ke andar whitespace thi - hata di")
+        value = cleaned
+    half = len(value) // 2
+    if half and len(value) % 2 == 0 and value[:half] == value[half:]:
+        log("CONFIG: key do-baari lagi thi — khud ek kar di")
+        value = value[:half]
+    return value
+
+
+def _apply_config(cfg: dict) -> None:
+    """Config dict se LIVE settings lagoo karo: dimag ki keys (self-heal
+    ke saath), models aur PIN.
+
+    AGENT_PORT aur AGENT_WORK_DIR yahan jaan-boojh kar NAHI badalte -
+    wo sirf startup par lagte hain (HTTP server aur work folder pehle
+    se bane hote hain; unhe badalne ke liye engine restart hi chahiye).
+    """
+    global GEMINI_API_KEY, GEMINI_MODEL, GROQ_API_KEY, GROQ_MODEL
+    global AGENT_PIN
+    GEMINI_API_KEY = _heal_key(cfg.get("GEMINI_API_KEY", "").strip())
+    GEMINI_MODEL = cfg.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    GROQ_API_KEY = _heal_key(cfg.get("GROQ_API_KEY", "").strip())
+    GROQ_MODEL = (cfg.get("GROQ_MODEL", "").strip()
+                  or "llama-3.3-70b-versatile")
+    AGENT_PIN = cfg.get("AGENT_PIN", "").strip()
+
+
+def _config_path():
+    """Jo config file asal me istemal hui thi (config.env pehle, .env baad me)."""
+    for name in ("config.env", ".env"):
+        path = BASE_DIR / name
+        if path.is_file():
+            return path
+    return None
+
+
+def _config_mtime():
+    try:
+        return _CONFIG_FILE.stat().st_mtime if _CONFIG_FILE else None
+    except OSError:
+        return None
+
+
 CONFIG = load_config()
-GEMINI_API_KEY = CONFIG.get("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = CONFIG.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
-GROQ_API_KEY = CONFIG.get("GROQ_API_KEY", "").strip()
-GROQ_MODEL = (CONFIG.get("GROQ_MODEL", "").strip()
-              or "llama-3.3-70b-versatile")
-AGENT_PIN = CONFIG.get("AGENT_PIN", "").strip()
+_CONFIG_FILE = _config_path()
+_CONFIG_MTIME = _config_mtime()
+_apply_config(CONFIG)
+
+
+def _maybe_reload_config() -> None:
+    """config.env badla ho to BINA restart nayi settings lagoo karo (v8.6).
+
+    Har /ask ki shuruaat me (aur 'dimag test karo' par) bulta hai:
+    config file ki mtime purani wali se alag ho to config dobara
+    padho aur dimag ki keys/models + PIN live badal do. Isi se user
+    ka "maine file theek kar di phir bhi purani key chal rahi hai"
+    wala chakkar khatm hota hai. AGENT_PORT / WORK_DIR startup-only
+    hain - wo yahan NAHI badalte. Edit gadbad ho (file aadhi saved,
+    galat encoding) to purani settings hi chalti rehti hain aur
+    request kabhi crash nahi hota.
+    """
+    global CONFIG, _CONFIG_MTIME
+    try:
+        if _CONFIG_FILE is None:
+            return
+        mtime = _config_mtime()
+        if mtime is None or mtime == _CONFIG_MTIME:
+            return
+        cfg = load_config()
+        _apply_config(cfg)
+        CONFIG = cfg
+        _CONFIG_MTIME = mtime
+        log("CONFIG dobara padha gaya — nayi settings lagoo "
+            "(restart nahi chahiye)")
+    except Exception as exc:
+        log(f"CONFIG reload fail (purani settings chalti rahengi): {exc}")
+
+
 try:
     AGENT_PORT = int(CONFIG.get("AGENT_PORT", "8765"))
 except ValueError:
@@ -1874,6 +1962,15 @@ def _is_update_command(low: str) -> bool:
     return low in _UPDATE_TRIGGERS or low.startswith("update ")
 
 
+_DIMAG_TEST_TRIGGERS = ("dimag test karo", "dimag test", "test karo dimag")
+
+
+def _is_dimag_test_command(low: str) -> bool:
+    """'dimag test karo' - dono dimagon ki asal jaanch wala hukum (v8.6)."""
+    low = (low or "").strip().lower()
+    return low in _DIMAG_TEST_TRIGGERS
+
+
 # --------------------------------------------------------------------------
 # Browser haath (v8.3) - agent apna khaas Chrome KHUD chalata hai.
 #
@@ -3180,11 +3277,37 @@ class _GroqDownError(Exception):
     aayi ho (401/403 matlab key ki gadbad) - caller usi se
     faisla karta hai ki user ko key jaanchne ki salah deni hai
     ya nahi. Timeout/network wali haar par status None rehta hai.
+    detail me Groq ke error body ki asal baat rehti hai (jaise
+    "Invalid API Key") jab server ne bheji ho (v8.6) - taaki user
+    ko sirf "key sahi nahi lagti" nahi, asal wajah dikhe.
     """
 
-    def __init__(self, message, status=None):
+    def __init__(self, message, status=None, detail=""):
         super().__init__(message)
         self.status = status
+        self.detail = detail
+
+
+def _http_error_message(exc) -> str:
+    """HTTPError ke body se server ki asal baat nikalo (v8.6).
+
+    Groq/OpenAI shakal: {"error": {"message": "..."}}. Body
+    bounded (~1000 bytes) padha jata hai, decode/parse ki har
+    gadbad par khaali string. Isme kabhi key material nahi hota -
+    sirf server ka kaha hua sandesh hota hai.
+    """
+    try:
+        raw = exc.read(1000)
+    except Exception:
+        return ""
+    try:
+        data = json.loads(raw.decode("utf-8", errors="ignore"))
+        msg = (data.get("error") or {}).get("message")
+        if isinstance(msg, str) and msg.strip():
+            return msg.strip()
+    except Exception:
+        pass
+    return ""
 
 
 def _to_openai_messages(contents: list) -> list:
@@ -3227,9 +3350,14 @@ def _groq_call(messages: list) -> str:
             return (content or "").strip()
         except urllib.error.HTTPError as exc:
             if exc.code not in _BUSY_CODES:
-                log(f"GROQ fail: HTTP {exc.code} (turant Gemini ki baari)")
-                raise _GroqDownError(f"HTTP {exc.code}",
-                                     status=exc.code) from exc
+                detail = _http_error_message(exc)
+                log(f"GROQ fail: HTTP {exc.code} (turant Gemini ki "
+                    "baari)" + (f" - Groq ne kaha: {detail}"
+                                if detail else ""))
+                raise _GroqDownError(
+                    f"HTTP {exc.code}"
+                    + (f": {detail}" if detail else ""),
+                    status=exc.code, detail=detail) from exc
             last_exc = exc
             max_attempts = 3
             delays = _BUSY_DELAYS
@@ -3245,11 +3373,15 @@ def _groq_call(messages: list) -> str:
             break
         time.sleep(delays[min(attempt, len(delays) - 1)])
         attempt += 1
+    detail = ""
+    if isinstance(last_exc, urllib.error.HTTPError):
+        detail = _http_error_message(last_exc)
     raise _GroqDownError(
-        str(last_exc),
+        str(last_exc) + (f": {detail}" if detail else ""),
         status=(last_exc.code
                 if isinstance(last_exc, urllib.error.HTTPError)
-                else None))
+                else None),
+        detail=detail)
 
 
 def _groq_converse(contents: list):
@@ -3353,6 +3485,7 @@ def _brain_run(contents: list):
     """
     groq_failed = False
     groq_key_error = False
+    groq_detail = ""
     if GROQ_API_KEY:
         try:
             reply, used_tool = _groq_converse(contents)
@@ -3364,6 +3497,10 @@ def _brain_run(contents: list):
                 # Key wali gadbad (galat ya mis-paste hui key) -
                 # user ko note me key jaanchne ka ishara milega.
                 groq_key_error = True
+                # Groq ke error body ki asal baat (v8.6) - note me
+                # jud jayegi, taaki "key sahi nahi lagti" ki jagah
+                # pakki wajah dikhe. Key material kabhi nahi hota.
+                groq_detail = (getattr(exc, "detail", "") or "")[:120]
             log(f"BRAIN: GROQ fail ({exc}) - Gemini ladder par ja "
                 "raha hu")
     reply, used_tool = _ladder_run(contents)
@@ -3375,8 +3512,132 @@ def _brain_run(contents: list):
                      "hai — config.env me GROQ_API_KEY wali line "
                      "ek baar jaanch lo, key gsk_ se shuru hoti "
                      "hai.)")
+            if groq_detail:
+                note += f" (Groq ne kaha: {groq_detail})"
         reply = note + "\n" + reply
     return reply, used_tool
+
+
+# --------------------------------------------------------------------------
+# Dimag test (v8.6) - 'dimag test karo' par dono dimagon ki ASAL
+# jaanch: Groq par halki GET /models call, Gemini par sabse chhoti
+# generateContent call. Jawab me har dimag ki pass/fail ke saath
+# asal wajah (HTTP code + server ki baat) aati hai - "lagta hai key
+# sahi nahi" wala andaz khatm. Test se pehle config hot-reload
+# hota hai, isliye taazi save ki hui key hi test hoti hai aur
+# restart ki zaroorat nahi padti.
+# --------------------------------------------------------------------------
+
+_GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
+
+
+def _groq_selftest() -> str:
+    """Groq ki key sach me chal rahi hai ya nahi - /models par halki GET."""
+    req = urllib.request.Request(
+        _GROQ_MODELS_URL,
+        headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+            resp.read(200)
+        log("DIMAG TEST: Groq PASS")
+        return "✅ chal raha hai"
+    except urllib.error.HTTPError as exc:
+        detail = _http_error_message(exc)
+        log(f"DIMAG TEST: Groq FAIL HTTP {exc.code}"
+            + (f" - {detail}" if detail else ""))
+        return (f"❌ fail — HTTP {exc.code}"
+                + (f": {detail[:120]}" if detail else ""))
+    except Exception as exc:
+        log(f"DIMAG TEST: Groq FAIL {exc}")
+        return f"❌ fail — {exc.__class__.__name__}"
+
+
+def _gemini_selftest(model: str) -> str:
+    """Ek model par sabse chhoti Gemini call ('ok') - pass/fail + wajah."""
+    try:
+        _gemini_call([{"role": "user", "parts": [{"text": "ok"}]}],
+                     model, system_instruction=False)
+        log(f"DIMAG TEST: Gemini[{model}] PASS")
+        return "✅ chal raha hai"
+    except urllib.error.HTTPError as exc:
+        log(f"DIMAG TEST: Gemini[{model}] FAIL HTTP {exc.code}")
+        return f"❌ fail — HTTP {exc.code}"
+    except Exception as exc:
+        log(f"DIMAG TEST: Gemini[{model}] FAIL {exc}")
+        return f"❌ fail — {exc.__class__.__name__}"
+
+
+def tool_dimag_test() -> str:
+    """'dimag test karo' ka jawab: har dimag ki ek line + aakhri salah.
+
+    Pehle config hot-reload (taaki jo key abhi-abhi save hui hai
+    wahi test ho), phir Groq (key ho to), phir Gemini ke dono
+    ladder model (primary + lite; dono ek hi hon to ek baar).
+    """
+    _maybe_reload_config()
+    lines = []
+    groq_state = "none"  # none | pass | fail | badkey
+    if GROQ_API_KEY:
+        res = _groq_selftest()
+        lines.append(f"Groq (tez dimag): {res}")
+        if res.startswith("✅"):
+            groq_state = "pass"
+        elif "Invalid API Key" in res:
+            groq_state = "badkey"
+        else:
+            groq_state = "fail"
+    else:
+        lines.append("Groq (tez dimag): key config me hai hi nahi — "
+                     "sirf Gemini chalega")
+    gemini_state = "none"  # none | pass | fail
+    if GEMINI_API_KEY:
+        primary = GEMINI_MODEL or _MODEL_LITE
+        models = [primary]
+        if _MODEL_LITE != primary:
+            models.append(_MODEL_LITE)
+        any_pass = False
+        for model in models:
+            res = _gemini_selftest(model)
+            lines.append(f"Gemini ({model}): {res}")
+            if res.startswith("✅"):
+                any_pass = True
+        gemini_state = "pass" if any_pass else "fail"
+    else:
+        lines.append("Gemini: key config me hai hi nahi")
+    # Aakhri salah - haalat ke hisaab se ek saaf line.
+    if groq_state == "pass" and gemini_state == "pass":
+        lines.append("Sab theek hai — ab kaam bolo, agent poori "
+                     "taqat se chalega.")
+    elif groq_state == "badkey":
+        lines.append("Groq ki key galat hai: console.groq.com par "
+                     "nayi key banao, COPY wale button se copy karke "
+                     "config.env ki GROQ_API_KEY wali line me waisa "
+                     "hi chipka do (haath se type mat karna). Restart "
+                     "ki zaroorat NAHI hai — main config khud dobara "
+                     "padh leta hu. Phir 'dimag test karo' phir se bolo.")
+    elif groq_state == "fail" and gemini_state == "pass":
+        lines.append("Gemini chal raha hai, isliye kaam to hoga — "
+                     "lekin tez wala dimag abhi fail hai. Internet "
+                     "check karo aur thodi der baad 'dimag test karo' "
+                     "phir bolo.")
+    elif groq_state == "pass" and gemini_state in ("fail", "none"):
+        lines.append("Tez dimag (Groq) chal raha hai — kaam chalega. "
+                     "Gemini backup abhi theek nahi hai; uski key "
+                     "config.env me ek baar jaanch lo.")
+    elif groq_state == "none" and gemini_state == "pass":
+        lines.append("Gemini chal raha hai — kaam hoga. Tez jawab "
+                     "chahiye to config.env me GROQ_API_KEY bhi daal "
+                     "do (free hai, console.groq.com se).")
+    elif groq_state == "none" and gemini_state == "none":
+        lines.append("Dono keys config me nahi hain — pehle "
+                     "config.env me GEMINI_API_KEY daalo, phir "
+                     "'dimag test karo' bolo.")
+    else:
+        lines.append("Dono dimag abhi fail hain — internet connection "
+                     "check karo, phir 'dimag test karo' phir se bolo.")
+    return "\n".join(lines)
 
 
 _TOOL_JSON_SHAPE = re.compile(r'"tool"\s*:\s*"[A-Za-z_][A-Za-z0-9_]*"')
@@ -3522,6 +3783,9 @@ def ask_agent(message: str, image: str = None,
     fail ho to v8.4 wala hi ladder error jawab milta hai.
     """
     message = (message or "").strip()
+    # Config hot-reload (v8.6): config.env badla ho to nayi keys/
+    # PIN yahi se lagoo - engine restart ki zaroorat nahi.
+    _maybe_reload_config()
     if image:
         log(f"ASK (photo ke saath): {message[:120]}")
         if not GEMINI_API_KEY:
@@ -3545,6 +3809,8 @@ def ask_agent(message: str, image: str = None,
             return site_reply
         if _is_browser_setup_command(message):
             return tool_browser_setup()
+        if _is_dimag_test_command(message):
+            return tool_dimag_test()
         return brain_ask(augmented)
     if not message:
         return "Kuch likho to sahi, bhai."
@@ -3563,6 +3829,11 @@ def ask_agent(message: str, image: str = None,
         # hukum bhi demo/Gemini dispatch se pehle pakda jata hai,
         # bilkul update aur site commands ki tarah.
         return tool_browser_setup()
+    if _is_dimag_test_command(message):
+        # 'dimag test karo' - dono dimagon ki asal jaanch (v8.6).
+        # Brain se pehle pakda jata hai, bilkul update ki tarah -
+        # warna test khud usi dimag se hota jo fail ho raha hai.
+        return tool_dimag_test()
     demo_reply = demo_ask(message)
     if demo_reply is not None:
         return demo_reply
@@ -4273,6 +4544,9 @@ class AskHandler(BaseHTTPRequestHandler):
         except Exception:
             self._send_json(400, {"error": "bad JSON"})
             return
+        # Config hot-reload (v8.6) PIN jaanch se pehle: config.env
+        # me PIN/key badli ho to nayi settings ISI request se lagoo.
+        _maybe_reload_config()
         # PIN check - from the JSON body ("pin") or the X-Agent-PIN header.
         if AGENT_PIN:
             given = str(payload.get("pin", "") or
