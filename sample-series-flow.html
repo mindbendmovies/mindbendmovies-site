@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Dragon Princess Series — Unlock Flow Sample — MindBendMovies</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0f; color: #f2f2f2; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .hdr { padding: 14px 16px; border-bottom: 2px solid #0072ce; font-size: 22px; font-weight: 800; }
+  .hdr span { color: #0072ce; }
+  .samplebar { background: #3a2f00; color: #ffd54a; text-align: center; font-size: 12.5px; font-weight: 700; padding: 7px 10px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 14px 44px; }
+  .hero { text-align: center; }
+  .hero img { width: 190px; border-radius: 14px; }
+  .hero h1 { font-size: 20px; line-height: 1.3; margin-top: 12px; }
+  .meta { color: #9a9aa3; font-size: 13px; margin-top: 6px; }
+  .playerbox { margin-top: 16px; background: #000; border: 1px solid #26262e; border-radius: 14px; aspect-ratio: 16/9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #b9b9c2; font-size: 14px; }
+  .playerbox .big { font-size: 34px; }
+  .sec { font-size: 17px; font-weight: 800; margin: 22px 0 10px; }
+  .prow { display: flex; align-items: center; gap: 12px; background: #16161c; border: 1px solid #26262e; border-radius: 12px; padding: 12px; margin-bottom: 9px; cursor: pointer; width: 100%; text-align: left; color: #f2f2f2; font-family: inherit; }
+  .prow:active { transform: scale(.995); }
+  .pnum { flex: 0 0 40px; height: 40px; border-radius: 10px; background: rgba(0,114,206,.16); color: #35a2ff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .phook { flex: 1; font-size: 14px; line-height: 1.4; }
+  .pdur { color: #9a9aa3; font-size: 12.5px; white-space: nowrap; }
+  .free { color: #4ade80; font-size: 11px; font-weight: 800; letter-spacing: .4px; }
+  .lock { color: #ffd54a; font-size: 15px; }
+  .card { background: #16161c; border: 1px solid #26262e; border-radius: 16px; padding: 18px 16px; margin-top: 16px; }
+  .step { display: none; }
+  .step.on { display: block; }
+  .bell { width: 46px; height: 46px; border-radius: 50%; background: rgba(0,114,206,.15); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .card h2 { font-size: 18px; }
+  .card p { color: #b9b9c2; font-size: 14px; line-height: 1.5; margin-top: 6px; }
+  .allowbtn { display: block; width: 100%; margin-top: 14px; background: #0072ce; color: #fff; border: 0; border-radius: 999px; padding: 13px; font-size: 15.5px; font-weight: 800; cursor: pointer; }
+  .skip { display: block; margin: 10px auto 0; background: none; border: 0; color: #8a8a93; font-size: 13.5px; cursor: pointer; text-decoration: underline; }
+  .ok { color: #4ade80; font-weight: 800; font-size: 16px; }
+  .count { font-size: 42px; font-weight: 800; text-align: center; margin: 6px 0 2px; }
+  .barwrap { height: 10px; background: #232329; border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .bar { height: 100%; width: 100%; background: linear-gradient(90deg, #0072ce, #35a2ff); border-radius: 999px; transition: width 1s linear; }
+  .adbox { border: 1.5px dashed #3d3d47; border-radius: 12px; color: #8a8a93; text-align: center; padding: 18px 10px; margin-top: 14px; font-size: 13px; position: relative; }
+  .adbox .adchip { position: absolute; top: 6px; left: 8px; background: #3d3d47; color: #d7d7de; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; letter-spacing: .5px; }
+  .adbox.small { padding: 12px 10px; }
+  .readybtn { display: block; width: 100%; margin-top: 18px; background: #0a7d33; color: #fff; border: 0; border-radius: 999px; padding: 15px; font-size: 17px; font-weight: 800; cursor: pointer; box-shadow: 0 0 22px rgba(10,125,51,.55); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(10,125,51,.55); } 70% { box-shadow: 0 0 0 14px rgba(10,125,51,0); } 100% { box-shadow: 0 0 0 0 rgba(10,125,51,0); } }
+  .hidden { display: none; }
+  .back { display: inline-block; margin-top: 18px; color: #8a8a93; font-size: 13.5px; background: none; border: 0; cursor: pointer; text-decoration: underline; }
+  video { width: 100%; border-radius: 14px; background: #000; margin-top: 14px; }
+  .note { color: #8a8a93; font-size: 12.5px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="hdr">MindBend<span>Movies</span></div>
+<div class="samplebar">SAMPLE — tap any Part 2–8 row. A sponsor tab opens during the flow, ads are placeholders.</div>
+<div class="wrap">
+
+  <!-- Series view -->
+  <div id="seriesView">
+    <div class="hero">
+      <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
+      <h1>They Abandoned a Poor Orphan Girl… Now She's the Dragon Clan's Beloved Princess!</h1>
+      <div class="meta">2026 • Fantasy Drama • 8 Parts • 79 min</div>
+    </div>
+    <div class="playerbox"><div class="big">▶</div><div>Part 1 plays free on this page</div></div>
+    <h2 class="sec">All 8 Parts</h2>
+    <div id="partList"></div>
+  </div>
+
+  <!-- Unlock view -->
+  <div id="unlockView" class="hidden">
+    <h2 class="sec" style="margin-top:2px" id="unlockTitle">Unlocking Part 2</h2>
+    <p style="color:#b9b9c2;font-size:14px" id="unlockHook"></p>
+
+    <!-- Step 1: notifications -->
+    <div class="card step on" id="uStep1">
+      <div class="bell">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.3 0 2.4-1 2.4-2.4H9.6C9.6 21 10.7 22 12 22Zm7-5.3v.8H5v-.8l1.9-1.9V9.6a5.4 5.4 0 0 1 4.3-5.3V4a.9.9 0 0 1 1.6 0v.3a5.4 5.4 0 0 1 4.3 5.3v5.2L19 16.7Z" fill="#35a2ff"/></svg>
+      </div>
+      <div id="askBox">
+        <h2>Never miss a new episode</h2>
+        <p>Allow notifications and we will tell you the moment a new part or movie is added — no spam, only new episodes.</p>
+        <button class="allowbtn" id="allowBtn">🔔 Allow Notifications</button>
+        <button class="skip" id="skipBtn">Skip this step</button>
+      </div>
+      <div id="okBox" class="hidden">
+        <div class="ok">✓ You are subscribed</div>
+        <p>New episode alerts are ON. Taking you to your part…</p>
+      </div>
+    </div>
+
+    <!-- Step 2: Smartlink + 10s wait -->
+    <div class="card step" id="uStep2">
+      <h2 style="text-align:center">Your part is getting ready…</h2>
+      <p class="note">A sponsor page opened in a new tab — you can close it and stay here.</p>
+      <div class="count" id="countNum">10</div>
+      <div class="barwrap"><div class="bar" id="bar"></div></div>
+      <div class="adbox"><span class="adchip">AD</span>Sponsor ad space — a real Native ad runs here in the live version</div>
+      <div class="adbox small"><span class="adchip">AD</span>Sponsor banner space — 320 × 50</div>
+      <button class="readybtn hidden" id="readyBtn">▶ Watch Part</button>
+    </div>
+
+    <!-- Step 3: the part plays -->
+    <div id="uStep3" class="hidden">
+      <video id="partVideo" controls playsinline preload="none"></video>
+      <p class="note">Your part is playing. Enjoy!</p>
+    </div>
+
+    <button class="back" id="backBtn">← Back to all parts</button>
+  </div>
+
+</div>
+<script>
+  var SMARTS = [
+    'https://asiafilm.org/4/722ed74ebd82264062c28be2b74673a6',
+    'https://asiafilm.org/4/94a9bb2770c62b79eb368ac36c35225c'
+  ];
+  var PARTS = [
+    { n: 1, hook: 'Thrown out by the family that raised her', dur: '10:00' },
+    { n: 2, hook: 'A Dragon Clan elder brings her to the hidden palace', dur: '10:00' },
+    { n: 3, hook: 'A power sleeping in her blood awakens', dur: '10:00' },
+    { n: 4, hook: 'The old family tries to drag her back down', dur: '10:00' },
+    { n: 5, hook: 'Rivals plot against her — the clan stands behind her', dur: '10:00' },
+    { n: 6, hook: 'Her true identity begins to surface', dur: '10:00' },
+    { n: 7, hook: 'The old family begs for forgiveness', dur: '10:00' },
+    { n: 8, hook: "Crowned the Dragon Clan's beloved princess", dur: '9:24' }
+  ];
+  var list = document.getElementById('partList');
+  PARTS.forEach(function (p) {
+    var b = document.createElement('button');
+    b.className = 'prow';
+    if (p.n === 1) {
+      b.innerHTML = '<div class="pnum">1</div><div class="phook">' + p.hook + '<br><span class="free">FREE — PLAYS ON THIS PAGE</span></div><div class="pdur">' + p.dur + '</div>';
+      b.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    } else {
+      b.innerHTML = '<div class="pnum">' + p.n + '</div><div class="phook">' + p.hook + '</div><div class="pdur">' + p.dur + '</div><div class="lock">🔒</div>';
+      b.addEventListener('click', function () { startUnlock(p); });
+    }
+    list.appendChild(b);
+  });
+
+  var current = null;
+  var seriesView = document.getElementById('seriesView');
+  var unlockView = document.getElementById('unlockView');
+  var uStep1 = document.getElementById('uStep1');
+  var uStep2 = document.getElementById('uStep2');
+  var uStep3 = document.getElementById('uStep3');
+
+  function startUnlock(p) {
+    current = p;
+    document.getElementById('unlockTitle').textContent = 'Unlocking Part ' + p.n;
+    document.getElementById('unlockHook').textContent = p.hook + ' • ' + p.dur;
+    document.getElementById('askBox').classList.remove('hidden');
+    document.getElementById('okBox').classList.add('hidden');
+    document.getElementById('readyBtn').classList.add('hidden');
+    document.getElementById('readyBtn').textContent = '▶ Watch Part ' + p.n;
+    uStep1.classList.add('on');
+    uStep2.classList.remove('on');
+    uStep3.classList.add('hidden');
+    var v = document.getElementById('partVideo');
+    v.pause(); v.removeAttribute('src'); v.load();
+    seriesView.classList.add('hidden');
+    unlockView.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openSmart() {
+    var url = SMARTS[Math.floor(Math.random() * SMARTS.length)];
+    window.open(url, '_blank');
+  }
+
+  function startTimer() {
+    uStep1.classList.remove('on');
+    uStep2.classList.add('on');
+    var n = 10;
+    var num = document.getElementById('countNum');
+    var bar = document.getElementById('bar');
+    num.textContent = '10';
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    setTimeout(function () { bar.style.transition = 'width 1s linear'; }, 40);
+    var iv = setInterval(function () {
+      n--;
+      bar.style.width = (n * 10) + '%';
+      if (n <= 0) {
+        clearInterval(iv);
+        num.textContent = '✓';
+        document.getElementById('readyBtn').classList.remove('hidden');
+      } else {
+        num.textContent = n;
+      }
+    }, 1000);
+  }
+
+  document.getElementById('allowBtn').addEventListener('click', function () {
+    openSmart();
+    document.getElementById('askBox').classList.add('hidden');
+    document.getElementById('okBox').classList.remove('hidden');
+    setTimeout(startTimer, 1100);
+  });
+  document.getElementById('skipBtn').addEventListener('click', function () {
+    openSmart();
+    startTimer();
+  });
+  document.getElementById('readyBtn').addEventListener('click', function () {
+    uStep2.classList.remove('on');
+    uStep3.classList.remove('hidden');
+    var v = document.getElementById('partVideo');
+    v.src = 'https://github.com/mindbendmovies/mindbendmovies-app/releases/download/series-v1/dragon-princess-part' + current.n + '.mp4';
+    v.play().catch(function () { /* user taps play */ });
+    uStep3.scrollIntoView({ behavior: 'smooth' });
+  });
+  document.getElementById('backBtn').addEventListener('click', function () {
+    var v = document.getElementById('partVideo');
+    v.pause();
+    unlockView.classList.add('hidden');
+    seriesView.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+</body>
+</html>
