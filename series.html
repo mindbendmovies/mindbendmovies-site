@@ -115,7 +115,28 @@ gtag('config', 'G-9XB8WR0RNL');
   <h2 class="sec">All Parts</h2>
   <div id="parts"></div>
 
-  <a class="getapp" href="app.html">▶ WATCH FREE — GET THE APP</a>
+  <div class="ucard" style="margin-top:20px">
+    <div class="uapp">
+      <img src="assets/dragon-princess-poster.jpg" alt="Dragon Princess poster">
+      <div style="flex:1">
+        <h3>Or watch free in the app</h3>
+        <p>All 8 parts are free in the app — no waiting, watch anytime.</p>
+        <a class="getapp" href="app.html">▶ GET THE APP — WATCH FREE</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="seriesBanner" style="text-align:center;margin-top:16px;overflow:hidden"></div>
+  <script>
+  (function () {
+    var wide = (window.innerWidth || document.documentElement.clientWidth) >= 768;
+    var key = wide ? '3e563fd1f2bf6dd1a58031c46838316a' : '079a1ad73dc1da4c27effe0efe9ef824';
+    window.atOptions = { 'key': key, 'format': 'iframe', 'height': wide ? 90 : 50, 'width': wide ? 728 : 320, 'params': {} };
+    var s = document.createElement('script');
+    s.src = 'https://bancadeltempoidea.org/22/' + key;
+    document.getElementById('seriesBanner').appendChild(s);
+  })();
+  </script>
 </div>
 
 <footer>
@@ -149,7 +170,6 @@ gtag('config', 'G-9XB8WR0RNL');
 
     <div class="ucard">
       <div id="uAdMain"></div>
-      <div id="uAdMainBanner" style="text-align:center;margin-top:12px"></div>
     </div>
 
     <button class="uback" id="uBack">← Back to all parts</button>
@@ -265,10 +285,6 @@ function injectMainAds() {
   ns.setAttribute('data-cfasync', 'false');
   ns.src = 'https://bancadeltempoidea.org/21/80e3d4b38273e18de4e9dce240240458';
   nSlot.appendChild(ns);
-  window.atOptions = { 'key': '079a1ad73dc1da4c27effe0efe9ef824', 'format': 'iframe', 'height': 50, 'width': 320, 'params': {} };
-  var bs = document.createElement('script');
-  bs.src = 'https://bancadeltempoidea.org/22/079a1ad73dc1da4c27effe0efe9ef824';
-  document.getElementById('uAdMainBanner').appendChild(bs);
 }
 
 function startCountdown() {
