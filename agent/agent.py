@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Agent - PC half, v8.3 - Muse-style: persistent memory (MEMORY.md),
+My Agent - PC half, v8.4 - Muse-style: persistent memory (MEMORY.md),
 2-model ladder (jo model jawab de, usi se kaam), verify-before-done
 workflow rules, busy-server (503/429) retries with honest per-error
 messages, aur SELF-UPDATE: 'update' likhne par naya version khud
@@ -25,6 +25,20 @@ login karta hai; uske baad browser_open/read/click/type/
 upload_file tools se logged-in sites (Facebook/YouTube adi) ka
 asal kaam hota hai. Password agent kabhi nahi mangta, dekhta ya
 store karta.
+v8.4: TEEN NAYI TAQATEIN - (1) VIDEO FACTORY: download_file se
+poster download karke make_video tool video_factory/make_video.py
+wala proven logic isi file me merge karke job folder (slides/ +
+titles.txt + optional voice.mp3) se taiyaar vertical video
+(1080x1920, zoom + bade titles) banata hai; naya seed skill
+'video-banana'. (2) VIDEO DEKH KAR SEEKHNA: watch_video tool
+Gemini ki video-understanding se YouTube link ya work/ ki video
+file dekh kar uske steps nikalta hai; steps pehle user ko dikhte
+hain, uski haan par hi create_skill se skill banti hai. (3)
+PROGRAM CHALANA: run_program tool user ke kahe par PC par
+command/program chalata hai (software install/chalana) - ek
+chhoti denylist seatbelt ki tarah khatarnak commands (disk
+format, system delete, shutdown) rokti hai; paisa/delete par
+pehle puchna wala rule prompt me hai.
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
@@ -53,11 +67,14 @@ import socket
 import struct
 import subprocess
 import sys
+import tempfile
+import textwrap
 import threading
 import time
 import urllib.error
 import urllib.request
 import webbrowser
+from urllib.parse import unquote
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -81,7 +98,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.3"
+AGENT_VERSION = "8.4"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -158,8 +175,11 @@ Ankit runs MindBendMovies - a movie website and Android app for a USA
 audience (disturbing movies, twisted thrillers, hidden gems) - and makes
 movie videos for a Facebook Page. Help him with plans, ideas, writing,
 files and daily work on HIS OWN computer.
-All data stays on his computer. You may use the available tools, which are
-confined to his work folder. Never ask for or reveal any API key or PIN.
+All data stays on his computer. You may use the available tools: files
+tum poore computer me padh aur dhoond sakte ho (Desktop, Downloads,
+Documents - jahan Ankit ne rakha ho wahi se), likhne ka kaam work
+folder aur Ankit ke apne folders me hota hai. Never ask for or reveal
+any API key or PIN.
 
 PERMISSION RULES (Ankit ne khud diye hain, 2026-11-20):
 - Ankit ne apne computer ko apne kaam ke liye khule taur par use karne ki
@@ -233,12 +253,98 @@ BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
   khud sambhale. Use solve ya bypass karne ki koshish kabhi mat
   karna.
 - Upload/post wale kaam me saari taiyaari khud karo - file
-  lagana, caption bharna, browser_read se verify karna - lekin
-  AAKHRI Post/Publish wala click Ankit ke liye chhodo, jab tak
-  Ankit usi baat-cheet me saaf na bol de ki "post kar do".
+  lagana, caption bharna, browser_read se verify karna - aur
+  AAKHRI Post/Publish/Schedule wala click BHI KHUD dabao:
+  Ankit ka hukum ("upload kar do", "post kar do", "daal do",
+  "schedule kar do") HI uski manjuri hai, alag se haan ka
+  intezaar mat karo. Click ke baad browser_read se verify
+  karke tabhi "ho gaya" bolo. Aakhri click SIRF tab roko
+  jab Ankit khud bole "taiyaar karke dikhao", "pehle
+  dikhao" ya "draft banao" - matlab use pehle dekhna hai;
+  tab sab taiyaar rakh kar use bata do ki post ke liye
+  taiyaar hai.
 - Har browser kadam ke baad browser_read se page dobara padho;
   andhere me click mat karo. Kuch na mile to saaf batao page par
   kya dikh raha hai.
+
+VIDEO BANANA (poster + awaaz se poori video):
+- "Is movie ki video banao" jaisa hukum aaye to pehle
+  'video-banana' skill padho aur usi ke steps follow karo:
+  poster download_file se job folder ke slides/ me lo,
+  titles.txt likho (har slide: MOVIE NAAM | hook line), chaaho
+  to speak_to_file se awaaz bana kar job folder me voice file
+  rakho (ya wahan padi voice file apne aap lag jayegi), phir
+  make_video chalao. Kaam ke baad output ki video_info lo aur
+  path + duration + size verify karke batao.
+
+VIDEO DEKH KAR SEEKHNA:
+- Ankit kahe "ye video dekh kar seekho" (YouTube ka link ya
+  koi video file) to watch_video chalao. Usse mile
+  steps Ankit ko pehle chat me dikhao aur saaf pucho: "ye
+  skill bana du?" - uski HAAN mile tabhi create_skill se skill
+  banao. Bina dikhaye aur bina haan ke kabhi skill mat banao.
+
+VIDEO DEKH KAR SOFTWARE INSTALL / CHALANA (poori chain):
+- Ankit kisi SOFTWARE ke baare me tutorial video de (link ya
+  file) aur kahe "ye dekh kar ye software install kar do /
+  chala do", to poori chain ek saath follow karo:
+  1. watch_video se video ke steps samjho.
+  2. Mile hue steps Ankit ko dikhao; uske aage badhne par
+     create_skill se un steps ki skill save kar do
+     (nayi-skill-seekhna wala flow) taaki agli baar video
+     dobara na dekhna pade.
+  3. Software hamesha uske OFFICIAL source se lo -
+     download_file se installer download karo ya run_program
+     se official install command chalao. Anjaan/third-party
+     site se installer kabhi mat lena.
+  4. Phir seekhe hue tareeke se hi software ko run_program
+     se chalao / setup karo, aur output dekh kar verify
+     karo ki asal me chal pada - tabhi Ankit ko batao.
+- Install ke beech paisa mange (paid software) ya
+  khatarnak-class command lage to wahi purana rule: pehle
+  poochna, mana kabhi nahi - haan mile to aage badho.
+
+FILES (poora computer - koi seema nahi):
+- Ankit kisi file ya folder ka NAAM bole (jaise "Dragon
+  Princess Hook Reels") to pehle find_file se use poore
+  computer me dhoondo. Use file ko work/ folder me rakhne
+  ko KABHI mat bolo - file jahan hai, wahi se kaam karo:
+  list_files / read_file poore computer me padh sakte
+  hain (poora path do), video aur photo wale tools bhi.
+- Likhne ka kaam (write_file, create_folder, download ki
+  file, video ka output) work/ folder ya Ankit ke apne
+  folders (Desktop, Downloads, Documents, poora home
+  folder) me hoga. System wali jagah (C:\\Windows, Program
+  Files jaisi) par likhne se tool mana karega - wahan
+  likhna PC ke liye khatarnak hai, kaam wahan hota bhi
+  nahi.
+
+PHOTO (screenshot / tasveer dekhna):
+- Ankit chat me photo/screenshot bheje to tum use khud
+  dekh kar jawab dete ho - photo me jo dikh raha hai
+  (error, screen, koi bhi cheez) usi ko padh kar usi par
+  jawab do, jaise photo tumhare saamne khuli ho.
+- PC par padi kisi photo file ko dekhna ho to see_image
+  chalao (poora path do) - photo me kya hai samajh kar
+  milega, phir usi par kaam aage badhao.
+
+PROGRAM CHALANA (software install karna / chalana):
+- Ankit koi software install karne ya koi program chalane ko
+  kahe to run_program se asal me chalao - sirf steps bata kar
+  mat chhodo.
+- Jo install PAISA mangta ho (paid software, paid plan) ya jo
+  command Ankit ki apni files DELETE karti ho, use chalane se
+  PEHLE Ankit ko saaf shabdon me bata kar uski haan lo. Iske
+  alawa aam install aur program bina puche chalao.
+- Khatarnak-class command (disk format, system folder
+  delete, shutdown jaisi) par run_program CONFIRM_REQUIRED
+  deta hai - ye MANA NAHI hai, POOCHNA hai. Tab Ankit ko
+  saaf shabdon me batao ki command kya karegi aur pucho
+  "chala du?". Uski HAAN mile to WAHI command run_program
+  me confirm=true ke saath dobara chalao - haan hi kaafi
+  hai. Mana karna, ya ghuma-phira kar dusra rasta
+  dhoondna, sakht mana hai. Paisa/delete par pehle poochna
+  hai, mana kabhi nahi - haan mile to kar do.
 
 TOOL PROTOCOL: If you need a tool, reply with ONLY a JSON object like
 {"tool": "list_files", "args": {"path": ""}} and nothing else.
@@ -248,10 +354,21 @@ koi "main kar deta hu" wali line nahi. "args" hamesha ek asli JSON
 object hoga {"url": "..."} - kabhi bhi string ke andar band kiya
 hua JSON nahi bhejoge.
 Available tools:
-- list_files(path)           list files/folders inside the work folder
-- read_file(path)            read a text file inside the work folder
-- write_file(path, content)  write a text file inside the work folder
-- create_folder(path)        create a folder inside the work folder
+- list_files(path)           kisi bhi folder ki list - poora path do
+                             to wahi ka (Desktop adi), sirf naam ya
+                             khaali do to work folder ka
+- read_file(path)            text file padho - poora path chalega,
+                             sirf naam/relative ho to work folder me
+- find_file(name)            naam se poore computer me file/folder
+                             dhoondo (aadha naam bhi chalega) - Ankit
+                             kisi file ka naam bole to PEHLE yahi
+                             chalao
+- see_image(path)            PC par padi photo/screenshot dekho -
+                             usme kya hai samajh kar milega
+- write_file(path, content)  text file likho - work folder ya Ankit
+                             ke apne folders me (system jagah nahi)
+- create_folder(path)        folder banao - work folder ya Ankit ke
+                             apne folders me
 - get_time()                 current date and time on this computer
 - web_fetch(url)             fetch an http/https page and return its text
 - list_skills()              list the learned skill files
@@ -259,9 +376,13 @@ Available tools:
 - create_skill(name, content)  save a new skill (only inside skills/)
 - yaad_likho(text)           save an important baat to long-term memory (MEMORY.md)
 - open_url(url)              open a page in this PC's default browser
-- video_info(path)           duration/size/resolution of a video in work/
-- trim_video(input, start_sec, duration_sec, output)  cut a video (work/)
-- join_videos(files, output) join videos in order (all inside work/)
+- video_info(path)           duration/size/resolution - video kahi
+                             bhi ho, poora path do
+- trim_video(input, start_sec, duration_sec, output)  cut a video
+                             (input kahi bhi ho sakta hai; output
+                             work/ ya Ankit ke folders me)
+- join_videos(files, output) join videos in order (inputs kahi bhi;
+                             output work/ ya Ankit ke folders me)
 - speak_to_file(text, filename)  make a voice audio file inside work/
 - agent_update()             check for a newer version of myself and
                              install it (engine restart ke baad lagega)
@@ -275,25 +396,110 @@ Available tools:
 - browser_type(target, text) kisi field me likho (caption, title adi)
 - browser_upload_file(target, path)  page ke file-input par file
                              lagao (path = is PC par file ka pura
-                             path, aam taur par work/ folder se)
+                             path - Desktop/Downloads kahi se bhi;
+                             file ka naam hi pata ho to pehle
+                             find_file se uska path nikalo)
+- download_file(url, filename)  internet se koi file (poster,
+                             installer adi) download karo - work/
+                             folder ya Ankit ke folders me (25 MB
+                             tak; filename khali ho to URL se banta
+                             hai)
+- make_video(job_folder)     job folder (slides/ + titles.txt +
+                             optional voice.mp3) se taiyaar vertical
+                             video banao - final.mp4 usi folder me
+                             banta hai ('video-banana' skill dekho)
+- watch_video(source)        YouTube link ya koi video file
+                             (poora path bhi chalega) dekh kar uske
+                             steps samjho (nayi skill seekhne ke
+                             liye; mile hue steps pehle Ankit ko
+                             dikhane hain, skill uski haan par hi
+                             banegi)
+- run_program(command, confirm)  is PC par command/program chalao
+                             (software install karne/chalane ke
+                             liye; output wapas milta hai).
+                             Khatarnak-class command par tool
+                             CONFIRM_REQUIRED deta hai (mana nahi) -
+                             tab Ankit ko bata kar pucho, uski haan
+                             par WAHI command confirm=true ke saath
+                             dobara chalao. Aam command me confirm
+                             ki zaroorat nahi.
 If no tool is needed, reply in plain text only (no JSON)."""
 
 # --------------------------------------------------------------------------
-# Tools - every one is confined to WORK_DIR
+# Tools - file wale tools (v8.4 se seema khuli: PADHNA poore computer
+# me, kyunki Ankit ke video/photo Desktop/Downloads me rehte hain;
+# LIKHNA work/ folder + Ankit ke apne (home) folders me - system
+# wali jagah par likhai band hai, wo PC ke liye khatarnak hai)
 # --------------------------------------------------------------------------
 
 
+def _home_dir() -> Path:
+    """User ka home folder (Windows: C:\\Users\\<naam>, yahi se
+    Desktop/Downloads/Documents sab aate hain)."""
+    return Path(os.path.expanduser("~")).resolve()
+
+
+def _system_roots() -> list:
+    """System wali jagahen - yahan LIKHNA band hai (padhna nahi)."""
+    if os.name == "nt":
+        drive = os.environ.get("SystemDrive", "C:")
+        return [Path(drive + "\\Windows"),
+                Path(drive + "\\Program Files"),
+                Path(drive + "\\Program Files (x86)"),
+                Path(drive + "\\ProgramData")]
+    return [Path(p) for p in ("/etc", "/usr", "/bin", "/sbin",
+                              "/lib", "/lib64", "/boot", "/proc",
+                              "/sys", "/dev", "/root", "/opt")]
+
+
+def _is_system_path(p: Path) -> bool:
+    for root in _system_roots():
+        if p == root or root in p.parents:
+            return True
+    return False
+
+
 def _safe_path(user_path: str) -> Path:
-    """Resolve a user-supplied path INSIDE the work folder, or raise."""
-    user_path = (user_path or "").strip().strip('"').strip("'")
-    candidate = (WORK_DIR / user_path).resolve()
-    if candidate != WORK_DIR and WORK_DIR not in candidate.parents:
-        raise ValueError("Path is outside the work folder - not allowed.")
-    return candidate
+    """READ ke liye path resolve karo: poora (absolute) path ho to
+    wahi - PC par KAHI bhi padhna khula hai; sirf naam/relative ho
+    to work/ folder ke andar."""
+    raw = (user_path or "").strip().strip('"').strip("'")
+    p = Path(raw).expanduser()
+    if not p.is_absolute():
+        p = WORK_DIR / raw
+    return p.resolve()
+
+
+_WRITE_REFUSAL = ("Is jagah par main nahi likhunga: {path} - likhna "
+                  "sirf work/ folder aur tumhare apne folders "
+                  "(Desktop, Downloads, Documents, poora home "
+                  "folder) me hota hai. System wali jagah "
+                  "(C:\\Windows, Program Files jaisi) par likhai "
+                  "suraksha ke liye band hai - wahan kaam hota "
+                  "bhi nahi.")
+
+
+def _write_path(user_path: str) -> Path:
+    """WRITE ke liye path resolve karo: work/ ke andar ya user ke
+    home folder ke andar hi chalega; system jagah ya bahar ki
+    jagah par ValueError (upar wala tool use saaf jawab me
+    badalta hai)."""
+    p = _safe_path(user_path)
+    home = _home_dir()
+    inside = (p == WORK_DIR or WORK_DIR in p.parents
+              or p == home or home in p.parents)
+    if inside and not _is_system_path(p):
+        return p
+    raise ValueError(_WRITE_REFUSAL.format(path=p))
 
 
 def _rel(path: Path) -> str:
-    return str(path.relative_to(WORK_DIR)) if path != WORK_DIR else "."
+    """Dikhane ke liye chhota naam: work/ ke andar ho to relative,
+    warna poora path."""
+    try:
+        return str(path.relative_to(WORK_DIR)) if path != WORK_DIR else "."
+    except ValueError:
+        return str(path)
 
 
 def tool_list_files(path: str = "") -> str:
@@ -324,16 +530,106 @@ def tool_read_file(path: str) -> str:
 
 
 def tool_write_file(path: str, content: str) -> str:
-    target = _safe_path(path)
+    try:
+        target = _write_path(path)
+    except ValueError as exc:
+        return str(exc)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
     return f"Wrote {_rel(target)} ({len(content)} characters)."
 
 
 def tool_create_folder(path: str) -> str:
-    target = _safe_path(path)
+    try:
+        target = _write_path(path)
+    except ValueError as exc:
+        return str(exc)
     target.mkdir(parents=True, exist_ok=True)
     return f"Folder ready: {_rel(target)}"
+
+
+# --------------------------------------------------------------------------
+# find_file - naam se poore computer me file/folder dhoondna.
+# Sirf user ke home folder ke ped (tree) me dhoondta hai - Desktop,
+# Downloads, Documents sab usi ke andar aate hain. Bhaari/system
+# folders (AppData adi) skip hote hain, gehrai ~6 tak, ~50k entries
+# ya ~20 second ki hadd - taaki hukum latke nahi.
+# --------------------------------------------------------------------------
+
+_FIND_SKIP_DIRS = {"appdata", "node_modules", ".git", "$recycle.bin",
+                   "system volume information", ".cache",
+                   "__pycache__", ".local", ".config"}
+_FIND_MAX_DEPTH = 6
+_FIND_MAX_ENTRIES = 50000
+_FIND_MAX_RESULTS = 50
+_FIND_TIME_LIMIT = 20.0
+
+
+def _fmt_size(n: int) -> str:
+    if n >= 1024 * 1024:
+        return f"{n / (1024 * 1024):.1f} MB"
+    if n >= 1024:
+        return f"{n / 1024:.1f} KB"
+    return f"{n} bytes"
+
+
+def tool_find_file(name: str) -> str:
+    """Naam (ya uska hissa) se home folder ke ped me file/folder
+    dhoondo. Case-insensitive. Matches ke poore path milte hain."""
+    name = (name or "").strip().strip('"').strip("'")
+    if not name:
+        return "Kya dhoondhu - file ya folder ka naam to do."
+    needle = name.lower()
+    home = _home_dir()
+    if not home.is_dir():
+        return f"Home folder hi nahi mila: {home}"
+    matches = []
+    scanned = 0
+    stopped = ""
+    started = time.time()
+    for root, dirs, files in os.walk(home):
+        root_path = Path(root)
+        try:
+            depth = len(root_path.relative_to(home).parts)
+        except ValueError:
+            depth = 0
+        dirs[:] = [d for d in dirs if d.lower() not in _FIND_SKIP_DIRS]
+        if depth >= _FIND_MAX_DEPTH:
+            dirs[:] = []
+        entries = [(d, True) for d in dirs] + [(f, False) for f in files]
+        for entry, is_dir in entries:
+            scanned += 1
+            if needle in entry.lower():
+                full = root_path / entry
+                if is_dir:
+                    matches.append(f"  FOLDER  {full}")
+                else:
+                    try:
+                        size = full.stat().st_size
+                    except OSError:
+                        size = 0
+                    matches.append(f"  FILE    {full} ({_fmt_size(size)})")
+                if len(matches) >= _FIND_MAX_RESULTS:
+                    stopped = (f" (pehle {_FIND_MAX_RESULTS} matches "
+                               "par ruk gaya)")
+                    break
+            if scanned >= _FIND_MAX_ENTRIES:
+                stopped = " (khoj ki hadd par ruk gaya)"
+                break
+            if scanned % 2000 == 0 and time.time() - started > _FIND_TIME_LIMIT:
+                stopped = " (samay ki hadd par ruk gaya)"
+                break
+        if stopped:
+            break
+    if not matches:
+        return (f"Poore computer me (home folder: {home}) '{name}' "
+                "naam ki koi file/folder nahi mili. Naam ki spelling "
+                "ek baar check kar lo, ya naam ka koi aur hissa bol "
+                "kar dobara dhoondta hu.")
+    log(f"FIND_FILE '{name}': {len(matches)} matches, "
+        f"{scanned} entries scanned")
+    return (f"'{name}' ke liye {len(matches)} jagah mili{stopped}:\n"
+            + "\n".join(matches))
 
 
 def tool_get_time() -> str:
@@ -361,6 +657,47 @@ def tool_web_fetch(url: str) -> str:
 # Skills - the agent's learnable memory. One .md file per skill, ONLY
 # inside the skills/ folder next to this script.
 # --------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------
+# Bundled skills bootstrap (v8.4): update channel se sirf agent.py
+# aata hai, isliye is release ki nayi seed skills ka poora text neeche
+# isi file me bytes ki shakal me rakha hai. Startup par
+# ensure_bundled_skills() skills/ folder me jo file NA ho use bana
+# deta hai; jo file pehle se maujud hai (Ankit ki apni copy ya edit)
+# use KABHI overwrite nahi karta.
+# --------------------------------------------------------------------------
+
+BUNDLED_SKILLS = {
+    'video-banana.md': b'# Video Banana (poster + awaaz se poori movie video)\n\n## Kab use karein\nJab Ankit kisi movie ki video banane ko kahe \xe2\x80\x94 jaise "is movie ki video banao", "Se7en par ek reel banao". Ye agent ki video factory hai: posters + bade titles + awaaz se taiyaar khadi (vertical, 1080x1920) video banti hai, Facebook Reels / YouTube Shorts ke size ki.\n\n## Steps\n1. Pehle tay karo kaunsi 3 movies ayengi (Ankit ki di hui list, ya uski pasand/trending se khud chuno aur Ankit ko bata do). Ek video me 3 posters (slides) aate hain \xe2\x80\x94 kam se kam 3, zyada se zyada 5.\n2. Har movie ka poster URL nikalo:\n   - Ankit ki apni site ka data: `web_fetch` se https://mindbendmovies.github.io/mindbendmovies-site/data/movies.json kholo, usme movie ka naam dhoondo \xe2\x80\x94 poster ka rasta (poster_path) milega. Poora poster URL banta hai: `https://image.tmdb.org/t/p/w500` + poster_path.\n   - Ya Ankit ne seedha TMDB poster URL diya ho to wahi use karo.\n   - Poster URL sirf inhi sahi sources se lena \xe2\x80\x94 andaz se URL kabhi mat banao.\n3. Job folder banao: `create_folder` se `work/` ke andar, jaise `video_se7en` (topic/movie ke naam par).\n4. Har poster `download_file` se job folder ke `slides/` hisse me rakho \xe2\x80\x94 naam is order me: `slides/slide1.jpg`, `slides/slide2.jpg`, `slides/slide3.jpg` (jo order chahiye wahi number do).\n5. `write_file` se usi job folder me `titles.txt` likho \xe2\x80\x94 har slide ke liye EK line, is shakal me: `MOVIE KA NAAM | hook line`. Hook line chhoti aur curiosity wali ho (ending/twist ki taraf ishara, jhooti baat nahi) \xe2\x80\x94 jaise `SE7EN | The ending will break your brain`.\n6. Awaaz (optional): script likh kar `speak_to_file` se voice file banao aur use job folder me `voice.mp3` (ya `voice.wav`) naam se rakho \xe2\x80\x94 ya Ankit ki di hui taiyaar voice file (jaise Aoede wali) wahi naam se job folder me rakho. Awaaz ki file ho to video uski lambai ke barabar banta hai. Awaaz na ho to video SILENT banegi \xe2\x80\x94 ye baat Ankit ko pehle bata do.\n7. `make_video` chalao job folder par (jaise `make_video("video_se7en")`). Output usi folder me `final.mp4` banta hai.\n8. `video_info` se `final.mp4` verify karo \xe2\x80\x94 duration, size, resolution \xe2\x80\x94 phir Ankit ko final path ke saath report karo. Bina verify kiye "ho gaya" mat bolo.\n9. Upload karna ho to `facebook-upload-direct` / `youtube-upload-direct` skill ka rasta (browser haath) follow karo \xe2\x80\x94 upload/post ka hukum mile to kaam post/publish tak pura karo; rukna sirf tab hai jab Ankit "taiyaar karke dikhao / draft" bole.\n\n## Notes\n- Saari files sirf `work/` ke andar \xe2\x80\x94 posters, titles, voice, output sab wahi.\n- Asli (original) poster/video files kabhi overwrite mat karo \xe2\x80\x94 har video ka apna job folder rakho.\n- Ek slide par ek hi movie \xe2\x80\x94 titles.txt ki line aur slide ka number hamesha match rakho.\n- Badi awaaz file ho to video lamba banta hai; Shorts/Reels ke liye awaaz ~60-90 second ke andar rakho.\n',
+    'facebook-upload-direct.md': b'# Facebook Upload \xe2\x80\x94 Direct (Browser Hand)\n\n## Kab use karein\nJab Ankit kahe "is video ko Facebook par upload kar do" aur browser hand (v8.3) setup ho chuka ho. Ye purani guided wali `facebook-post` skill se alag hai \xe2\x80\x94 yahan video lagana, caption bharna aur final Post dabana sab tum khud browser me karte ho. Post wala rule neeche step 10 me hai.\n\n## Pehle ye check karo (preconditions)\n1. `browser setup karo` ho chuka ho aur Ankit agent wale Chrome profile me Facebook me **khud logged-in** ho. Login screen dikhe to wahi ruk jao (neeche dekho).\n2. Video file PC par maujud ho \xe2\x80\x94 uska **poora path** note karo. File jahan bhi ho (Desktop, Downloads, `work/` \xe2\x80\x94 jaise `work/movie1.mp4`) wahi path chalega. Sirf naam pata ho to `find_file` se poore computer me uska path nikalo; phir bhi na mile to Ankit ko bolo \xe2\x80\x94 andaze se koi file mat lagao, aur use file kahin rakhne ko bhi mat bolo.\n\n## Steps\n1. Caption pehle taiyaar karo: dimag se caption + hashtags draft karo \xe2\x80\x94 **English, USA audience** ke liye, MindBendMovies style me. Website ka link caption ke andar mat daalo \xe2\x80\x94 wo pehle comment me jata hai, ye note caption ke saath alag rakho aur aakhir me Ankit ko yaad dilao. Movie videos me movie order shuffled rakho aur aakhir me website par bhejne wali fast line rakho (Ankit ka purana rule). Caption Ankit ko chat me dikha do.\n2. `browser_open` se `https://www.facebook.com` kholo.\n3. `browser_read` karke page dekho aur pakka karo ki Ankit logged-in hai (uska naam/Page dikh raha ho). **Agar login screen dikhe to WAHI RUK JAO** \xe2\x80\x94 Ankit ko bolo ki khuli hui window me khud login karke bata de. Password kabhi mat mango, kabhi mat bharo.\n4. Uske Page par jao: `browser_read` se Page ka naam dhoondo aur `browser_click` (visible text se) karke Page kholo. Page do se zyada hon to Ankit se puch lo ki kis Page par dalna hai.\n5. Post/Reel banane wala hissa kholo: `browser_click` se "Create post" / "Photo/video" / "Reel" wala button dabao (jo kaam bola gaya ho \xe2\x80\x94 video post ya Reel). Dialog khulne ke baad `browser_read` karke pakka karo ki upload wala dialog hi khula hai.\n6. Dialog me file input (`input[type=file]`) dhoondo aur `browser_upload_file` se video ka poora path us par lagao. File-picker khud nahi khulega \xe2\x80\x94 file seedha lag jayegi.\n7. Thoda ruko, phir `browser_read` karke pakka karo ki upload register ho gaya hai \xe2\x80\x94 video ka preview/thumbnail ya file ka naam dialog me dikhna chahiye. Na dikhe to ek baar aur `browser_read` karo; phir bhi na dikhe to Ankit ko batao ki upload nahi laga \xe2\x80\x94 aage mat badho.\n8. Caption wale box me `browser_type` se step 1 wala caption + hashtags bhar do.\n9. `browser_read` karke aakhiri jaanch karo: caption sahi jagah par pura dikh raha hai aur video ka preview maujud hai. Kuch galat dikhe to pehle theek karo, phir aage badho.\n10. **FINAL RULE \xe2\x80\x94 Post wala button:**\n    - Ankit ka hukum ("upload kar do", "post kar do", "daal do", "schedule kar do") **hi uski manjuri hai** \xe2\x80\x94 alag se haan ka intezaar mat karo. Upar ki jaanch puri ho to `browser_click` se Post **KHUD dabao**. Uske baad `browser_read` karke pakka karo ki post publish ho gaya (Page par post dikhe ya "Published" jaisa status mile), tabhi Ankit ko "ho gaya" bolo. Post ke baad pehle comment (website link wala) dalna ho to wo bhi isi flow me kar do.\n    - **SIRF tab ruko** jab Ankit ne khud bola ho "taiyaar karke dikhao", "pehle dikhao" ya "draft banao" \xe2\x80\x94 matlab use pehle dekhna hai. Tab sab taiyaar karke chhodo aur chat me batao ki sab Post ke liye taiyaar hai.\n\n## Dhyaan rahe\n- **CAPTCHA, checkpoint ("confirm it\'s you"), 2FA ya koi bhi security screen dikhe to TURANT ruk jao.** Screen Ankit ke hawale kar do \xe2\x80\x94 khud solve/bypass karne ki koshish kabhi mat karo. Wo screen sambhal le to wahi se aage badho.\n- Koi button/element na mile to pehle `browser_read` karke page ko visible text se padho aur text se dhoondo. Facebook ka layout aksar badalta rehta hai \xe2\x80\x94 yaad ki hui jagah/position par bharosa mat karo, hamesha `browser_read` par bharosa karo.\n- Har step ke baad page dobara padho \xe2\x80\x94 andhere me click mat karo. Jo dikhe wahi sach hai.\n- Sirf Ankit ke apne banaye video upload karo; copyright wala dusre ka video nahi.\n- Kaam human pace par karo \xe2\x80\x94 steps ke beech chhota sa rukna thik hai, jaldi-jaldi spam clicks mat karo.\n',
+    'youtube-upload-direct.md': b'# YouTube Upload \xe2\x80\x94 Direct (Browser Hand)\n\n## Kab use karein\nJab Ankit kahe "is video ko YouTube par upload kar do" (movie video, series part, Short) aur browser hand (v8.3) setup ho chuka ho. Ye purani guided wali `youtube-upload` skill se alag hai \xe2\x80\x94 yahan file lagana, title/description bharna aur final Publish dabana sab tum khud YouTube Studio me karte ho. Publish wala rule neeche step 11 me hai.\n\n## Pehle ye check karo (preconditions)\n1. `browser setup karo` ho chuka ho aur Ankit agent wale Chrome profile me YouTube/Google account se **khud logged-in** ho (usi account se jiska channel hai). Login screen dikhe to wahi ruk jao (neeche dekho).\n2. Video file PC par maujud ho \xe2\x80\x94 uska **poora path** note karo. File jahan bhi ho (Desktop, Downloads, `work/`) wahi path chalega. Sirf naam pata ho to `find_file` se poore computer me uska path nikalo; phir bhi na mile to Ankit ko bolo \xe2\x80\x94 andaze se koi file mat lagao, aur use file kahin rakhne ko bhi mat bolo.\n\n## Steps\n1. Title, description aur tags pehle taiyaar karo: SEO wala title (English, USA audience), description me movie ki jaankari + website ka link. Taiyaar matter Ankit ko chat me dikha do.\n2. `browser_open` se `https://studio.youtube.com` kholo.\n3. `browser_read` karke pakka karo ki Studio khula hai aur channel dikh raha hai. **Agar Google login screen dikhe to WAHI RUK JAO** \xe2\x80\x94 Ankit ko bolo ki khuli hui window me khud login karke bata de. Password kabhi mat mango, kabhi mat bharo. Galat channel/account dikhe to Ankit se puch lo.\n4. Upar ke "Create" button par `browser_click` karo, phir "Upload videos" par click karo. Upload wala dialog khulne ke baad `browser_read` karke pakka karo.\n5. Dialog me file input (`input[type=file]`) dhoondo aur `browser_upload_file` se video ka poora path lagao. File-picker khud nahi khulega \xe2\x80\x94 file seedha lag jayegi aur upload shuru ho jayega.\n6. Thoda ruko, phir `browser_read` karke pakka karo ki upload register ho gaya hai \xe2\x80\x94 video ka title/preview aur upload ki progress dikhni chahiye. Na dikhe to ek baar aur `browser_read` karo; phir bhi na dikhe to Ankit ko batao \xe2\x80\x94 aage mat badho.\n7. Details wale step par: title wale box me `browser_type` se step 1 wala title bharo, description wale box me description bhar do.\n8. Audience wale sawal par **"No, it\'s not made for kids"** wala option `browser_click` se chuno \xe2\x80\x94 ye Ankit ke saare videos ke liye standing rule hai.\n9. Baaki steps (Video elements, Checks) par "Next" dabate hue aage badho. Copyright check me koi claim/error dikhe to ruk kar Ankit ko batao \xe2\x80\x94 khud aage mat badho.\n10. Visibility wale step par `browser_read` karke sab jaancho: title, description, audience setting \xe2\x80\x94 sab sahi hai.\n11. **FINAL RULE \xe2\x80\x94 Publish wala button:**\n    - Ankit ka hukum ("upload kar do", "publish kar do", "post kar do", "daal do") **hi uski manjuri hai** \xe2\x80\x94 alag se haan ka intezaar mat karo. Jaanch puri ho to visibility "Public" karke Publish **KHUD dabao**. Agar usne **schedule** bola ho to "Schedule" wala option chun kar uske diye hue USA time ke hisaab se date/time set karo aur Schedule dabao \xe2\x80\x94 ye bhi usi hukum ki manjuri me aata hai. Uske baad `browser_read` karke pakka karo ki video publish/schedule ho gaya, aur video ka link mile to Ankit ko de do / note kar lo.\n    - **SIRF tab ruko** jab Ankit ne khud bola ho "taiyaar karke dikhao", "pehle dikhao" ya "draft banao" \xe2\x80\x94 matlab use pehle dekhna hai. Tab sab taiyaar karke chhodo aur chat me batao ki sab Publish ke liye taiyaar hai (visibility bhi wahi tay karega).\n\n## Dhyaan rahe\n- **CAPTCHA, 2FA, "verify it\'s you" ya koi bhi Google security screen dikhe to TURANT ruk jao.** Screen Ankit ke hawale kar do \xe2\x80\x94 khud solve/bypass karne ki koshish kabhi mat karo. Wo sambhal le to wahi se aage badho.\n- Koi button/element na mile to pehle `browser_read` karke page ko visible text se padho aur text se dhoondo. YouTube Studio ka layout bhi badalta rehta hai \xe2\x80\x94 yaad ki hui jagah par bharosa mat karo, hamesha `browser_read` par bharosa karo.\n- Har step ke baad page dobara padho \xe2\x80\x94 andhere me click mat karo. Upload pura hone me time lage to dhairya rakho, progress `browser_read` se dekhte raho.\n- Sirf Ankit ke apne banaye video upload karo; copyright wala dusre ka video nahi.\n- Shorts ke liye title me `#Shorts` jodna mat bhoolo (agar Ankit ne Short bola ho).\n',
+}
+
+
+def ensure_bundled_skills() -> None:
+    """Bundled seed skills ko skills/ folder me bharo (sirf missing wali).
+
+    Har startup par main() ki shuruaat me chalta hai - demo mode aur
+    server mode dono isi ek jagah se guzarte hain. Ye kabhi crash nahi
+    karta: kuch fail ho to sirf log me note padta hai aur agent aage
+    badh jata hai.
+    """
+    try:
+        SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+        for fname, content in BUNDLED_SKILLS.items():
+            try:
+                target = SKILLS_DIR / fname
+                if target.exists():
+                    continue
+                target.write_bytes(content)
+                log(f"SKILL BOOTSTRAP: nayi bundled skill banayi: skills/{fname}")
+            except Exception as exc:
+                log(f"SKILL BOOTSTRAP: skills/{fname} nahi ban payi: {exc}")
+    except Exception as exc:
+        try:
+            log(f"SKILL BOOTSTRAP fail (ignore kiya gaya): {exc}")
+        except Exception:
+            pass
 
 
 def _safe_skill_path(name: str) -> Path:
@@ -591,7 +928,10 @@ def tool_trim_video(input: str, start_sec=0, duration_sec=10,
         return "Start aur duration second me number do, jaise 0 aur 10."
     if not output:
         output = f"{src.stem}_trim{src.suffix or '.mp4'}"
-    dst = _safe_path(output)
+    try:
+        dst = _write_path(output)
+    except ValueError as exc:
+        return str(exc)
     dst.parent.mkdir(parents=True, exist_ok=True)
     proc = _run_quiet([
         "ffmpeg", "-y", "-ss", str(start), "-i", str(src),
@@ -620,7 +960,10 @@ def tool_join_videos(files, output: str = "joined.mp4") -> str:
         if not p.is_file():
             return f"File not found: {f}"
         paths.append(p)
-    dst = _safe_path(output or "joined.mp4")
+    try:
+        dst = _write_path(output or "joined.mp4")
+    except ValueError as exc:
+        return str(exc)
     dst.parent.mkdir(parents=True, exist_ok=True)
     list_file = WORK_DIR / "_join_list.txt"
     with open(list_file, "w", encoding="utf-8") as fh:
@@ -641,6 +984,304 @@ def tool_join_videos(files, output: str = "joined.mp4") -> str:
 
 
 # --------------------------------------------------------------------------
+# Download tool (v8.4) - internet se file (poster adi) work/ me lana
+# --------------------------------------------------------------------------
+
+DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024  # 25 MB ki hadd
+
+
+def tool_download_file(url: str, filename: str = "") -> str:
+    """Ek file internet se download karke work/ me rakho.
+
+    Sirf http/https; 25 MB se badi file beech me rok di jati hai.
+    filename na diya jaye to URL ke aakhri hisse se banta hai.
+    File work/ folder me aati hai (filename me poora path do to
+    Ankit ke folders me bhi ja sakti hai; system jagah band hai).
+    """
+    url = (url or "").strip()
+    if not re.match(r"^https?://", url):
+        return "Sirf http/https wala link download kar sakta hu - sahi URL do."
+    if not (filename or "").strip():
+        filename = unquote(url.split("?")[0].rstrip("/").rsplit("/", 1)[-1])
+        if not filename:
+            filename = "download.bin"
+    try:
+        dst = _write_path(filename)
+    except ValueError as exc:
+        return str(exc)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    req = urllib.request.Request(url, headers={"User-Agent": "MyAgent/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+            data = resp.read(DOWNLOAD_MAX_BYTES + 1)
+    except Exception as exc:
+        return f"Download nahi ho paya: {exc}"
+    if len(data) > DOWNLOAD_MAX_BYTES:
+        return ("File bahut badi hai (25 MB se zyada) - download rok "
+                "diya. Chhoti file ka link do.")
+    dst.write_bytes(data)
+    return (f"Download ho gaya: {_rel(dst)} "
+            f"({len(data)} bytes) - {url}")
+
+
+# --------------------------------------------------------------------------
+# Video factory (v8.4) - job folder se taiyaar vertical video.
+# Ye video_factory/make_video.py ka PROVEN logic hai (wahan asal
+# sample par test ho chuka hai: 9.00s, 1080x1920), yahan tool ki
+# shakal me merge kiya gaya hai. Standalone script apni jagah
+# untouched hai. Job folder work/ ke andar: slides/ me posters,
+# titles.txt (har line: NAAM | hook line), optional voice.mp3.
+# --------------------------------------------------------------------------
+
+_MV_WIDTH, _MV_HEIGHT = 1080, 1920
+_MV_FPS = 30
+_MV_ZOOM_END = 1.12  # har slide par slow zoom 1.00 -> 1.12
+_MV_FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansBold.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    r"C:\Windows\Fonts\arialbd.ttf",
+    r"C:\Windows\Fonts\segoeuib.ttf",
+    r"C:\Windows\Fonts\verdanab.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "/Library/Fonts/Arial Bold.ttf",
+]
+_MV_IMAGE_EXTS = (".jpg", ".jpeg", ".png")
+_MV_VOICE_NAMES = ("voice.mp3", "voice.wav", "voice.m4a", "voice.ogg")
+
+
+def _mv_run(cmd: list):
+    """ffmpeg/ffprobe chalao; fail ho to stderr ke saath error uthao."""
+    proc = subprocess.run(cmd, capture_output=True, text=True,
+                          timeout=1200)
+    if proc.returncode != 0:
+        raise RuntimeError(
+            "Command fail: %s\n%s" % (
+                " ".join(str(c) for c in cmd), (proc.stderr or "")[-1500:]))
+    return proc
+
+
+def _mv_probe_duration(path):
+    try:
+        out = _mv_run(["ffprobe", "-v", "error", "-show_entries",
+                       "format=duration", "-of", "json",
+                       str(path)]).stdout
+        return float(json.loads(out)["format"]["duration"])
+    except Exception:
+        return None
+
+
+def _mv_probe_video(path):
+    """(width, height, duration) - output ki asal jaanch ke liye."""
+    out = _mv_run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                   "-show_entries", "stream=width,height",
+                   "-show_entries", "format=duration",
+                   "-of", "json", str(path)]).stdout
+    info = json.loads(out)
+    stream = info["streams"][0]
+    return (int(stream["width"]), int(stream["height"]),
+            float(info["format"]["duration"]))
+
+
+def _mv_find_font():
+    for cand in _MV_FONT_CANDIDATES:
+        if os.path.isfile(cand):
+            return cand
+    fc = shutil.which("fc-list")
+    if fc:
+        try:
+            out = _mv_run([fc, ":family=DejaVu Sans:style=Bold",
+                           "file"]).stdout
+            path = out.split(":")[0].strip()
+            if path and os.path.isfile(path):
+                return path
+        except Exception:
+            pass
+    return None
+
+
+def _mv_find_slides(job: Path):
+    """Posters: pehle job/slides/, warna job/ root. Naam ke order me."""
+    for folder in (job / "slides", job):
+        if folder.is_dir():
+            files = sorted(
+                (f for f in folder.iterdir()
+                 if f.is_file() and f.suffix.lower() in _MV_IMAGE_EXTS),
+                key=lambda p: p.name.lower())
+            if files:
+                return files
+    return []
+
+
+def _mv_read_titles(job: Path, count: int):
+    """titles.txt -> [(title, hook), ...], count tak pad karke."""
+    lines = []
+    tpath = job / "titles.txt"
+    if tpath.is_file():
+        lines = [ln.strip() for ln in
+                 tpath.read_text(encoding="utf-8",
+                                 errors="replace").splitlines()
+                 if ln.strip()]
+    titles = []
+    for i in range(count):
+        title, hook = "", ""
+        if i < len(lines):
+            parts = lines[i].split("|", 1)
+            title = parts[0].strip()
+            hook = parts[1].strip() if len(parts) > 1 else ""
+        titles.append((title, hook))
+    return titles
+
+
+def _mv_escape_filter_path(path) -> str:
+    p = str(path).replace("\\", "/")
+    return p.replace(":", "\\:").replace("'", "\\'")
+
+
+def _mv_build_segment(img, title, hook, seconds, font, workdir: Path,
+                      index: int):
+    """Ek slide (zoom + jala hua text) ka video-only segment banao."""
+    frames = max(1, int(round(seconds * _MV_FPS)))
+    vf = (
+        "scale=2160:3840:force_original_aspect_ratio=increase,"
+        "crop=2160:3840,"
+        "zoompan=z='1+({zend}-1)*on/{last}':x='iw/2-(iw/zoom/2)'"
+        ":y='ih/2-(ih/zoom/2)':d={frames}:s={w}x{h}:fps={fps}"
+    ).format(zend=_MV_ZOOM_END, last=max(frames - 1, 1), frames=frames,
+             w=_MV_WIDTH, h=_MV_HEIGHT, fps=_MV_FPS)
+    filters = [vf]
+    if font and (title or hook):
+        if title:
+            wrapped = "\n".join(textwrap.wrap(title, width=18) or [title])
+            tfile = workdir / f"title_{index}.txt"
+            tfile.write_text(wrapped, encoding="utf-8")
+            lines = wrapped.count("\n") + 1
+            y = _MV_HEIGHT - 330 - (lines - 1) * 86
+            filters.append(
+                "drawtext=fontfile='{font}':textfile='{tf}':expansion=none"
+                ":fontsize=76:fontcolor=white:borderw=3:bordercolor=black"
+                ":box=1:boxcolor=black@0.55:boxborderw=22:line_spacing=10"
+                ":x=(w-text_w)/2:y={y}".format(
+                    font=_mv_escape_filter_path(font),
+                    tf=_mv_escape_filter_path(tfile), y=y))
+        if hook:
+            wrapped = "\n".join(textwrap.wrap(hook, width=30) or [hook])
+            hfile = workdir / f"hook_{index}.txt"
+            hfile.write_text(wrapped, encoding="utf-8")
+            filters.append(
+                "drawtext=fontfile='{font}':textfile='{tf}':expansion=none"
+                ":fontsize=46:fontcolor=0xFFD54A:borderw=2:bordercolor=black"
+                ":box=1:boxcolor=black@0.55:boxborderw=16:line_spacing=8"
+                ":x=(w-text_w)/2:y={y}".format(
+                    font=_mv_escape_filter_path(font),
+                    tf=_mv_escape_filter_path(hfile), y=_MV_HEIGHT - 215))
+    seg = workdir / f"seg_{index}.mp4"
+    _mv_run(["ffmpeg", "-y", "-v", "error", "-i", str(img),
+             "-vf", ",".join(filters),
+             "-frames:v", str(frames),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-pix_fmt", "yuv420p", "-r", str(_MV_FPS), str(seg)])
+    return seg
+
+
+def tool_make_video(job_folder: str, secs: float = 3) -> str:
+    """Job folder se taiyaar vertical movie video banao.
+
+    Job folder (work/ ya Ankit ke folders me): slides/ me 3-5
+    posters, titles.txt (har line: MOVIE NAAM | hook line),
+    optional voice.mp3/wav/m4a/ogg. Output usi folder me
+    final.mp4. Awaaz ho to video uski lambai ke barabar banta
+    hai; na ho to silent track lagta hai.
+    """
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        return _ffmpeg_missing_msg()
+    try:
+        job = _write_path(job_folder)
+    except ValueError as exc:
+        return str(exc)
+    if not job.is_dir():
+        return (f"Job folder mila nahi: {job_folder} - pehle "
+                "create_folder se banao aur usme slides/ + titles.txt "
+                "rakho ('video-banana' skill dekho).")
+    slides = _mv_find_slides(job)
+    if not slides:
+        return (f"{_rel(job)} me koi poster nahi mila - slides/ folder "
+                "me .jpg/.png posters rakho (3-5), phir dobara chalao.")
+    try:
+        secs = float(secs)
+    except (TypeError, ValueError):
+        secs = 3.0
+    if secs <= 0:
+        secs = 3.0
+    titles = _mv_read_titles(job, len(slides))
+    voice = None
+    for name in _MV_VOICE_NAMES:
+        cand = job / name
+        if cand.is_file():
+            voice = cand
+            break
+    voice_dur = _mv_probe_duration(voice) if voice else None
+    base_total = len(slides) * secs
+    durations = [secs] * len(slides)
+    target_total = base_total
+    if voice and voice_dur:
+        target_total = voice_dur
+        if voice_dur > base_total:
+            durations[-1] += voice_dur - base_total  # aakhri slide lambi
+    font = _mv_find_font()
+    notes = []
+    if not font and any(t or h for t, h in titles):
+        notes.append("font nahi mila, isliye posters par text nahi jala")
+    tmp = Path(tempfile.mkdtemp(prefix="myagent_video_"))
+    try:
+        segments = []
+        for i, img in enumerate(slides):
+            title, hook = titles[i]
+            segments.append(_mv_build_segment(
+                img, title, hook, durations[i], font, tmp, i))
+        listfile = tmp / "concat.txt"
+        with open(listfile, "w", encoding="utf-8") as fh:
+            for seg in segments:
+                fh.write("file '%s'\n" % str(seg).replace("'", "'\\''"))
+        joined = tmp / "joined.mp4"
+        _mv_run(["ffmpeg", "-y", "-v", "error", "-f", "concat",
+                 "-safe", "0", "-i", str(listfile), "-c", "copy",
+                 str(joined)])
+        out = job / "final.mp4"
+        cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(joined)]
+        if voice:
+            cmd += ["-i", str(voice)]
+        else:
+            cmd += ["-f", "lavfi", "-i",
+                    "anullsrc=channel_layout=stereo:sample_rate=44100"]
+        cmd += ["-map", "0:v:0", "-map", "1:a:0",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-pix_fmt", "yuv420p", "-r", str(_MV_FPS),
+                "-c:a", "aac", "-b:a", "128k",
+                "-t", "%.3f" % target_total,
+                "-movflags", "+faststart", str(out)]
+        _mv_run(cmd)
+    except Exception as exc:
+        return f"Video nahi ban paya: {str(exc)[-600:]}"
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    try:
+        w, h, dur = _mv_probe_video(out)
+    except Exception as exc:
+        return f"Video bana to, lekin uski jaanch nahi ho payi: {exc}"
+    size_mb = out.stat().st_size / (1024 * 1024)
+    audio_note = (f"awaaz: {voice.name} (voiceover file)"
+                  if voice else
+                  "awaaz: SILENT track (job folder me koi voice file "
+                  "nahi mili - voice chahiye to voice.mp3 naam se "
+                  "wahan rakho)")
+    extra = (" Dhyaan: " + "; ".join(notes) + ".") if notes else ""
+    return (f"Video ban gaya: {_rel(out)} - {dur:.1f} seconds, "
+            f"{w}x{h}, {size_mb:.2f} MB, {len(slides)} posters. "
+            f"{audio_note}.{extra}")
+
+
+# --------------------------------------------------------------------------
 # Voice tool - text ko awaaz ki file me badalna (PC ka apna TTS engine)
 # --------------------------------------------------------------------------
 
@@ -652,7 +1293,10 @@ def tool_speak_to_file(text: str, filename: str = "") -> str:
     system = platform.system()
     if not filename:
         filename = "voice.wav" if system in ("Windows", "Linux") else "voice.aiff"
-    dst = _safe_path(filename)
+    try:
+        dst = _write_path(filename)
+    except ValueError as exc:
+        return str(exc)
     dst.parent.mkdir(parents=True, exist_ok=True)
 
     if system == "Windows":
@@ -693,6 +1337,312 @@ def tool_speak_to_file(text: str, filename: str = "") -> str:
             "movie-video voiceover ke liye 'voiceover' skill wala rasta "
             "hai: Google AI Studio ki Aoede voice, jisme login Ankit khud "
             "karta hai aur main script taiyaar karke deta hu.")
+
+
+# --------------------------------------------------------------------------
+# Video dekh kar seekhna (v8.4) - Gemini ki video-understanding.
+# Request ki shakal Google ke official docs se verify ki gayi hai
+# (2026-11-20): generateContent ke contents[].parts[] me video ke
+# liye {"file_data": {"file_uri": "<YouTube URL>"}} (YouTube) ya
+# {"inline_data": {"mime_type": "video/...", "data": "<base64>"}}
+# (chhoti file) ke saath ek {"text": ...} prompt part jata hai.
+# Free-tier hadd (docs): YouTube sirf PUBLIC videos, roz 8 ghante
+# tak ka YouTube video; video ki lambai ~45 min (awaaz ke saath) /
+# ~1 ghanta (bina awaaz) tak; inline file ke liye yahan 20 MB ki
+# surakshit hadd rakhi hai (badi file = pehle trim, ya YouTube
+# link). LIVE test user ke PC par hoga (is VM par asli key nahi
+# hai) - yahan sirf request ki shakal fake se verify hui hai.
+# --------------------------------------------------------------------------
+
+_WATCH_VIDEO_PROMPT = (
+    "Is video ko dhyaan se dekho. Isme jo kaam ya skill sikhaya/"
+    "kiya gaya hai, use aise step-by-step samjhao ki ek agent unhi "
+    "steps ko follow karke wahi kaam dobara kar sake. Jawab "
+    "Hinglish (Roman Hindi + English mix) me do, is format me:\n"
+    "VIDEO KA KAAM: <ek line - ye video kis kaam ke baare me hai>\n"
+    "STEPS:\n1. <pehla step>\n2. <dusra step>\n"
+    "KHAAS BAATEIN: <kaunse tools/software/settings lage, login ya "
+    "dhyaan dene wali baatein>")
+
+_WATCH_INLINE_MAX = 20 * 1024 * 1024  # inline video ki surakshit hadd
+_VIDEO_MIME = {
+    ".mp4": "video/mp4",
+    ".mpeg": "video/mpeg",
+    ".mpg": "video/mpeg",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".wmv": "video/wmv",
+    ".flv": "video/x-flv",
+    ".3gp": "video/3gpp",
+    ".avi": "video/x-msvideo",
+}
+
+
+def _gemini_video_call(parts: list) -> str:
+    """Video wale parts ke saath ek seedha Gemini call.
+
+    Chat wale _gemini_call se alag: yahan na system prompt jata
+    hai na history - sirf video + seekhne wala prompt. Timeout
+    lamba (300s) kyunki video samajhne me samay lagta hai. Galti
+    par exception upar jata hai, tool use saaf shabdon me badalta
+    hai.
+    """
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}")
+    body = {"contents": [{"role": "user", "parts": parts}]}
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=300) as resp:  # noqa: S310
+        data = json.loads(resp.read().decode("utf-8"))
+    out_parts = data["candidates"][0]["content"]["parts"]
+    return "".join(p.get("text", "") for p in out_parts).strip()
+
+
+def tool_watch_video(source: str) -> str:
+    """Ek video DEKH kar uske steps samjho (nayi skill seekhne ko).
+
+    source = YouTube ka link (public video) ya work/ folder ki
+    video file (20 MB tak, inline bheji jati hai). Mile hue steps
+    wapas milte hain - skill banana hai ya nahi, ye faisla chat me
+    Ankit ki haan ke baad create_skill se hota hai (prompt rule).
+    """
+    source = (source or "").strip().strip('"').strip("'")
+    if not source:
+        return ("Kaunsi video dekhu - YouTube ka link do, ya video "
+                "file ka naam/path do (naam hi ho to find_file se "
+                "dhoond lunga).")
+    if not GEMINI_API_KEY:
+        return ("Video dekhne ke liye Gemini ki key chahiye, lekin "
+                "config.env me GEMINI_API_KEY mili nahi. Key daal "
+                "kar phir bolo - main video dekh kar uske steps "
+                "samjha dunga.")
+    if re.match(r"^https?://", source):
+        if "youtube.com" not in source and "youtu.be" not in source:
+            return ("Link wali video me abhi main sirf YouTube ki "
+                    "video dekh sakta hu. Ye link YouTube ka nahi "
+                    "lagta - video file ka path do (ya naam, main "
+                    "find_file se dhoond lunga), main wahan se dekh "
+                    "lunga.")
+        parts = [{"file_data": {"file_uri": source}},
+                 {"text": _WATCH_VIDEO_PROMPT}]
+        kind = "YouTube video"
+    else:
+        target = _safe_path(source)
+        if not target.is_file():
+            return (f"Video file mili nahi: {source} - sirf naam "
+                    "pata ho to pehle find_file se poore computer "
+                    "me uska path nikalo, phir wahi path do.")
+        size = target.stat().st_size
+        if size > _WATCH_INLINE_MAX:
+            return (f"Ye video file bahut badi hai "
+                    f"({size / 1048576:.1f} MB) - seedhe bhej kar "
+                    "dekhne ki hadd 20 MB hai. Pehle trim_video se "
+                    "uska kaam wala hissa kaat kar do, ya video ko "
+                    "YouTube par daal kar link do.")
+        mime = _VIDEO_MIME.get(target.suffix.lower(), "video/mp4")
+        b64 = base64.b64encode(target.read_bytes()).decode("ascii")
+        parts = [{"inline_data": {"mime_type": mime, "data": b64}},
+                 {"text": _WATCH_VIDEO_PROMPT}]
+        kind = f"Video file {_rel(target)}"
+    try:
+        text = _gemini_video_call(parts)
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", "replace")[:300]
+        except Exception:
+            pass
+        log(f"WATCH_VIDEO fail: HTTP {exc.code}")
+        return (f"Video dekh nahi paya - Gemini ne HTTP {exc.code} "
+                "diya. Video public hai aur format sahi hai, ye "
+                "check karo; thodi der baad phir try karo."
+                + (f" ({detail})" if detail else ""))
+    except Exception as exc:
+        log(f"WATCH_VIDEO fail: {exc}")
+        return (f"Video dekh nahi paya: {exc}. Internet check "
+                "karke phir try karo.")
+    if not text:
+        return ("Video bheja to tha, lekin Gemini se koi jawab "
+                "nahi aaya - ek baar phir try karo.")
+    if len(text) > 12000:
+        text = text[:12000] + "\n... (jawab aur lamba tha, kata gaya)"
+    return f"{kind} dekh li. Jo samjha, wo ye raha:\n\n{text}"
+
+
+# --------------------------------------------------------------------------
+# Photo dekhna (v8.4) - PC par padi photo/screenshot ko Gemini
+# vision se dekhna. Chat me bheji photo ka rasta alag hai (wo
+# seedha _vision_ask se jata hai); ye tool file wali photo ke
+# liye hai. Request ki shakal watch_video wali hi hai:
+# contents[].parts[] me {"inline_data": {"mime_type": "image/...",
+# "data": "<base64>"}} + ek text prompt.
+# --------------------------------------------------------------------------
+
+_IMAGE_MIME = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+_SEE_IMAGE_MAX = 10 * 1024 * 1024  # 10 MB ki hadd
+_VISION_MIMES = ("image/jpeg", "image/png", "image/webp", "image/gif")
+
+_SEE_IMAGE_PROMPT = (
+    "Is photo ko dhyaan se dekho. Isme jo hai use Hinglish "
+    "(Roman Hindi + English mix) me saaf samjhao: koi screen/"
+    "error hai to uska matlab aur wajah, koi text hai to use "
+    "padh kar batao, aur Ankit ke kaam ke hisaab se koi khaas "
+    "baat dikhe to wo bhi. Jawab seedha aur kaam ka ho.")
+
+
+def tool_see_image(path: str) -> str:
+    """PC par padi ek photo/screenshot ko DEKH kar samjho.
+
+    path = photo ka poora path (Desktop adi kahi se bhi) ya
+    work/ ke hisaab se naam. jpg/jpeg/png/webp/gif, 10 MB tak.
+    """
+    raw = (path or "").strip().strip('"').strip("'")
+    if not raw:
+        return "Kaunsi photo dekhu - uska path to do."
+    if not GEMINI_API_KEY:
+        return ("Photo dekhne ke liye Gemini ki key chahiye, lekin "
+                "config.env me GEMINI_API_KEY mili nahi. Key daal "
+                "kar phir bolo - main photo dekh kar bata dunga "
+                "usme kya hai.")
+    target = _safe_path(raw)
+    if not target.is_file():
+        return (f"Photo mili nahi: {raw} - sirf naam pata ho to "
+                "pehle find_file se poore computer me uska path "
+                "nikalo, phir wahi path do.")
+    mime = _IMAGE_MIME.get(target.suffix.lower())
+    if not mime:
+        return (f"Ye file photo nahi lagti ({target.suffix or '?'}). "
+                "Main jpg, png, webp aur gif photo dekh sakta hu.")
+    size = target.stat().st_size
+    if size > _SEE_IMAGE_MAX:
+        return (f"Ye photo bahut badi hai ({size / 1048576:.1f} MB) - "
+                "dekhne ki hadd 10 MB hai. Chhoti photo do.")
+    b64 = base64.b64encode(target.read_bytes()).decode("ascii")
+    parts = [{"inline_data": {"mime_type": mime, "data": b64}},
+             {"text": _SEE_IMAGE_PROMPT}]
+    try:
+        text = _gemini_video_call(parts)
+    except urllib.error.HTTPError as exc:
+        log(f"SEE_IMAGE fail: HTTP {exc.code}")
+        return (f"Photo dekh nahi paya - Gemini ne HTTP {exc.code} "
+                "diya. Thodi der baad phir try karo.")
+    except Exception as exc:
+        log(f"SEE_IMAGE fail: {exc}")
+        return (f"Photo dekh nahi paya: {exc}. Internet check "
+                "karke phir try karo.")
+    if not text:
+        return ("Photo bheja to tha, lekin Gemini se koi jawab "
+                "nahi aaya - ek baar phir try karo.")
+    if len(text) > 12000:
+        text = text[:12000] + "\n... (jawab aur lamba tha, kata gaya)"
+    log(f"SEE_IMAGE ok: {_rel(target)}")
+    return f"Photo ({target.name}) dekh li. Jo dikha, wo ye raha:\n\n{text}"
+
+
+# --------------------------------------------------------------------------
+# Program chalana (v8.4) - user ke kahe par PC par command chalana
+# (software install karna / chalana). Har command logs/agent.log me
+# likhi jati hai. Neeche wali khatarnak-class list ek SEATBELT hai -
+# disk format, system-root delete, shutdown jaisi cheezon par tool
+# MANA NAHI karta, pehle CONFIRM mangta hai (confirm-first): bina
+# confirm ke command chalti hi nahi, CONFIRM_REQUIRED wapas jata
+# hai; user ki haan par brain wahi command confirm=true ke saath
+# dobara chalata hai aur wo chal jati hai. Ye koi pakki suraksha
+# deewar/sandbox NAHI hai. Paisa kharch ya user ki files delete
+# karne wale kaam par pehle puchne ka rule system prompt me hai.
+# --------------------------------------------------------------------------
+
+RUN_PROGRAM_TIMEOUT = 120  # second; isse lambi command rok di jati hai
+
+_RUN_DENYLIST = [
+    (re.compile(r"\bformat\s+[a-z]:", re.IGNORECASE),
+     "poora disk format ho sakta hai"),
+    (re.compile(r"\bdiskpart\b|\bmkfs\b|\bfdisk\b", re.IGNORECASE),
+     "disk ke partition badal sakte hain"),
+    (re.compile(r"\bdd\b[^|;&\n]*\bof=/dev/(sd|hd|nvme)", re.IGNORECASE),
+     "seedha disk par likha ja sakta hai"),
+    (re.compile(r"\brm\s+-[a-z]*r[a-z]*\s+/\*?\s*$", re.IGNORECASE),
+     "poora system root delete ho sakta hai"),
+    (re.compile(r"\brm\s+-[a-z]*r[a-z]*\s+/\s", re.IGNORECASE),
+     "system root ke andar delete ho sakta hai"),
+    (re.compile(r"(del|erase|rd|rmdir|rm)\b[^|;&\n]*"
+                r"([a-z]:\\(windows|program files)|system32)",
+                re.IGNORECASE),
+     "Windows/system folder delete ho sakta hai"),
+    (re.compile(r"\bshutdown\b|\brestart-computer\b|"
+                r"\bstop-computer\b", re.IGNORECASE),
+     "PC band/restart ho jayega"),
+]
+
+
+def _destructive_reason(command: str):
+    """Command khatarnak-class ki ho to uski wajah, warna None."""
+    for pattern, wajah in _RUN_DENYLIST:
+        if pattern.search(command):
+            return wajah
+    return None
+
+
+def tool_run_program(command: str, confirm=False) -> str:
+    """User ke kahe par is PC par ek command/program chalao.
+
+    Output (stdout+stderr) 8000 characters tak wapas milta hai;
+    120 second se lambi command rok di jati hai. Khatarnak-class
+    command (disk format, system delete, shutdown jaisi) bina
+    confirm ke NAHI chalti - CONFIRM_REQUIRED wapas jata hai
+    (ye mana nahi, poochna hai); user ki haan par brain wahi
+    command confirm=true ke saath dobara chalata hai. Aam
+    command par confirm ka koi asar nahi.
+    """
+    cmd = (command or "").strip()
+    if not cmd:
+        return "Kaunsa program ya command chalau - wo to likho."
+    wajah = _destructive_reason(cmd)
+    if wajah and not confirm:
+        log(f"RUN_PROGRAM confirm manga ({wajah}): {cmd[:200]}")
+        return ("CONFIRM_REQUIRED: Ye command khatarnak class ki "
+                "hai - isse " + wajah + ". Maine ye command abhi "
+                "NAHI chalayi. Ankit ko chat me saaf shabdon me "
+                "batao ki ye command asal me kya karegi aur pucho "
+                "ki chala du ya nahi. Agar Ankit HAAN bol de to "
+                "WAHI command run_program me confirm=true ke "
+                "saath dobara chalao - mana mat karo, uski haan "
+                "hi kaafi hai. (Aam install/program wale kaam "
+                "bina confirm ke chalte rahenge.)")
+    if wajah:
+        log(f"RUN_PROGRAM confirmed chal raha hai ({wajah}): "
+            f"{cmd[:300]}")
+    else:
+        log(f"RUN_PROGRAM chal raha hai: {cmd[:300]}")
+    try:
+        proc = subprocess.run(cmd, shell=True, capture_output=True,
+                              text=True, errors="replace",
+                              timeout=RUN_PROGRAM_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        log(f"RUN_PROGRAM timeout ({RUN_PROGRAM_TIMEOUT}s): {cmd[:200]}")
+        return (f"Command {RUN_PROGRAM_TIMEOUT} second me pura "
+                "nahi hua - use rok diya hai. Lamba chalne wala "
+                "kaam (bada download/install) ho to batao, use "
+                "hisson me karenge.")
+    except Exception as exc:
+        return f"Command chal hi nahi paya: {exc}"
+    out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    if len(out) > 8000:
+        out = out[:8000] + "\n... (output aur lamba tha, kata gaya)"
+    if not out:
+        out = "(koi output nahi aaya)"
+    log(f"RUN_PROGRAM khatm (exit {proc.returncode}): {cmd[:120]}")
+    return f"Command chala diya (exit code {proc.returncode}):\n{out}"
 
 
 # --------------------------------------------------------------------------
@@ -1505,9 +2455,9 @@ def tool_browser_upload_file(target: str, path: str) -> str:
         p = WORK_DIR / raw
     p = p.resolve()
     if not p.is_file():
-        return (f"File mili nahi: {raw} - pehle list_files se "
-                "check kar lo file work/ folder me hai ya nahi, "
-                "aur naam sahi hai ya nahi.")
+        return (f"File mili nahi: {raw} - sirf naam pata ho to "
+                "pehle find_file se poore computer me uska path "
+                "nikalo, phir wahi poora path yahan do.")
 
     def work(client, session):
         doc = client.call("DOM.getDocument", session_id=session)
@@ -1533,8 +2483,7 @@ def tool_browser_upload_file(target: str, path: str) -> str:
             return (f"File lag gayi: {p.name} ({size_mb:.2f} MB) - "
                     f"page ne bhi wahi file pehchani "
                     f"({seen.get('name')}). Ab aage ke steps "
-                    "(caption adi) pure karo; aakhri Post wala "
-                    "click Ankit ke kehne par hi hoga.")
+                    "(caption adi) pure karo.")
         return (f"File input par laga di hai: {p.name} "
                 f"({size_mb:.2f} MB). Page ne abhi use dikhaya "
                 "nahi - browser_read se ek baar page check kar lo.")
@@ -1619,6 +2568,12 @@ TOOLS = {
     "browser_click": tool_browser_click,
     "browser_type": tool_browser_type,
     "browser_upload_file": tool_browser_upload_file,
+    "download_file": tool_download_file,
+    "make_video": tool_make_video,
+    "watch_video": tool_watch_video,
+    "run_program": tool_run_program,
+    "find_file": tool_find_file,
+    "see_image": tool_see_image,
 }
 
 
@@ -2062,7 +3017,17 @@ _GROQ_TIMEOUT = 30
 
 
 class _GroqDownError(Exception):
-    """Groq se jawab nahi aaya - caller Gemini ladder par girega."""
+    """Groq se jawab nahi aaya - caller Gemini ladder par girega.
+
+    status me HTTP code rehta hai jab haar kisi HTTP jawab se
+    aayi ho (401/403 matlab key ki gadbad) - caller usi se
+    faisla karta hai ki user ko key jaanchne ki salah deni hai
+    ya nahi. Timeout/network wali haar par status None rehta hai.
+    """
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 def _to_openai_messages(contents: list) -> list:
@@ -2106,7 +3071,8 @@ def _groq_call(messages: list) -> str:
         except urllib.error.HTTPError as exc:
             if exc.code not in _BUSY_CODES:
                 log(f"GROQ fail: HTTP {exc.code} (turant Gemini ki baari)")
-                raise _GroqDownError(f"HTTP {exc.code}") from exc
+                raise _GroqDownError(f"HTTP {exc.code}",
+                                     status=exc.code) from exc
             last_exc = exc
             max_attempts = 3
             delays = _BUSY_DELAYS
@@ -2122,7 +3088,11 @@ def _groq_call(messages: list) -> str:
             break
         time.sleep(delays[min(attempt, len(delays) - 1)])
         attempt += 1
-    raise _GroqDownError(str(last_exc))
+    raise _GroqDownError(
+        str(last_exc),
+        status=(last_exc.code
+                if isinstance(last_exc, urllib.error.HTTPError)
+                else None))
 
 
 def _groq_converse(contents: list):
@@ -2218,10 +3188,14 @@ def _brain_run(contents: list):
     (error_message, None) - error message Gemini wali class-neeti
     se hi banta hai (busy -> busy wala, slow -> slow wala, 404 ->
     plain). Groq se gir kar Gemini se jawab aaye to jawab ke upar
-    ek chhota note lagta hai. Bina Groq key ke ye seedha Gemini
-    ladder hai - bilkul v8.1 wala vyavhaar, koi note nahi.
+    ek chhota note lagta hai. Groq ki haar key wali ho (HTTP
+    401/403) to note me key jaanchne ka ishara bhi jud jata hai -
+    baaki haar (timeout/429/5xx/network) par note bilkul waisa
+    hi rehta hai. Bina Groq key ke ye seedha Gemini ladder hai -
+    bilkul v8.1 wala vyavhaar, koi note nahi.
     """
     groq_failed = False
+    groq_key_error = False
     if GROQ_API_KEY:
         try:
             reply, used_tool = _groq_converse(contents)
@@ -2229,12 +3203,22 @@ def _brain_run(contents: list):
             return reply, used_tool
         except Exception as exc:  # har haar par Gemini ki baari
             groq_failed = True
+            if getattr(exc, "status", None) in (401, 403):
+                # Key wali gadbad (galat ya mis-paste hui key) -
+                # user ko note me key jaanchne ka ishara milega.
+                groq_key_error = True
             log(f"BRAIN: GROQ fail ({exc}) - Gemini ladder par ja "
                 "raha hu")
     reply, used_tool = _ladder_run(contents)
     if used_tool is not None and groq_failed:
-        reply = ("(tez wale model se jawab nahi aaya, dusre model se "
-                 "laya hu)\n" + reply)
+        note = ("(tez wale model se jawab nahi aaya, dusre model se "
+                "laya hu)")
+        if groq_key_error:
+            note += (" (Note: lagta hai Groq wali key sahi nahi "
+                     "hai — config.env me GROQ_API_KEY wali line "
+                     "ek baar jaanch lo, key gsk_ se shuru hoti "
+                     "hai.)")
+        reply = note + "\n" + reply
     return reply, used_tool
 
 
@@ -2273,9 +3257,76 @@ def brain_ask(message: str) -> str:
     return reply2
 
 
-def ask_agent(message: str) -> str:
-    """Single entry point used by both the chat loop and the HTTP hook."""
+_VISION_DEFAULT_TEXT = (
+    "Maine ek photo bheji hai. Use dhyaan se dekho aur Hinglish me "
+    "samjhao ki isme kya dikh raha hai. Koi error, message ya text "
+    "dikhe to use padh kar uska matlab bhi batao.")
+
+
+def _vision_ask(message: str, image_b64: str, image_mime: str) -> str:
+    """Chat me bheji photo ke saath wala turn - seedha Gemini vision.
+
+    Photo wale turn par Groq (sirf-text dimag) chalta hi nahi -
+    Gemini ke model ladder par seedha vision call jata hai,
+    isliye jawab par koi 'tez wale model' wala note nahi lagta.
+    Photo par tool-calling nahi hoti - jawab seedha text me
+    aata hai (photo par pehla kaam use samajhna hi hai).
+    Gemini fail ho to aam ladder wale error messages milte
+    hain (busy/slow/key-hint apni class ke hisaab se).
+    """
+    mime = (image_mime or "").strip().lower()
+    if mime not in _VISION_MIMES:
+        mime = "image/jpeg"
+    if len(image_b64) > 14_000_000:  # ~10 MB base64 me
+        return ("Photo bahut badi hai - 10 MB se chhoti photo "
+                "bhejo, main use dekh kar bata dunga.")
+    text = (message or "").strip() or _VISION_DEFAULT_TEXT
+    contents = [{"role": "user", "parts": [
+        {"text": text},
+        {"inline_data": {"mime_type": mime, "data": image_b64}},
+    ]}]
+    last_exc = None
+    for model in _ladder_models():
+        try:
+            reply = _gemini_call(contents, model)
+            log(f"VISION: jawab Gemini[{model}] se aaya")
+            with _history_lock:
+                _history.append({"role": "user", "parts": [
+                    {"text": ((message or "").strip()
+                              or "(photo bheji)") + " [photo ke saath]"}]})
+                _history.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                del _history[:-20]
+            return reply
+        except urllib.error.HTTPError as exc:
+            if exc.code in _KEY_ERROR_CODES:
+                log(f"VISION key-type error (HTTP {exc.code})")
+                return _gemini_http_message(exc)
+            last_exc = exc
+            log(f"VISION: {model} fail (HTTP {exc.code})")
+        except Exception as exc:
+            last_exc = exc
+            log(f"VISION: {model} fail: {exc}")
+    return _final_error_message(last_exc)
+
+
+def ask_agent(message: str, image: str = None,
+              image_mime: str = None) -> str:
+    """Single entry point used by both the chat loop and the HTTP hook.
+
+    image (optional) = chat me bheji photo ka base64 data (bina
+    data-URL prefix ke); ho to turn seedha Gemini vision par
+    jata hai (neeche _vision_ask dekho).
+    """
     message = (message or "").strip()
+    if image:
+        log(f"ASK (photo ke saath): {message[:120]}")
+        if not GEMINI_API_KEY:
+            return ("Photo mil gayi, lekin use dekhne ke liye "
+                    "Gemini ki key chahiye - config.env me "
+                    "GEMINI_API_KEY daal kar phir photo bhejo, "
+                    "main dekh kar bata dunga usme kya hai.")
+        return _vision_ask(message, str(image), str(image_mime or ""))
     if not message:
         return "Kuch likho to sahi, bhai."
     log(f"ASK: {message[:200]}")
@@ -2305,11 +3356,19 @@ def ask_agent(message: str) -> str:
 
 # --------------------------------------------------------------------------
 # Premium chat screen (served at GET /) - same design as the phone app.
-# The page also lives in ui.html next to this script for easy editing;
-# ui.html wins when present, this embedded copy is the fallback.
+# The page also lives in ui.html next to this script for easy editing.
+# Self-update sirf agent.py badalta hai, isliye UI ka version marker
+# ("myagent-ui-version: N") dono copies me rehta hai: GET / par
+# DONO me se NAYI version wali copy serve hoti hai, aur startup par
+# ensure_ui_file() disk wali ui.html ko embedded se sync kar deta
+# hai jab embedded nayi ho. Matlab update + restart ke baad browser
+# me NAYI screen hi dikhegi, purani ui.html use rok nahi sakti.
 # --------------------------------------------------------------------------
 
+UI_VERSION = 2
+
 UI_HTML = r'''<!DOCTYPE html>
+<!-- myagent-ui-version: 2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -2486,6 +3545,37 @@ UI_HTML = r'''<!DOCTYPE html>
   #send:active { transform: scale(.93); }
   #send:disabled { opacity: .55; }
   #send svg { width: 21px; height: 21px; margin-left: 2px; }
+  /* ---------- Photo attach ---------- */
+  #attach {
+    flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin: 0 0 1px 1px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; font-family: inherit;
+    color: #BFE6FF; background: rgba(90,160,255,.10); border: 1px solid rgba(120,190,255,.4);
+  }
+  #attach:active { transform: scale(.93); }
+  #attach.has {
+    color: #fff; border-color: rgba(0,194,255,.75);
+    background: linear-gradient(135deg, #12BCFF, #0072CE);
+    box-shadow: 0 8px 20px rgba(0,150,255,.5), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  #photoBar { flex: 0 0 auto; display: none; padding: 0 4px 9px; }
+  #photoBar.open { display: block; }
+  .photoChip {
+    display: inline-flex; align-items: center; gap: 10px; max-width: 100%;
+    padding: 7px 12px 7px 8px; border-radius: 16px;
+    background: linear-gradient(165deg, rgba(26,48,90,.92), rgba(11,20,40,.96));
+    border: 1px solid rgba(0,194,255,.42); box-shadow: 0 8px 20px rgba(0,0,0,.4);
+    font-size: 13px; font-weight: 650; color: #DCEFFF;
+  }
+  .photoChip img { width: 40px; height: 40px; object-fit: cover; border-radius: 11px; border: 1px solid rgba(140,200,255,.4); }
+  .photoChip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .photoChip button {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 1; font-family: inherit;
+    color: #FFD7DB; background: rgba(255,110,120,.22); border: 1px solid rgba(255,130,140,.5);
+  }
+  .bubble img.msgPhoto {
+    display: block; max-width: 250px; width: 100%; border-radius: 13px; margin-bottom: 8px;
+    border: 1px solid rgba(140,200,255,.45); box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  }
   /* ---------- PIN gate ---------- */
   #pinGate {
     position: fixed; inset: 0; z-index: 30; display: none;
@@ -2559,7 +3649,13 @@ UI_HTML = r'''<!DOCTYPE html>
   <button class="chip" type="button" data-send="time">Time batao</button>
 </div>
 
+<div id="photoBar">
+  <span class="photoChip"><img id="photoThumb" alt=""><span id="photoName">photo</span><button id="photoRemove" type="button" aria-label="Photo hatao">✕</button></span>
+</div>
+
 <div id="inputbar">
+  <button id="attach" type="button" aria-label="Photo bhejo" title="Photo / screenshot bhejo">📎</button>
+  <input type="file" id="photoInput" accept="image/*" style="display:none">
   <textarea id="input" rows="1" placeholder="Apne agent se kuch bhi pucho..." enterkeyhint="send"></textarea>
   <button id="send" aria-label="Send">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.8-7.5c.8-.35.8-1.45 0-1.8L3.4 3.6c-.66-.29-1.39.2-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .72.73 1.2 1.39.91z"/></svg>
@@ -2666,12 +3762,21 @@ UI_HTML = r'''<!DOCTYPE html>
     return html;
   }
 
-  function addBubble(role, text, isErr) {
+  function addBubble(role, text, isErr, photoUrl) {
     var row = document.createElement("div");
     row.className = "msgrow " + (role === "user" ? "user" : "agent");
     var b = document.createElement("div");
     b.className = "bubble" + (isErr ? " err" : "");
-    b.innerHTML = (role === "user") ? renderText(text) : renderRich(text);
+    if (photoUrl) {
+      var img = document.createElement("img");
+      img.className = "msgPhoto"; img.src = photoUrl; img.alt = "photo";
+      b.appendChild(img);
+      var cap = document.createElement("span");
+      cap.innerHTML = renderText(text);
+      b.appendChild(cap);
+    } else {
+      b.innerHTML = (role === "user") ? renderText(text) : renderRich(text);
+    }
     row.appendChild(b);
     chatEl.appendChild(row);
     scrollDown();
@@ -2745,20 +3850,72 @@ UI_HTML = r'''<!DOCTYPE html>
   pinInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submitPin(); } });
   document.getElementById("lockBtn").addEventListener("click", function () { setPin(""); openPinGate(""); });
 
+  /* ---------- Photo bhejna ----------
+     Chuni hui photo pendingPhoto me rehti hai: { dataUrl, image, mime, name }.
+     Server ko /ask ke JSON me do fields jate hain:
+       image      = base64 data (data-URL wala prefix NAHI)
+       image_mime = photo ka mime type (jaise image/png)          */
+  var attachBtn = document.getElementById("attach");
+  var photoInput = document.getElementById("photoInput");
+  var photoBar = document.getElementById("photoBar");
+  var photoThumb = document.getElementById("photoThumb");
+  var photoName = document.getElementById("photoName");
+  var pendingPhoto = null;
+
+  attachBtn.addEventListener("click", function () { photoInput.click(); });
+  photoInput.addEventListener("change", function () {
+    var f = photoInput.files && photoInput.files[0];
+    photoInput.value = "";
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) {
+      alert("Ye photo bahut badi hai (10 MB se zyada). Chhoti photo ya screenshot bhejo.");
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var dataUrl = String(reader.result || "");
+      var comma = dataUrl.indexOf(",");
+      pendingPhoto = {
+        dataUrl: dataUrl,
+        image: comma >= 0 ? dataUrl.slice(comma + 1) : "",
+        mime: f.type || "image/jpeg",
+        name: f.name || "photo"
+      };
+      photoThumb.src = dataUrl;
+      photoName.textContent = pendingPhoto.name;
+      photoBar.classList.add("open");
+      attachBtn.classList.add("has");
+      inputEl.focus();
+    };
+    reader.readAsDataURL(f);
+  });
+  function clearPhoto() {
+    pendingPhoto = null;
+    photoBar.classList.remove("open");
+    attachBtn.classList.remove("has");
+    photoThumb.src = "";
+  }
+  document.getElementById("photoRemove").addEventListener("click", clearPhoto);
+
   function sendText(text, displayText) {
     text = (text || "").trim();
-    if (!text || busy) return;
+    if (busy) return;
+    if (!text && !pendingPhoto) return;
     if (!getPin()) { openPinGate(""); return; }
     var hero = document.getElementById("heroWrap");
     if (hero) hero.remove();
-    addBubble("user", displayText || text);
+    var photo = pendingPhoto;
+    addBubble("user", displayText || text, false, photo ? photo.dataUrl : null);
+    clearPhoto();
     inputEl.value = ""; autoGrow();
     busy = true; sendBtn.disabled = true;
     showTyping();
+    var payload = { message: text, pin: getPin() };
+    if (photo) { payload.image = photo.image; payload.image_mime = photo.mime; }
     fetch("/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, pin: getPin() })
+      body: JSON.stringify(payload)
     }).then(function (res) {
       return res.text().then(function (bodyText) { return { status: res.status, bodyText: bodyText }; });
     }).then(function (r) {
@@ -2802,11 +3959,43 @@ UI_HTML = r'''<!DOCTYPE html>
 '''
 
 
-def _ui_page() -> str:
+def _ui_version_of(text: str) -> int:
+    m = re.search(r"myagent-ui-version:\s*(\d+)", text or "")
+    return int(m.group(1)) if m else 0
+
+
+def ensure_ui_file() -> None:
+    """ui.html ko embedded UI se sync rakho (skills bootstrap jaisa).
+
+    Disk par ui.html na ho, ya uska version marker embedded se
+    purana ho, to embedded copy disk par likh do. Disk wali copy
+    nayi ya barabar ho to use haath mat lagao (haath ke edits
+    jeette hain). Kabhi crash nahi karta - fail ho to _ui_page
+    waise bhi nayi copy serve kar dega.
+    """
     try:
         f = BASE_DIR / "ui.html"
         if f.is_file():
-            return f.read_text(encoding="utf-8")
+            current = f.read_text(encoding="utf-8", errors="replace")
+            if _ui_version_of(current) >= UI_VERSION:
+                return
+        f.write_text(UI_HTML, encoding="utf-8")
+        log(f"UI BOOTSTRAP: ui.html embedded copy se sync ki "
+            f"(v{UI_VERSION})")
+    except Exception as exc:
+        log(f"UI BOOTSTRAP fail (chal raha hu): {exc}")
+
+
+def _ui_page() -> str:
+    """Disk wali ui.html aur embedded copy - dono me se NAYI
+    version wali serve karo (self-update ke baad purani disk
+    file nayi screen ko rok na sake)."""
+    try:
+        f = BASE_DIR / "ui.html"
+        if f.is_file():
+            disk = f.read_text(encoding="utf-8")
+            if _ui_version_of(disk) >= _ui_version_of(UI_HTML):
+                return disk
     except Exception:
         pass
     return UI_HTML
@@ -2873,7 +4062,12 @@ class AskHandler(BaseHTTPRequestHandler):
                 log("HTTP /ask REJECTED (wrong PIN)")
                 self._send_json(403, {"error": "wrong PIN"})
                 return
-        reply = ask_agent(str(payload.get("message", "")))
+        # Photo (optional): "image" = base64 data (bina data-URL
+        # prefix ke), "image_mime" = uska mime (image/png adi).
+        img = payload.get("image")
+        reply = ask_agent(str(payload.get("message", "")),
+                          image=img if isinstance(img, str) else None,
+                          image_mime=payload.get("image_mime"))
         self._send_json(200, {"reply": reply})
 
 
@@ -2896,6 +4090,9 @@ def main() -> int:
     parser.add_argument("--no-server", action="store_true",
                         help="do not start the HTTP hook")
     args = parser.parse_args()
+
+    ensure_bundled_skills()
+    ensure_ui_file()
 
     if not args.no_server:
         start_http_server()
