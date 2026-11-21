@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browse Movies by Genre — MindBendMovies</title>
+<meta name="description" content="Browse movies by genre on MindBendMovies — horror, thriller, mystery and mind-bending movies with ratings, trailers and where to watch.">
+<meta name="google-site-verification" content="plG_idpw8vkLWc49nNQHUWj274ddIs7JMaUtaBfnPjQ">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1014; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; overflow-x: hidden; overflow-x: clip; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  header { background: #16161c; border-bottom: 2px solid #0072ce; padding: 12px 16px; position: sticky; top: 0; z-index: 60; }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: .3px; }
+  .logo span { color: #0072ce; }
+  nav { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 2px; }
+  nav a { background: #22222b; border: 1px solid #33333f; color: #e8e9ec; font-size: 13px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  nav a.on { background: #0072ce; border-color: #0072ce; color: #fff; }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 24px; margin: 6px 0 4px; }
+  .count { color: #b8bcc4; font-size: 14px; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (min-width: 760px) { .grid { grid-template-columns: repeat(6, 1fr); } }
+  .card { background: #16161c; border: 1px solid #26262f; border-radius: 12px; overflow: hidden; }
+  .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+  .card .t { font-size: 13px; font-weight: 600; line-height: 1.35; padding: 8px 9px 2px; }
+  .card .r { font-size: 12px; color: #f5c518; padding: 0 9px 10px; }
+  .adbox { max-width: 100%; overflow: hidden; text-align: center; margin: 20px auto; }
+  .more { display: block; margin: 22px auto 6px; background: #0072ce; color: #fff; border: none; font-size: 15px; font-weight: 700; padding: 12px 28px; border-radius: 999px; cursor: pointer; }
+  .genres { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .genre { border-radius: 14px; padding: 20px 16px; font-size: 18px; font-weight: 800; border: 1px solid rgba(255,255,255,.14); }
+  .genre small { display: block; font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,.85); margin-top: 4px; }
+  .g1 { background: linear-gradient(135deg, #5b0d0d, #a31212); }
+  .g2 { background: linear-gradient(135deg, #0d2f5b, #0072ce); }
+  .g3 { background: linear-gradient(135deg, #2d1152, #6d28a8); }
+  .g4 { background: linear-gradient(135deg, #083f35, #0e9b7a); }
+  footer { border-top: 1px solid #26262f; color: #8a8f98; font-size: 12px; line-height: 1.7; padding: 20px 16px 90px; text-align: center; }
+</style>
+<script>
+(function () {
+  try {
+    var key = 'mbmpop_' + location.pathname + location.search + '_' + new Date().toISOString().slice(0, 10);
+    if (!localStorage.getItem(key)) {
+      var s = document.createElement('script');
+      s.src = 'https://aarems.org/1/9e054dd95c9536fb014390fafe7b8026';
+      s.setAttribute('data-cfasync', 'false');
+      document.head.appendChild(s);
+      localStorage.setItem(key, '1');
+    }
+  } catch (e) {}
+})();
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9XB8WR0RNL"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-9XB8WR0RNL');
+</script>
+</head>
+<body>
+<header>
+  <div class="logo">MindBend<span>Movies</span></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="index.html#latest">Movies</a>
+    <a href="index.html#top10">Top 10</a>
+    <a href="index.html#news">Movie News</a>
+    <a href="series.html">AI Drama Series</a>
+    <a href="app.html">Download App</a>
+  </nav>
+</header>
+
+<div class="wrap" id="slot">
+  <h1 id="gTitle">Browse by Genre</h1>
+  <div class="count" id="gCount">Loading…</div>
+  <div class="grid" id="gridA"></div>
+  <div class="adbox"><div class="native-slot"></div></div>
+  <div class="grid" id="gridB"></div>
+  <button class="more" id="moreBtn" style="display:none">Load More Movies</button>
+  <div id="picker" style="display:none">
+    <div class="genres">
+      <a class="genre g1" href="genre.html?g=horror">Horror<small>Disturbing, terrifying, unforgettable</small></a>
+      <a class="genre g2" href="genre.html?g=thriller">Thriller<small>Twists that keep you guessing</small></a>
+      <a class="genre g3" href="genre.html?g=mystery">Mystery<small>Every clue hides another secret</small></a>
+      <a class="genre g4" href="genre.html?g=mind-bending">Mind-Bending<small>Endings that rewire your brain</small></a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  MindBendMovies — Disturbing Movies, Twisted Thrillers &amp; Hidden Gems.<br>
+  Movie posters and artwork via TMDB.
+</footer>
+
+<script data-cfasync="false" src="https://bancadeltempoidea.org/14/287bb9ff9ab2c00132f1070f21a5a6f9"></script>
+<script>
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+var GENRES = {
+  'horror': { title: 'Horror Movies', test: function (m) { return (m.genres || []).indexOf('Horror') !== -1; } },
+  'thriller': { title: 'Thriller Movies', test: function (m) { return (m.genres || []).indexOf('Thriller') !== -1; } },
+  'mystery': { title: 'Mystery Movies', test: function (m) { return (m.genres || []).indexOf('Mystery') !== -1; } },
+  'mind-bending': { title: 'Mind-Bending Movies', test: function (m) { var g = m.genres || []; return (g.indexOf('Science Fiction') !== -1 || g.indexOf('Mystery') !== -1) && (m.rating || 0) >= 7.0; } },
+  'crime': { title: 'Crime Movies', test: function (m) { return (m.genres || []).indexOf('Crime') !== -1; } },
+  'science-fiction': { title: 'Sci-Fi Movies', test: function (m) { return (m.genres || []).indexOf('Science Fiction') !== -1; } }
+};
+function loadNativeAds() {
+  document.querySelectorAll('.native-slot').forEach(function (el) {
+    var c = document.createElement('div');
+    c.id = 'container-80e3d4b38273e18de4e9dce240240458';
+    el.appendChild(c);
+    var s = document.createElement('script');
+    s.async = true;
+    s.setAttribute('data-cfasync', 'false');
+    s.src = 'https://bancadeltempoidea.org/21/80e3d4b38273e18de4e9dce240240458';
+    el.appendChild(s);
+  });
+}
+function card(m) {
+  return '<a class="card" href="movie.html?id=' + m.id + '"><img loading="lazy" src="' + esc(m.poster) + '" alt="' + esc(m.title) + ' poster"><div class="t">' + esc(m.title) + (m.year ? ' (' + m.year + ')' : '') + '</div><div class="r">★ ' + (m.rating ? m.rating.toFixed(1) : '—') + '</div></a>';
+}
+var g = new URLSearchParams(location.search).get('g');
+var def = GENRES[g];
+if (!def) {
+  document.getElementById('gCount').textContent = 'Pick a genre:';
+  document.getElementById('picker').style.display = 'block';
+  document.querySelector('.adbox').style.display = 'none';
+} else {
+  document.title = def.title + ' — MindBendMovies';
+  document.getElementById('gTitle').textContent = def.title;
+  var list = [], shown = 0, PAGE = 120;
+  function renderMore() {
+    var next = list.slice(shown, shown + PAGE);
+    var html = next.map(card).join('');
+    if (shown === 0) {
+      document.getElementById('gridA').innerHTML = next.slice(0, 24).map(card).join('');
+      document.getElementById('gridB').innerHTML = next.slice(24).map(card).join('');
+    } else {
+      document.getElementById('gridB').innerHTML += html;
+    }
+    shown += next.length;
+    document.getElementById('moreBtn').style.display = shown < list.length ? 'block' : 'none';
+    document.getElementById('gCount').textContent = list.length.toLocaleString('en-US') + ' movies · showing ' + shown;
+  }
+  document.getElementById('moreBtn').addEventListener('click', renderMore);
+  fetch('data/movies.json').then(function (r) { return r.json(); }).then(function (all) {
+    list = all.filter(function (m) { return m.poster && def.test(m); })
+      .sort(function (a, b) { return (b.votes || 0) - (a.votes || 0); });
+    renderMore();
+    loadNativeAds();
+  }).catch(function () {
+    document.getElementById('gCount').textContent = 'Could not load the library. Please check your connection and try again.';
+  });
+}
+</script>
+</body>
+</html>
