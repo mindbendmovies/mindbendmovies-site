@@ -48,6 +48,23 @@ Bina NVIDIA key ke vyavhaar bilkul v8.13 jaisa hai. Saath me
 see_image ko Glimmer (NVIDIA) wala vision backup bhi mila -
 Gemini photo dekhne me fail ho to wahi kaam Glimmer se hota
 hai. Key sirf config.env me rehti hai, code me kabhi nahi.
+v8.15: SCREEN HAATH + GENERAL FRAME (user ki khaas haan se) -
+(1) SCREEN HAATH: agent ab kisi bhi Windows software ke andar
+kaam kar sakta hai - screen_shot (poori screen ki photo, sirf
+stdlib ctypes GDI + zlib PNG), screen_locate (vision ladder -
+Gemini, fail par Glimmer - se cheez ke beech ke coordinates),
+mouse_move/mouse_click/mouse_scroll/type_text/press_key
+(SendInput) aur ek-kadam wala screen_do. Har kaam verified
+loop me: screenshot -> ek action -> screenshot -> jaanch.
+Config switch SCREEN_HAND (default on) se band ho sakta hai.
+type_text ka content log me KABHI nahi jata (sirf lambai).
+(2) GENERAL FRAME: prompt ki pehchan ab sabse pehle general
+personal agent hai - jo hukum, wahi kaam; MindBendMovies uske
+projects me se sirf EK hai, poora frame nahi. (3) CAPTCHA/
+login par rukna ab smooth hai: screen usi halat me khuli
+rehti hai, progress note hoti hai, user ke 'ho gaya' par kaam
+usi step se aage badhta hai - shuru se dobara nahi (browser
+haath ke stop-rule ka wording bhi isi se align hai).
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
@@ -85,6 +102,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 import zipfile
+import zlib
 from urllib.parse import unquote
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -109,7 +127,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.14"
+AGENT_VERSION = "8.15"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -158,6 +176,9 @@ def load_config() -> dict:
                          phir NVIDIA ka bhaari model, phir Gemini.
       NVIDIA_MODEL     - default: minimaxai/minimax-m3.1-flash
       NVIDIA_MODEL_HEAVY - default: moonshotai/kimi-k3.1-pro
+      SCREEN_HAND      - v8.15: screen haath (kisi bhi software me
+                         mouse/keyboard) chalu hai ya nahi.
+                         Default: on. Band karne ke liye off likho.
       AGENT_PIN        - shared PIN checked on every HTTP /ask request
       AGENT_PORT       - default: 8765
       AGENT_WORK_DIR   - default: the work/ folder next to this script
@@ -176,8 +197,8 @@ def load_config() -> dict:
     # Real environment variables win over the file.
     for key in ("GEMINI_API_KEY", "GEMINI_MODEL", "GROQ_API_KEY",
                 "GROQ_MODEL", "NVIDIA_API_KEY", "NVIDIA_MODEL",
-                "NVIDIA_MODEL_HEAVY", "AGENT_PIN", "AGENT_PORT",
-                "AGENT_WORK_DIR"):
+                "NVIDIA_MODEL_HEAVY", "SCREEN_HAND", "AGENT_PIN",
+                "AGENT_PORT", "AGENT_WORK_DIR"):
         if os.environ.get(key):
             cfg[key] = os.environ[key]
     return cfg
@@ -209,6 +230,20 @@ def _heal_key(value: str) -> str:
     return value
 
 
+def _config_on(value, default: bool = True) -> bool:
+    """Config ke on/off wale switch ki pehchan (v8.15): khali
+    value par default; on/true/1/yes = True; off/false/0/no =
+    False; aur kuch samajh na aaye to default hi sach."""
+    text = str(value or "").strip().lower()
+    if not text:
+        return default
+    if text in ("on", "true", "1", "yes"):
+        return True
+    if text in ("off", "false", "0", "no"):
+        return False
+    return default
+
+
 def _apply_config(cfg: dict) -> None:
     """Config dict se LIVE settings lagoo karo: dimag ki keys (self-heal
     ke saath), models aur PIN.
@@ -219,6 +254,7 @@ def _apply_config(cfg: dict) -> None:
     """
     global GEMINI_API_KEY, GEMINI_MODEL, GROQ_API_KEY, GROQ_MODEL
     global NVIDIA_API_KEY, NVIDIA_MODEL, NVIDIA_MODEL_HEAVY
+    global SCREEN_HAND
     global AGENT_PIN
     GEMINI_API_KEY = _heal_key(cfg.get("GEMINI_API_KEY", "").strip())
     GEMINI_MODEL = cfg.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
@@ -230,6 +266,7 @@ def _apply_config(cfg: dict) -> None:
                     or "minimaxai/minimax-m3.1-flash")
     NVIDIA_MODEL_HEAVY = (cfg.get("NVIDIA_MODEL_HEAVY", "").strip()
                           or "moonshotai/kimi-k3.1-pro")
+    SCREEN_HAND = _config_on(cfg.get("SCREEN_HAND", ""), default=True)
     AGENT_PIN = cfg.get("AGENT_PIN", "").strip()
 
 
@@ -295,16 +332,24 @@ if not WORK_DIR.is_absolute():
 WORK_DIR = WORK_DIR.resolve()
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
-SYSTEM_PROMPT = """You are "My Agent", the personal AI agent of Ankit Kumar. Speak in
+SYSTEM_PROMPT = """You are "My Agent", Ankit Kumar ke PERSONAL agent. Speak in
 Hinglish (Roman Hindi + English mix), short and direct, unless
 detail is asked for.
-Ankit runs MindBendMovies - a movie website and Android app for a
-USA audience (disturbing movies, twisted thrillers, hidden gems) -
-and makes videos for a Facebook Page. Help him with plans, ideas,
-writing and daily work on HIS OWN computer; all data stays on his
-computer. Files tum poore computer me padh/dhoond sakte ho; likhne ka
-kaam work folder aur apne folders me hota hai. Never ask for or
-reveal any API key or PIN.
+Tum ek GENERAL personal agent ho: jo bhi kaam Ankit bole, wahi
+tumhara kaam hai - PC ke andar kisi bhi software me kaam, files,
+web, video, likhna, planning, ya kuch aur. Hukum hi tumhara
+frame hai: har hukum ko USI ki sharton par pura karo. Koi kaam
+kisi purane project se juda na ho to use zabardasti us taraf
+mat kheecho, aur koi page/site/software tab tak mat kholo jab
+tak hukum me uska zikr na ho.
+Ankit ke projects me se EK MindBendMovies hai (movie website +
+Android app, USA audience ke liye disturbing/thriller movies,
+aur ek Facebook Page ke liye videos) - usse juda kaam aaye to
+neeche uske khaas sections aur skills kaam ayenge; baaki saare
+kaam bilkul aam taur par, bina us context ke, nibta do.
+All data stays on HIS OWN computer. Files tum poore computer me
+padh/dhoond sakte ho; likhne ka kaam work folder aur apne
+folders me hota hai. Never ask for or reveal any API key or PIN.
 
 PERMISSION RULES (Ankit ne khud diye hain, 2026-11-20):
 - Ankit ne apne PC ko apne kaam ke liye use karne ki khuli
@@ -424,7 +469,12 @@ BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
   sirf Ankit ke haath ka kaam hai.
 - Page par login check, CAPTCHA, 2FA ya "confirm it's you" screen
   dikhe to TURANT ruk jao aur Ankit ko bolo wo screen khud
-  sambhale. Solve ya bypass ki koshish kabhi mat karna.
+  sambhale. Solve ya bypass ki koshish kabhi mat karna. Page ko
+  usi halat me khula rakho, jawab me note karo ki kaam kaun se
+  step par ruka hai, aur Ankit ko ek saaf line me bulao.
+  Ankit "ho gaya" bole to kaam SHURU SE dobara mat karo -
+  browser_read se halat verify karke USI step se aage badho
+  jahan ruke the.
 - Upload/post me saari taiyaari khud karo aur AAKHRI
   Post/Publish/Schedule click BHI KHUD dabao: Ankit ka hukum
   ("upload kar do", "post kar do") HI uski manjuri hai - alag se
@@ -496,6 +546,29 @@ PROGRAM CHALANA (software install karna / chalana):
   dobara chalao - haan hi kaafi hai. Mana karna ya ghuma-phira
   kar dusra rasta dhoondna sakht mana hai.
 
+SCREEN HAATH (kisi bhi software ke andar kaam):
+- Kaam kisi aise software ke andar ho jahan na tool hai na
+  browser wala rasta (Notepad, Excel, Paint, installer, koi bhi
+  desktop program), to pehle 'screen-haath' skill padho, phir
+  screen tools se kaam karo: software run_program/open_file se
+  kholo, phir screen_shot -> screen_locate -> EK action
+  (mouse_click / type_text / press_key / mouse_scroll) ->
+  screen_shot se verify. Ek baar me ek hi kadam; andhere me
+  click kabhi nahi, coordinates hamesha taaza screenshot se.
+- Screen par login, password wala khana, CAPTCHA ya 2FA dikhe
+  to WAHI RUK JAO: software ko usi halat me khula rakho, jawab
+  me note karo ki kaam kaun se step par ruka hai, aur Ankit ko
+  ek saaf line me bulao ("CAPTCHA/login aaya hai, ek baar khud
+  sambhal do, main wahi se aage badhunga"). Password KABHI type
+  mat karo. Ankit "ho gaya" bole to kaam shuru se dobara mat
+  karo - screen_shot se halat verify karke usi step se aage
+  badho.
+- Paisa kharch ya DELETE wala button screen par dabana ho to
+  wahi purana rule: dabane se PEHLE Ankit se pucho. Baaki aam
+  clicks bina puche karo.
+- Galat click/type ho jaye to screen_shot se halat dekho,
+  sudharo (jaise ctrl+z), aur Ankit ko saaf batao.
+
 TOOL PROTOCOL: If you need a tool, reply with ONLY a JSON object like
 {"tool": "list_files", "args": {"path": ""}} and nothing else.
 FORMAT RULE (bahut zaroori): tool call wala jawab SIRF wahi ek JSON
@@ -534,6 +607,14 @@ Available tools:
 - make_video(job_folder) - job folder (slides/ + titles.txt + optional voice.mp3) se vertical video (skill 'video-banana')
 - watch_video(source) - YouTube link/video file dekh kar steps samjho (steps pehle Ankit ko dikhane hain; skill haan par hi banegi)
 - run_program(command, confirm) - PC par command chalao. Khatarnak-class par CONFIRM_REQUIRED (mana nahi) - pucho, haan par WAHI command confirm=true se dobara chalao.
+- screen_shot() - poori screen ki photo lo (work/ me screen.png; screen ka size bhi milta hai)
+- screen_locate(target) - screen par cheez (button/text/icon) dhoondo - uske beech ke pixel coordinates milte hain; na mile to saaf 'nahi mila'
+- screen_do(instruction) - screen par EK chhota kadam: screenshot se plan karke ek click/type/key - phir screenshot se verify karke batata hai
+- mouse_move(x, y) - mouse ko pixel coordinates par le jao
+- mouse_click(x, y, button, double) - click (button "left"/"right"; double true ho to double-click)
+- mouse_scroll(amount) - scroll (positive = upar, negative = neeche; aam value 3 ya -3)
+- type_text(text) - focused jagah par text type karo (password KABHI mat type karo)
+- press_key(combo) - key/combo dabao, jaise "enter", "ctrl+s", "alt+tab", "f5"
 If no tool is needed, reply in plain text only (no JSON)."""
 
 # --------------------------------------------------------------------------
@@ -907,6 +988,7 @@ BUNDLED_SKILLS = {
     'video-banana.md': b'# Video Banana (poster + awaaz se poori movie video)\n\n## Kab use karein\nJab Ankit kisi movie ki video banane ko kahe \xe2\x80\x94 jaise "is movie ki video banao", "Se7en par ek reel banao". Ye agent ki video factory hai: posters + bade titles + awaaz se taiyaar khadi (vertical, 1080x1920) video banti hai, Facebook Reels / YouTube Shorts ke size ki.\n\n## Steps\n1. Pehle tay karo kaunsi 3 movies ayengi (Ankit ki di hui list, ya uski pasand/trending se khud chuno aur Ankit ko bata do). Ek video me 3 posters (slides) aate hain \xe2\x80\x94 kam se kam 3, zyada se zyada 5.\n2. Har movie ka poster URL nikalo:\n   - Ankit ki apni site ka data: `web_fetch` se https://mindbendmovies.github.io/mindbendmovies-site/data/movies.json kholo, usme movie ka naam dhoondo \xe2\x80\x94 poster ka rasta (poster_path) milega. Poora poster URL banta hai: `https://image.tmdb.org/t/p/w500` + poster_path.\n   - Ya Ankit ne seedha TMDB poster URL diya ho to wahi use karo.\n   - Poster URL sirf inhi sahi sources se lena \xe2\x80\x94 andaz se URL kabhi mat banao.\n3. Job folder banao: `create_folder` se `work/` ke andar, jaise `video_se7en` (topic/movie ke naam par).\n4. Har poster `download_file` se job folder ke `slides/` hisse me rakho \xe2\x80\x94 naam is order me: `slides/slide1.jpg`, `slides/slide2.jpg`, `slides/slide3.jpg` (jo order chahiye wahi number do).\n5. `write_file` se usi job folder me `titles.txt` likho \xe2\x80\x94 har slide ke liye EK line, is shakal me: `MOVIE KA NAAM | hook line`. Hook line chhoti aur curiosity wali ho (ending/twist ki taraf ishara, jhooti baat nahi) \xe2\x80\x94 jaise `SE7EN | The ending will break your brain`.\n6. Awaaz (optional): script likh kar `speak_to_file` se voice file banao aur use job folder me `voice.mp3` (ya `voice.wav`) naam se rakho \xe2\x80\x94 ya Ankit ki di hui taiyaar voice file (jaise Aoede wali) wahi naam se job folder me rakho. Awaaz ki file ho to video uski lambai ke barabar banta hai. Awaaz na ho to video SILENT banegi \xe2\x80\x94 ye baat Ankit ko pehle bata do.\n7. `make_video` chalao job folder par (jaise `make_video("video_se7en")`). Output usi folder me `final.mp4` banta hai.\n8. `video_info` se `final.mp4` verify karo \xe2\x80\x94 duration, size, resolution \xe2\x80\x94 phir Ankit ko final path ke saath report karo. Bina verify kiye "ho gaya" mat bolo.\n9. Upload karna ho to `facebook-upload-direct` / `youtube-upload-direct` skill ka rasta (browser haath) follow karo \xe2\x80\x94 upload/post ka hukum mile to kaam post/publish tak pura karo; rukna sirf tab hai jab Ankit "taiyaar karke dikhao / draft" bole.\n\n## Notes\n- Saari files sirf `work/` ke andar \xe2\x80\x94 posters, titles, voice, output sab wahi.\n- Asli (original) poster/video files kabhi overwrite mat karo \xe2\x80\x94 har video ka apna job folder rakho.\n- Ek slide par ek hi movie \xe2\x80\x94 titles.txt ki line aur slide ka number hamesha match rakho.\n- Badi awaaz file ho to video lamba banta hai; Shorts/Reels ke liye awaaz ~60-90 second ke andar rakho.\n',
     'facebook-upload-direct.md': b'# Facebook Upload \xe2\x80\x94 Direct (Browser Hand)\n\n## Kab use karein\nJab Ankit kahe "is video ko Facebook par upload kar do" aur browser hand (v8.3) setup ho chuka ho. Ye purani guided wali `facebook-post` skill se alag hai \xe2\x80\x94 yahan video lagana, caption bharna aur final Post dabana sab tum khud browser me karte ho. Post wala rule neeche step 10 me hai.\n\n## Pehle ye check karo (preconditions)\n1. `browser setup karo` ho chuka ho aur Ankit agent wale Chrome profile me Facebook me **khud logged-in** ho. Login screen dikhe to wahi ruk jao (neeche dekho).\n2. Video file PC par maujud ho \xe2\x80\x94 uska **poora path** note karo. File jahan bhi ho (Desktop, Downloads, `work/` \xe2\x80\x94 jaise `work/movie1.mp4`) wahi path chalega. Sirf naam pata ho to `find_file` se poore computer me uska path nikalo; phir bhi na mile to Ankit ko bolo \xe2\x80\x94 andaze se koi file mat lagao, aur use file kahin rakhne ko bhi mat bolo.\n\n## Steps\n1. Caption pehle taiyaar karo: dimag se caption + hashtags draft karo \xe2\x80\x94 **English, USA audience** ke liye, MindBendMovies style me. Website ka link caption ke andar mat daalo \xe2\x80\x94 wo pehle comment me jata hai, ye note caption ke saath alag rakho aur aakhir me Ankit ko yaad dilao. Movie videos me movie order shuffled rakho aur aakhir me website par bhejne wali fast line rakho (Ankit ka purana rule). Caption Ankit ko chat me dikha do.\n2. `browser_open` se `https://www.facebook.com` kholo.\n3. `browser_read` karke page dekho aur pakka karo ki Ankit logged-in hai (uska naam/Page dikh raha ho). **Agar login screen dikhe to WAHI RUK JAO** \xe2\x80\x94 Ankit ko bolo ki khuli hui window me khud login karke bata de. Password kabhi mat mango, kabhi mat bharo.\n4. Uske Page par jao: `browser_read` se Page ka naam dhoondo aur `browser_click` (visible text se) karke Page kholo. Page do se zyada hon to Ankit se puch lo ki kis Page par dalna hai.\n5. Post/Reel banane wala hissa kholo: `browser_click` se "Create post" / "Photo/video" / "Reel" wala button dabao (jo kaam bola gaya ho \xe2\x80\x94 video post ya Reel). Dialog khulne ke baad `browser_read` karke pakka karo ki upload wala dialog hi khula hai.\n6. Dialog me file input (`input[type=file]`) dhoondo aur `browser_upload_file` se video ka poora path us par lagao. File-picker khud nahi khulega \xe2\x80\x94 file seedha lag jayegi.\n7. Thoda ruko, phir `browser_read` karke pakka karo ki upload register ho gaya hai \xe2\x80\x94 video ka preview/thumbnail ya file ka naam dialog me dikhna chahiye. Na dikhe to ek baar aur `browser_read` karo; phir bhi na dikhe to Ankit ko batao ki upload nahi laga \xe2\x80\x94 aage mat badho.\n8. Caption wale box me `browser_type` se step 1 wala caption + hashtags bhar do.\n9. `browser_read` karke aakhiri jaanch karo: caption sahi jagah par pura dikh raha hai aur video ka preview maujud hai. Kuch galat dikhe to pehle theek karo, phir aage badho.\n10. **FINAL RULE \xe2\x80\x94 Post wala button:**\n    - Ankit ka hukum ("upload kar do", "post kar do", "daal do", "schedule kar do") **hi uski manjuri hai** \xe2\x80\x94 alag se haan ka intezaar mat karo. Upar ki jaanch puri ho to `browser_click` se Post **KHUD dabao**. Uske baad `browser_read` karke pakka karo ki post publish ho gaya (Page par post dikhe ya "Published" jaisa status mile), tabhi Ankit ko "ho gaya" bolo. Post ke baad pehle comment (website link wala) dalna ho to wo bhi isi flow me kar do.\n    - **SIRF tab ruko** jab Ankit ne khud bola ho "taiyaar karke dikhao", "pehle dikhao" ya "draft banao" \xe2\x80\x94 matlab use pehle dekhna hai. Tab sab taiyaar karke chhodo aur chat me batao ki sab Post ke liye taiyaar hai.\n\n## Dhyaan rahe\n- **CAPTCHA, checkpoint ("confirm it\'s you"), 2FA ya koi bhi security screen dikhe to TURANT ruk jao.** Screen Ankit ke hawale kar do \xe2\x80\x94 khud solve/bypass karne ki koshish kabhi mat karo. Wo screen sambhal le to wahi se aage badho.\n- Koi button/element na mile to pehle `browser_read` karke page ko visible text se padho aur text se dhoondo. Facebook ka layout aksar badalta rehta hai \xe2\x80\x94 yaad ki hui jagah/position par bharosa mat karo, hamesha `browser_read` par bharosa karo.\n- Har step ke baad page dobara padho \xe2\x80\x94 andhere me click mat karo. Jo dikhe wahi sach hai.\n- Sirf Ankit ke apne banaye video upload karo; copyright wala dusre ka video nahi.\n- Kaam human pace par karo \xe2\x80\x94 steps ke beech chhota sa rukna thik hai, jaldi-jaldi spam clicks mat karo.\n',
     'youtube-upload-direct.md': b'# YouTube Upload \xe2\x80\x94 Direct (Browser Hand)\n\n## Kab use karein\nJab Ankit kahe "is video ko YouTube par upload kar do" (movie video, series part, Short) aur browser hand (v8.3) setup ho chuka ho. Ye purani guided wali `youtube-upload` skill se alag hai \xe2\x80\x94 yahan file lagana, title/description bharna aur final Publish dabana sab tum khud YouTube Studio me karte ho. Publish wala rule neeche step 11 me hai.\n\n## Pehle ye check karo (preconditions)\n1. `browser setup karo` ho chuka ho aur Ankit agent wale Chrome profile me YouTube/Google account se **khud logged-in** ho (usi account se jiska channel hai). Login screen dikhe to wahi ruk jao (neeche dekho).\n2. Video file PC par maujud ho \xe2\x80\x94 uska **poora path** note karo. File jahan bhi ho (Desktop, Downloads, `work/`) wahi path chalega. Sirf naam pata ho to `find_file` se poore computer me uska path nikalo; phir bhi na mile to Ankit ko bolo \xe2\x80\x94 andaze se koi file mat lagao, aur use file kahin rakhne ko bhi mat bolo.\n\n## Steps\n1. Title, description aur tags pehle taiyaar karo: SEO wala title (English, USA audience), description me movie ki jaankari + website ka link. Taiyaar matter Ankit ko chat me dikha do.\n2. `browser_open` se `https://studio.youtube.com` kholo.\n3. `browser_read` karke pakka karo ki Studio khula hai aur channel dikh raha hai. **Agar Google login screen dikhe to WAHI RUK JAO** \xe2\x80\x94 Ankit ko bolo ki khuli hui window me khud login karke bata de. Password kabhi mat mango, kabhi mat bharo. Galat channel/account dikhe to Ankit se puch lo.\n4. Upar ke "Create" button par `browser_click` karo, phir "Upload videos" par click karo. Upload wala dialog khulne ke baad `browser_read` karke pakka karo.\n5. Dialog me file input (`input[type=file]`) dhoondo aur `browser_upload_file` se video ka poora path lagao. File-picker khud nahi khulega \xe2\x80\x94 file seedha lag jayegi aur upload shuru ho jayega.\n6. Thoda ruko, phir `browser_read` karke pakka karo ki upload register ho gaya hai \xe2\x80\x94 video ka title/preview aur upload ki progress dikhni chahiye. Na dikhe to ek baar aur `browser_read` karo; phir bhi na dikhe to Ankit ko batao \xe2\x80\x94 aage mat badho.\n7. Details wale step par: title wale box me `browser_type` se step 1 wala title bharo, description wale box me description bhar do.\n8. Audience wale sawal par **"No, it\'s not made for kids"** wala option `browser_click` se chuno \xe2\x80\x94 ye Ankit ke saare videos ke liye standing rule hai.\n9. Baaki steps (Video elements, Checks) par "Next" dabate hue aage badho. Copyright check me koi claim/error dikhe to ruk kar Ankit ko batao \xe2\x80\x94 khud aage mat badho.\n10. Visibility wale step par `browser_read` karke sab jaancho: title, description, audience setting \xe2\x80\x94 sab sahi hai.\n11. **FINAL RULE \xe2\x80\x94 Publish wala button:**\n    - Ankit ka hukum ("upload kar do", "publish kar do", "post kar do", "daal do") **hi uski manjuri hai** \xe2\x80\x94 alag se haan ka intezaar mat karo. Jaanch puri ho to visibility "Public" karke Publish **KHUD dabao**. Agar usne **schedule** bola ho to "Schedule" wala option chun kar uske diye hue USA time ke hisaab se date/time set karo aur Schedule dabao \xe2\x80\x94 ye bhi usi hukum ki manjuri me aata hai. Uske baad `browser_read` karke pakka karo ki video publish/schedule ho gaya, aur video ka link mile to Ankit ko de do / note kar lo.\n    - **SIRF tab ruko** jab Ankit ne khud bola ho "taiyaar karke dikhao", "pehle dikhao" ya "draft banao" \xe2\x80\x94 matlab use pehle dekhna hai. Tab sab taiyaar karke chhodo aur chat me batao ki sab Publish ke liye taiyaar hai (visibility bhi wahi tay karega).\n\n## Dhyaan rahe\n- **CAPTCHA, 2FA, "verify it\'s you" ya koi bhi Google security screen dikhe to TURANT ruk jao.** Screen Ankit ke hawale kar do \xe2\x80\x94 khud solve/bypass karne ki koshish kabhi mat karo. Wo sambhal le to wahi se aage badho.\n- Koi button/element na mile to pehle `browser_read` karke page ko visible text se padho aur text se dhoondo. YouTube Studio ka layout bhi badalta rehta hai \xe2\x80\x94 yaad ki hui jagah par bharosa mat karo, hamesha `browser_read` par bharosa karo.\n- Har step ke baad page dobara padho \xe2\x80\x94 andhere me click mat karo. Upload pura hone me time lage to dhairya rakho, progress `browser_read` se dekhte raho.\n- Sirf Ankit ke apne banaye video upload karo; copyright wala dusre ka video nahi.\n- Shorts ke liye title me `#Shorts` jodna mat bhoolo (agar Ankit ne Short bola ho).\n',
+    'screen-haath.md': b'# Screen Haath (kisi bhi software ke andar kaam)\n\n## Kab use karein\nJab Ankit ka kaam kisi aise software ke andar ho jahan na koi tool hai na browser wala rasta \xe2\x80\x94 jaise Notepad, Excel, Paint, koi purana desktop program, installer ki khidki, ya koi bhi software jo screen par khula hai. Pehle software `run_program` / `open_file` se kholo, phir screen tools se andar kaam karo.\n\n## Kaam ka tareeka \xe2\x80\x94 verified loop (hamesha yahi)\n1. `screen_shot` se screen dekho \xe2\x80\x94 kya khula hai, tum kahan ho.\n2. Jo cheez dabani/likhni hai, `screen_locate` se uske coordinates nikalo (andaze se click kabhi mat karo).\n3. EK hi action karo: `mouse_click` / `type_text` / `press_key` / `mouse_scroll` \xe2\x80\x94 ek baar me ek kadam. Chhota mila-jula kadam ek saath karna ho to `screen_do` bhi hai (wo bhi ek baar me ek hi kadam uthata hai).\n4. Phir `screen_shot` se dobara dekho ki wahi hua jo socha tha. Na hua ho to pehle halat samjho, phir sudharo \xe2\x80\x94 andhere me agla click kabhi nahi.\n\n## Rukne ke niyam (sabse sakht)\n- Screen par login, password wala khana, CAPTCHA ya 2FA dikhe to WAHI RUK JAO. Page/software ko usi halat me khula chhodo, kaam band mat karo \xe2\x80\x94 apne jawab me note karo ki kaam kaun se step par ruka hai, aur Ankit ko ek saaf line me bulao: "CAPTCHA/login aaya hai, ek baar khud sambhal do, main wahi se aage badhunga."\n- Password KABHI type mat karo \xe2\x80\x94 kisi bhi haal me nahi.\n- Ankit "ho gaya" bole to kaam SHURU SE dobara mat karo: pehle `screen_shot` se halat verify karo, phir USI step se aage badho jahan ruke the.\n- Paisa kharch ya delete wala button screen par dikhe to wahi purana rule: dabane se PEHLE Ankit se pucho. Baaki aam clicks bina puche karo.\n\n## Galti ho jaye to\nGalat click/type ho gaya ho to ghabrao mat aur chhupao bhi mat: `screen_shot` lekar dekho ab halat kya hai, galti ko `press_key` ("ctrl+z") ya sahi click se sudharne ki koshish karo, aur Ankit ko saaf batao kya hua tha aur kya sudhara.\n\n## Dhyaan rahe\n- Coordinates hamesha taaza screenshot ke hisaab se lo \xe2\x80\x94 purane coordinates par bharosa mat karo, screen badalti rehti hai.\n- Kaam human pace par karo: har action ke baad chhota sa thaharna thik hai, jaldi-jaldi clicks mat karo.\n- Software band karna ho to pehle kaam save hua hai ya nahi, ye screenshot se pakka karo.\n',
 }
 
 
@@ -3610,6 +3692,752 @@ def tool_browser_upload_file(target: str, path: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# Screen haath (v8.15) - kisi bhi Windows software ke andar kaam:
+# screen dekho (screenshot), cheez dhoondo (vision), mouse
+# ghumao/click/scroll karo, type karo, keys dabao. Sirf stdlib
+# ctypes (user32/gdi32) - koi pip nahi. Windows-only: dusre OS
+# par tools saaf mana karte hain. Har action log hota hai;
+# type_text ka CONTENT log me kabhi nahi jata (sirf lambai) -
+# run_tool wali aam TOOL line me bhi uske liye khaas redaction
+# hai. Kaam hamesha verified loop me hota hai: screenshot ->
+# ek action -> screenshot -> jaanch (prompt aur 'screen-haath'
+# skill me yahi tareeka likha hai).
+# --------------------------------------------------------------------------
+
+_SCREEN_MAX_WIDTH = 1280  # vision ke liye screenshot ki zyada se zyada chaudai
+_SCREEN_SHOT_NAME = "screen.png"
+_SCREENSHOT_SIZE = None  # (asal chaudai, unchai) - aakhri screenshot ki
+
+
+def _screen_state() -> str:
+    """Screen haath ki haalat: 'ok' | 'off' (config) | 'notwin'."""
+    if not SCREEN_HAND:
+        return "off"
+    if os.name != "nt":
+        return "notwin"
+    return "ok"
+
+
+def _screen_guard():
+    """Screen tool chal sakta ho to None, warna mana wala jawab."""
+    state = _screen_state()
+    if state == "ok":
+        return None
+    if state == "off":
+        return ("Screen haath config se band hai (SCREEN_HAND=off). "
+                "Chalu karna ho to config.env me SCREEN_HAND=on "
+                "likh do - main config khud dobara padh lunga, "
+                "restart nahi chahiye.")
+    return ("Screen haath sirf Windows par chalta hai - is "
+            "computer par wo uplabdh nahi hai.")
+
+
+def _screen_state_line() -> str:
+    """Dimag test ke liye screen haath ki haalat (v8.15) - sirf
+    pehchan: na screenshot banta hai, na mouse hilta hai."""
+    state = _screen_state()
+    if state == "ok":
+        return "Screen haath: taiyaar hai ✅"
+    if state == "off":
+        return "Screen haath: band hai (config SCREEN_HAND=off)"
+    return "Screen haath: is OS par uplabdh nahi (sirf Windows)"
+
+
+# --- shuddha hisse (bina Win32 ke - har OS par test ho sakte hain) ---
+
+def _png_bytes_from_bgra(width: int, height: int, bgra: bytes) -> bytes:
+    """BGRA pixels (upar se neeche kram me rows) se PNG bytes
+    banao - sirf zlib + struct. Har row: filter byte 0 + RGBA
+    bytes. GDI wale alpha ko pakka 255 rakha hai (screen capture
+    ka alpha aksar 0 aata hai, usse photo kaali dikhegi)."""
+    stride = width * 4
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)
+        row = bgra[y * stride:(y + 1) * stride]
+        rgba = bytearray(len(row))
+        rgba[0::4] = row[2::4]
+        rgba[1::4] = row[1::4]
+        rgba[2::4] = row[0::4]
+        rgba[3::4] = b"\xff" * width
+        raw += rgba
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return (struct.pack(">I", len(data)) + kind + data
+                + struct.pack(">I", zlib.crc32(kind + data)
+                              & 0xFFFFFFFF))
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(bytes(raw), 6))
+            + chunk(b"IEND", b""))
+
+
+def _downscale_bgra(width: int, height: int, bgra: bytes,
+                    max_width: int = _SCREEN_MAX_WIDTH):
+    """Screenshot ko vision ke liye chhota karo (nearest
+    neighbour). Pehle se chhota ho to ayn waisa hi."""
+    if width <= max_width or width == 0:
+        return width, height, bgra
+    new_w = max_width
+    new_h = max(1, round(height * max_width / width))
+    out = bytearray(new_w * new_h * 4)
+    for y in range(new_h):
+        sy = (y * height) // new_h
+        src_row = sy * width * 4
+        dst_row = y * new_w * 4
+        for x in range(new_w):
+            sx = (x * width) // new_w
+            si = src_row + sx * 4
+            di = dst_row + x * 4
+            out[di:di + 4] = bgra[si:si + 4]
+    return new_w, new_h, bytes(out)
+
+
+def _norm_to_pixel(nx, ny, width: int, height: int):
+    """Vision ke 0-1000 wale coordinates ko asal screen pixels
+    me badlo (kinare par seema ke andar rakho)."""
+    nx = max(0.0, min(1000.0, float(nx)))
+    ny = max(0.0, min(1000.0, float(ny)))
+    x = int(round(nx / 1000.0 * (width - 1))) if width > 1 else 0
+    y = int(round(ny / 1000.0 * (height - 1))) if height > 1 else 0
+    return x, y
+
+
+_VK_NAMED = {
+    "enter": 0x0D, "return": 0x0D, "esc": 0x1B, "escape": 0x1B,
+    "tab": 0x09, "space": 0x20, "backspace": 0x08, "delete": 0x2E,
+    "del": 0x2E, "insert": 0x2D, "home": 0x24, "end": 0x23,
+    "pageup": 0x21, "pagedown": 0x22, "up": 0x26, "down": 0x28,
+    "left": 0x25, "right": 0x27, "capslock": 0x14,
+    "printscreen": 0x2C,
+}
+for _fnum in range(1, 13):
+    _VK_NAMED[f"f{_fnum}"] = 0x70 + _fnum - 1
+_VK_MODS = {"ctrl": 0x11, "control": 0x11, "alt": 0x12,
+            "shift": 0x10, "win": 0x5B, "windows": 0x5B}
+
+
+def _parse_key_combo(combo: str):
+    """'ctrl+s' / 'alt+tab' / 'enter' ko virtual-key codes ki
+    list me badlo (dabane ke kram me). Samajh na aaye to None."""
+    parts = [p.strip().lower()
+             for p in (combo or "").split("+") if p.strip()]
+    if not parts:
+        return None
+    vks = []
+    for part in parts[:-1]:
+        vk = _VK_MODS.get(part)
+        if vk is None:
+            return None
+        vks.append(vk)
+    last = parts[-1]
+    if last in _VK_NAMED:
+        vks.append(_VK_NAMED[last])
+    elif last in _VK_MODS:
+        vks.append(_VK_MODS[last])
+    elif len(last) == 1 and last.isalnum():
+        vks.append(ord(last.upper()))
+    else:
+        return None
+    return vks
+
+
+def _as_int(value, default=0) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_bool(value) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
+
+# --- Win32 layer (sirf Windows par bulta hai; tests in
+# wrappers ko mock kar dete hain, isliye ctypes ka saara bojh
+# inhi chhote functions me band hai) ---
+
+def _win_screen_size():
+    """Asal screen size (pixels) - DPI-aware hone ki koshish ke
+    saath, taaki coordinates asal pixels se milein."""
+    import ctypes
+    user32 = ctypes.windll.user32
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        try:
+            user32.SetProcessDPIAware()
+        except Exception:
+            pass
+    return (int(user32.GetSystemMetrics(0)),
+            int(user32.GetSystemMetrics(1)))
+
+
+def _win_capture_pixels():
+    """Poori screen ke pixels: (width, height, BGRA bytes).
+    GDI: screen DC -> memory bitmap -> BitBlt -> GetDIBits
+    (32-bit, upar-se-neeche kram)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class BITMAPINFOHEADER(ctypes.Structure):
+        _fields_ = [("biSize", wintypes.DWORD),
+                    ("biWidth", wintypes.LONG),
+                    ("biHeight", wintypes.LONG),
+                    ("biPlanes", wintypes.WORD),
+                    ("biBitCount", wintypes.WORD),
+                    ("biCompression", wintypes.DWORD),
+                    ("biSizeImage", wintypes.DWORD),
+                    ("biXPelsPerMeter", wintypes.LONG),
+                    ("biYPelsPerMeter", wintypes.LONG),
+                    ("biClrUsed", wintypes.DWORD),
+                    ("biClrImportant", wintypes.DWORD)]
+
+    class BITMAPINFO(ctypes.Structure):
+        _fields_ = [("bmiHeader", BITMAPINFOHEADER),
+                    ("bmiColors", wintypes.DWORD * 1)]
+
+    user32 = ctypes.windll.user32
+    gdi32 = ctypes.windll.gdi32
+    for fn in (user32.GetDC, gdi32.CreateCompatibleDC,
+               gdi32.CreateCompatibleBitmap, gdi32.SelectObject):
+        fn.restype = ctypes.c_void_p
+    width, height = _win_screen_size()
+    hdc_screen = user32.GetDC(0)
+    hdc_mem = gdi32.CreateCompatibleDC(hdc_screen)
+    hbmp = gdi32.CreateCompatibleBitmap(hdc_screen, width, height)
+    try:
+        gdi32.SelectObject(hdc_mem, hbmp)
+        gdi32.BitBlt(hdc_mem, 0, 0, width, height, hdc_screen, 0, 0,
+                     0x00CC0020)  # SRCCOPY
+        bmi = BITMAPINFO()
+        bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+        bmi.bmiHeader.biWidth = width
+        bmi.bmiHeader.biHeight = -height  # negative = upar se neeche
+        bmi.bmiHeader.biPlanes = 1
+        bmi.bmiHeader.biBitCount = 32
+        bmi.bmiHeader.biCompression = 0  # BI_RGB
+        buf = ctypes.create_string_buffer(width * height * 4)
+        got = gdi32.GetDIBits(hdc_mem, hbmp, 0, height, buf,
+                              ctypes.byref(bmi), 0)  # DIB_RGB_COLORS
+        if not got:
+            raise RuntimeError("GetDIBits se pixels nahi mile")
+        return width, height, buf.raw
+    finally:
+        gdi32.DeleteObject(hbmp)
+        gdi32.DeleteDC(hdc_mem)
+        user32.ReleaseDC(0, hdc_screen)
+
+
+_MOUSEEVENTF_MOVE = 0x0001
+_MOUSEEVENTF_LEFTDOWN = 0x0002
+_MOUSEEVENTF_LEFTUP = 0x0004
+_MOUSEEVENTF_RIGHTDOWN = 0x0008
+_MOUSEEVENTF_RIGHTUP = 0x0010
+_MOUSEEVENTF_WHEEL = 0x0800
+_MOUSEEVENTF_ABSOLUTE = 0x8000
+_KEYEVENTF_KEYUP = 0x0002
+_KEYEVENTF_UNICODE = 0x0004
+_WHEEL_DELTA = 120
+
+
+def _win_input_structs():
+    """SendInput ke ctypes structures (lazy - sirf Windows par
+    bante hain). INPUT ka size x64 par bilkul sahi (40 bytes)
+    rakha hai: type (4) + padding (4) + union (32)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class MOUSEINPUT(ctypes.Structure):
+        _fields_ = [("dx", wintypes.LONG), ("dy", wintypes.LONG),
+                    ("mouseData", wintypes.DWORD),
+                    ("dwFlags", wintypes.DWORD),
+                    ("time", wintypes.DWORD),
+                    ("dwExtraInfo", ctypes.c_void_p)]
+
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [("wVk", wintypes.WORD),
+                    ("wScan", wintypes.WORD),
+                    ("dwFlags", wintypes.DWORD),
+                    ("time", wintypes.DWORD),
+                    ("dwExtraInfo", ctypes.c_void_p)]
+
+    class INPUT_UNION(ctypes.Union):
+        _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT)]
+
+    class INPUT(ctypes.Structure):
+        _anonymous_ = ("u",)
+        _fields_ = [("type", wintypes.DWORD), ("u", INPUT_UNION)]
+
+    return INPUT, MOUSEINPUT, KEYBDINPUT
+
+
+def _win_send_inputs(inputs) -> None:
+    import ctypes
+    if not inputs:
+        return
+    arr = (inputs[0].__class__ * len(inputs))(*inputs)
+    sent = ctypes.windll.user32.SendInput(
+        len(inputs), arr, ctypes.sizeof(arr[0]))
+    if sent != len(inputs):
+        raise RuntimeError(f"SendInput ne {sent}/{len(inputs)} "
+                           "events bheje")
+
+
+def _win_mouse_move(x: int, y: int) -> None:
+    INPUT, MOUSEINPUT, _KB = _win_input_structs()
+    width, height = _win_screen_size()
+    nx = int(round(65535 * x / max(1, width - 1)))
+    ny = int(round(65535 * y / max(1, height - 1)))
+    inp = INPUT()
+    inp.type = 0  # INPUT_MOUSE
+    inp.mi = MOUSEINPUT(nx, ny, 0,
+                        _MOUSEEVENTF_MOVE | _MOUSEEVENTF_ABSOLUTE,
+                        0, None)
+    _win_send_inputs([inp])
+
+
+def _win_mouse_click(x: int, y: int, button: str = "left",
+                     double: bool = False) -> None:
+    INPUT, MOUSEINPUT, _KB = _win_input_structs()
+    _win_mouse_move(x, y)
+    time.sleep(0.05)
+    if button == "right":
+        down, up = _MOUSEEVENTF_RIGHTDOWN, _MOUSEEVENTF_RIGHTUP
+    else:
+        down, up = _MOUSEEVENTF_LEFTDOWN, _MOUSEEVENTF_LEFTUP
+
+    def one_click():
+        d = INPUT()
+        d.type = 0
+        d.mi = MOUSEINPUT(0, 0, 0, down, 0, None)
+        u = INPUT()
+        u.type = 0
+        u.mi = MOUSEINPUT(0, 0, 0, up, 0, None)
+        _win_send_inputs([d, u])
+
+    one_click()
+    if double:
+        time.sleep(0.08)
+        one_click()
+
+
+def _win_mouse_scroll(amount: int) -> None:
+    """Mouse wheel: amount = notches (positive = upar)."""
+    INPUT, MOUSEINPUT, _KB = _win_input_structs()
+    inp = INPUT()
+    inp.type = 0
+    inp.mi = MOUSEINPUT(0, 0, (amount * _WHEEL_DELTA) & 0xFFFFFFFF,
+                        _MOUSEEVENTF_WHEEL, 0, None)
+    _win_send_inputs([inp])
+
+
+def _win_type_text(text: str) -> None:
+    """Text ko Unicode keyboard events se type karo (focused
+    jagah par jata hai). UTF-16 code units par chalta hai,
+    taaki Hindi/emoji jaise akshar bhi sahi jayein."""
+    INPUT, _MI, KEYBDINPUT = _win_input_structs()
+    data = text.encode("utf-16-le")
+    units = struct.unpack(f"<{len(data) // 2}H", data)
+    events = []
+    for unit in units:
+        d = INPUT()
+        d.type = 1  # INPUT_KEYBOARD
+        d.ki = KEYBDINPUT(0, unit, _KEYEVENTF_UNICODE, 0, None)
+        u = INPUT()
+        u.type = 1
+        u.ki = KEYBDINPUT(0, unit,
+                          _KEYEVENTF_UNICODE | _KEYEVENTF_KEYUP,
+                          0, None)
+        events += [d, u]
+    for i in range(0, len(events), 200):
+        _win_send_inputs(events[i:i + 200])
+
+
+def _win_press_keys(vks) -> None:
+    """VK codes ko kram se dabao: pehle saare neeche (modifiers
+    pehle aate hain), phir ulte kram me upar."""
+    INPUT, _MI, KEYBDINPUT = _win_input_structs()
+    events = []
+    for vk in vks:
+        e = INPUT()
+        e.type = 1
+        e.ki = KEYBDINPUT(vk, 0, 0, 0, None)
+        events.append(e)
+    for vk in reversed(vks):
+        e = INPUT()
+        e.type = 1
+        e.ki = KEYBDINPUT(vk, 0, _KEYEVENTF_KEYUP, 0, None)
+        events.append(e)
+    _win_send_inputs(events)
+
+
+# --- screen tools ---
+
+def _take_screenshot():
+    """Screenshot lo aur work/ me PNG rakho:
+    (path, asal_w, asal_h, vision_w, vision_h). Haar par
+    exception - caller saaf jawab me badalta hai."""
+    global _SCREENSHOT_SIZE
+    width, height, bgra = _win_capture_pixels()
+    small_w, small_h, small = _downscale_bgra(width, height, bgra)
+    path = WORK_DIR / _SCREEN_SHOT_NAME
+    path.write_bytes(_png_bytes_from_bgra(small_w, small_h, small))
+    _SCREENSHOT_SIZE = (width, height)
+    return path, width, height, small_w, small_h
+
+
+def tool_screen_shot() -> str:
+    """Poori screen ki photo lo (work/screen.png)."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    try:
+        path, w, h, sw, sh = _take_screenshot()
+    except Exception as exc:
+        log(f"SCREEN shot fail: {exc}")
+        return f"Screenshot nahi le paya: {exc}"
+    log(f"SCREEN shot ok: screen {w}x{h}, vision {sw}x{sh}")
+    return (f"Screenshot le liya: {_rel(path)} (screen {w}x{h}). "
+            "Uspar koi cheez dhoondni ho to screen_locate chalao; "
+            "click ke coordinates hamesha asal screen ke pixels "
+            "me hote hain.")
+
+
+def _vision_ask(b64: str, mime: str, prompt: str) -> str:
+    """Screenshot par vision ladder se sawal: pehle Gemini
+    vision, fail/khaali par Glimmer (v8.14 wala
+    _nvidia_vision_call). Jawab ka text; koi dimag na chale to
+    khali string."""
+    if GEMINI_API_KEY:
+        parts = [{"inline_data": {"mime_type": mime, "data": b64}},
+                 {"text": prompt}]
+        try:
+            text = _gemini_video_call(parts)
+            if text:
+                return text
+        except Exception as exc:
+            log(f"SCREEN vision Gemini fail: {exc}")
+    if NVIDIA_API_KEY:
+        try:
+            return _nvidia_vision_call(b64, mime, prompt)
+        except Exception as exc:
+            log(f"SCREEN vision Glimmer fail: {exc}")
+    return ""
+
+
+_LOCATE_PROMPT = (
+    "Is screenshot me ye cheez dhoondo: \"{target}\". Wo saaf "
+    "dikh rahi ho to SIRF ek JSON object me jawab do: "
+    "{{\"x\": <0-1000>, \"y\": <0-1000>}} - x aur y us cheez ke "
+    "BEECH ke bindu hain (0 = bilkul kinara, 1000 = dusra "
+    "kinara). Na dikhe to SIRF ye likho: NOT_FOUND. Aur kuch "
+    "bhi mat likho.")
+
+
+def _locate_coords(b64: str, width: int, height: int, target: str):
+    """Vision se target ke asal pixel coordinates: (x, y), ya
+    None (na mila). Vision hi na chale to RuntimeError."""
+    text = _vision_ask(b64, "image/png",
+                       _LOCATE_PROMPT.format(target=target))
+    if not text:
+        raise RuntimeError("vision wale dimag se jawab nahi aaya")
+    m = re.search(r'"x"\s*:\s*(\d+(?:\.\d+)?)\D{0,20}?'
+                  r'"y"\s*:\s*(\d+(?:\.\d+)?)', text)
+    if not m:
+        return None
+    return _norm_to_pixel(float(m.group(1)), float(m.group(2)),
+                          width, height)
+
+
+def tool_screen_locate(target: str) -> str:
+    """Screen par koi cheez (button/text/icon) dhoond kar uske
+    beech ke pixel coordinates do."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    target = (target or "").strip()
+    if not target:
+        return ("Kya dhoondhu - target to batao (button, text ya "
+                "icon ka chhota varnan).")
+    if not GEMINI_API_KEY and not NVIDIA_API_KEY:
+        return ("Screen par cheez dhoondne ke liye vision wali "
+                "key chahiye - config me GEMINI_API_KEY aur "
+                "NVIDIA_API_KEY dono hi nahi hain.")
+    try:
+        path, w, h, sw, sh = _take_screenshot()
+    except Exception as exc:
+        log(f"SCREEN locate: screenshot fail: {exc}")
+        return f"Screenshot nahi le paya: {exc}"
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    try:
+        found = _locate_coords(b64, w, h, target)
+    except Exception as exc:
+        log(f"SCREEN locate fail: {exc}")
+        return (f"'{target}' dhoond nahi paya - {exc}. Thodi der "
+                "baad phir try karo.")
+    if found is None:
+        log(f"SCREEN locate: '{target}' nahi mila")
+        return (f"'{target}' screen par nahi mila. Taaza "
+                f"screenshot {_rel(path)} me hai - varnan badal "
+                "kar phir try karo, ya pehle screen_shot + "
+                "see_image se khud dekho ki screen par hai kya.")
+    x, y = found
+    log(f"SCREEN locate: '{target}' -> ({x}, {y})")
+    return (f"'{target}' mila: beech ke coordinates ({x}, {y}) "
+            f"(screen {w}x{h}). Click karna ho to "
+            f"mouse_click(x={x}, y={y}) chalao - usse pehle "
+            "screenshot taaza ho, ye pakka kar lo.")
+
+
+def tool_mouse_move(x=0, y=0) -> str:
+    """Mouse ko pixel coordinates par le jao."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    x, y = _as_int(x), _as_int(y)
+    try:
+        _win_mouse_move(x, y)
+    except Exception as exc:
+        log(f"SCREEN mouse_move fail: {exc}")
+        return f"Mouse nahi ghuma paya: {exc}"
+    log(f"SCREEN mouse_move -> ({x}, {y})")
+    time.sleep(0.15)
+    return f"Mouse ({x}, {y}) par le gaya."
+
+
+def tool_mouse_click(x=0, y=0, button: str = "left",
+                     double=False) -> str:
+    """Pixel coordinates par click (left/right, single/double)."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    x, y = _as_int(x), _as_int(y)
+    button = (button or "left").strip().lower()
+    if button not in ("left", "right"):
+        return "Button sirf 'left' ya 'right' hota hai."
+    double = _as_bool(double)
+    try:
+        _win_mouse_click(x, y, button, double)
+    except Exception as exc:
+        log(f"SCREEN mouse_click fail: {exc}")
+        return f"Click nahi kar paya: {exc}"
+    kind = "Double-click" if double else "Click"
+    log(f"SCREEN mouse_click {button}"
+        f"{' x2' if double else ''} -> ({x}, {y})")
+    time.sleep(0.35)
+    return (f"{kind} kar diya ({x}, {y}, {button}). Ab "
+            "screen_shot se verify kar lo ki wahi hua jo "
+            "chahiye tha.")
+
+
+def tool_mouse_scroll(amount=-3) -> str:
+    """Mouse wheel scroll (positive = upar, negative = neeche)."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    amount = max(-50, min(50, _as_int(amount, -3)))
+    try:
+        _win_mouse_scroll(amount)
+    except Exception as exc:
+        log(f"SCREEN mouse_scroll fail: {exc}")
+        return f"Scroll nahi kar paya: {exc}"
+    log(f"SCREEN mouse_scroll {amount}")
+    time.sleep(0.25)
+    return (f"Scroll kar diya ({amount}). screen_shot se dekho "
+            "kahan pahunche.")
+
+
+def tool_type_text(text: str = "") -> str:
+    """Focused jagah par text type karo. DHYAAN: is text ka
+    content log me KABHI nahi jata - sirf lambai jati hai
+    (password jaisi cheez galti se type ho jaye to bhi log me
+    na rahe). Password type karna prompt me sakht mana hai."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    text = text if isinstance(text, str) else str(text or "")
+    if not text:
+        return "Kya type karu - text to do."
+    try:
+        _win_type_text(text)
+    except Exception as exc:
+        log(f"SCREEN type_text fail ({len(text)} akshar): {exc}")
+        return f"Type nahi kar paya: {exc}"
+    log(f"SCREEN type_text: {len(text)} akshar "
+        "(content suraksha ke liye log nahi hota)")
+    time.sleep(0.2)
+    return (f"{len(text)} akshar type kar diye (focused jagah "
+            "par). screen_shot se verify kar lo.")
+
+
+def tool_press_key(combo: str = "") -> str:
+    """Ek key ya combo dabao ('enter', 'ctrl+s', 'alt+tab')."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    vks = _parse_key_combo(combo)
+    if vks is None:
+        return (f"Ye key/combo samajh nahi aaya: '{combo}'. "
+                "Chalte hain jaise: enter, esc, tab, space, "
+                "backspace, delete, home, end, up/down/left/right, "
+                "f1-f12, aur '+' wale combo: ctrl+s, ctrl+c, "
+                "ctrl+v, alt+tab, alt+f4, ctrl+shift+esc.")
+    try:
+        _win_press_keys(vks)
+    except Exception as exc:
+        log(f"SCREEN press_key fail: {exc}")
+        return f"Key nahi daba paya: {exc}"
+    log(f"SCREEN press_key: {combo}")
+    time.sleep(0.25)
+    return (f"Key daba di: {combo}. screen_shot se asar verify "
+            "kar lo.")
+
+
+_PLAN_PROMPT = (
+    "Tum screen par kaam karne wale haath ko EK kadam bata rahe "
+    "ho. Kaam: \"{instruction}\". Is screenshot ko dekho aur "
+    "SIRF ek JSON object me jawab do, inme se ek shakal me:\n"
+    "{{\"action\": \"click\", \"target\": \"<dikhai dene wali "
+    "cheez ka varnan>\"}}\n"
+    "{{\"action\": \"type\", \"text\": \"<jo type karna hai>\"}}\n"
+    "{{\"action\": \"key\", \"combo\": \"<jaise enter ya "
+    "ctrl+s>\"}}\n"
+    "{{\"action\": \"scroll\", \"amount\": -3}}\n"
+    "{{\"action\": \"done\", \"note\": \"<kaam ho gaya - ek "
+    "line>\"}}\n"
+    "{{\"action\": \"stop\", \"reason\": \"<rukne ki wajah>\"}}\n"
+    "Screen par login, password wala khana, CAPTCHA ya 2FA "
+    "dikhe to action hamesha \"stop\" rakho aur reason me wahi "
+    "likho. Password kabhi type mat karna. Ek baar me sirf EK "
+    "kadam - sabse chhota agla kadam chuno.")
+
+
+def _plan_step(b64: str, instruction: str) -> dict:
+    """Vision se agla ek kadam (dict, action ke saath). Jawab
+    samajh na aaye to {'action': 'stop', ...}."""
+    text = _vision_ask(b64, "image/png",
+                       _PLAN_PROMPT.format(instruction=instruction))
+    if not text:
+        raise RuntimeError("vision wale dimag se jawab nahi aaya")
+    m = re.search(r"\{.*\}", text, re.S)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+            if isinstance(data, dict) and data.get("action"):
+                return data
+        except Exception:
+            pass
+    return {"action": "stop",
+            "reason": "vision ka jawab samajh nahi aaya"}
+
+
+def tool_screen_do(instruction: str) -> str:
+    """Screen par EK chhota kadam: screenshot -> vision se plan
+    -> ek action -> screenshot se jaanch. Poora kaam ek call me
+    kabhi nahi hota - har call ek kadam hai, taaki har kadam
+    verify ho sake aur galti par wahin ruka ja sake."""
+    guard = _screen_guard()
+    if guard:
+        return guard
+    instruction = (instruction or "").strip()
+    if not instruction:
+        return "Kya karna hai - instruction to do."
+    if not GEMINI_API_KEY and not NVIDIA_API_KEY:
+        return ("Screen par khud kadam plan karne ke liye vision "
+                "wali key chahiye - config me GEMINI_API_KEY aur "
+                "NVIDIA_API_KEY dono hi nahi hain.")
+    try:
+        path, w, h, sw, sh = _take_screenshot()
+    except Exception as exc:
+        return f"Screenshot nahi le paya: {exc}"
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    try:
+        plan = _plan_step(b64, instruction)
+    except Exception as exc:
+        log(f"SCREEN do plan fail: {exc}")
+        return f"Kadam plan nahi kar paya - {exc}"
+    action = str(plan.get("action", "")).lower()
+    log(f"SCREEN do: '{instruction}' -> plan {action}")
+    if action == "stop":
+        return ("Ruk gaya: "
+                + str(plan.get("reason")
+                      or "vision ne rukne ko kaha")
+                + ". Screen usi halat me khuli hai - wajah door "
+                "ho jaye to wahi kadam phir se bolo, main yahin "
+                "se aage badhunga.")
+    if action == "done":
+        return ("Vision ke hisaab se kaam ho gaya hai: "
+                + str(plan.get("note") or "")
+                + f" Pakka karne ke liye screenshot {_rel(path)} "
+                "me hai.")
+    if action == "click":
+        target = str(plan.get("target") or "").strip()
+        if not target:
+            return ("Plan me click aaya lekin target nahi - "
+                    "kadam nahi uthaya.")
+        try:
+            found = _locate_coords(b64, w, h, target)
+        except Exception as exc:
+            return f"Click ka target dhoond nahi paya - {exc}"
+        if found is None:
+            return (f"Click ka target '{target}' screen par "
+                    "nahi mila - kadam nahi uthaya. screen_shot "
+                    "se halat dekho.")
+        x, y = found
+        try:
+            _win_mouse_click(x, y, "left", False)
+        except Exception as exc:
+            return f"Click nahi kar paya: {exc}"
+        did = f"'{target}' par click ({x}, {y})"
+    elif action == "type":
+        text = str(plan.get("text") or "")
+        if not text:
+            return ("Plan me type aaya lekin text khali hai - "
+                    "kadam nahi uthaya.")
+        try:
+            _win_type_text(text)
+        except Exception as exc:
+            return f"Type nahi kar paya: {exc}"
+        did = f"{len(text)} akshar type kiye"
+    elif action == "key":
+        combo = str(plan.get("combo") or "")
+        vks = _parse_key_combo(combo)
+        if vks is None:
+            return (f"Plan wali key samajh nahi aayi: '{combo}' "
+                    "- kadam nahi uthaya.")
+        try:
+            _win_press_keys(vks)
+        except Exception as exc:
+            return f"Key nahi daba paya: {exc}"
+        did = f"key dabayi: {combo}"
+    elif action == "scroll":
+        amount = max(-50, min(50, _as_int(plan.get("amount"), -3)))
+        try:
+            _win_mouse_scroll(amount)
+        except Exception as exc:
+            return f"Scroll nahi kar paya: {exc}"
+        did = f"scroll kiya ({amount})"
+    else:
+        return (f"Plan me anjaan action aaya: '{action}' - "
+                "kadam nahi uthaya.")
+    time.sleep(0.4)
+    try:
+        path2, _w2, _h2, _sw2, _sh2 = _take_screenshot()
+        shot_note = f"Naya screenshot: {_rel(path2)}"
+    except Exception:
+        shot_note = ("Naya screenshot nahi ban paya - screen_shot "
+                     "alag se chalao.")
+    log(f"SCREEN do kadam pura: {did}")
+    return (f"Ek kadam ho gaya: {did}. {shot_note}. Agla kadam "
+            "chahiye to screen_do phir chalao ya khud tools se "
+            "aage badho.")
+
+
+# --------------------------------------------------------------------------
 # Instant site commands (v8.1) - 'facebook kholo' type ke hukum bina
 # Gemini ke, turant isi PC ke browser me khulte hain. Update command ki
 # tarah ye bhi demo/Gemini dispatch se pehle pakde jate hain, isliye
@@ -3782,6 +4610,14 @@ TOOLS = {
     "design_banao": tool_design_banao,
     "open_file": tool_open_file,
     "extract_zip": tool_extract_zip,
+    "screen_shot": tool_screen_shot,
+    "screen_locate": tool_screen_locate,
+    "screen_do": tool_screen_do,
+    "mouse_move": tool_mouse_move,
+    "mouse_click": tool_mouse_click,
+    "mouse_scroll": tool_mouse_scroll,
+    "type_text": tool_type_text,
+    "press_key": tool_press_key,
 }
 
 
@@ -3796,7 +4632,15 @@ def run_tool(name: str, args: dict) -> str:
         result = f"Tool argument error: {exc}"
     except Exception as exc:  # tools must never kill the loop
         result = f"Tool error: {exc}"
-    log(f"TOOL {name} args={json.dumps(args or {}, ensure_ascii=False)[:300]} -> {str(result)[:120]}")
+    log_args = args or {}
+    if name == "type_text" and "text" in log_args:
+        # v8.15: type_text ka content log me KABHI nahi jata -
+        # sirf lambai (jo type hua wo password jaisa hassas bhi
+        # ho sakta hai; agent password type karta hi nahi, par
+        # galti se aa jaye to bhi log saaf rahe).
+        log_args = {**log_args,
+                    "text": f"<{len(str(log_args['text']))} akshar>"}
+    log(f"TOOL {name} args={json.dumps(log_args, ensure_ascii=False)[:300]} -> {str(result)[:120]}")
     return str(result)
 
 # --------------------------------------------------------------------------
@@ -5606,6 +6450,7 @@ def tool_dimag_test() -> str:
     # v8.9: browser + config ki haalat bhi isi report me.
     browser_line = _browser_state_line()
     lines.append(browser_line)
+    lines.append(_screen_state_line())
     lines.append(_config_state_line())
     browser_setup_done = "setup nahi hua hai" not in browser_line
     # Aakhri salah - haalat ke hisaab se ek saaf line.
