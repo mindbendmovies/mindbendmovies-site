@@ -164,6 +164,11 @@ fetch('data/movies.json').then(function (r) { return r.json(); }).then(function 
     trailerHtml = '<div class="trailer"><iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(m.trailer) + '?autoplay=1&mute=1&rel=0&playsinline=1" title="' + esc(m.title) + ' trailer" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
   }
 
+  var articleHtml = '';
+  if (m.id === 1339713) {
+    articleHtml = '<a href="obsession-ending-explained.html" style="display:block;background:#16161c;border:1px solid #0072ce;border-radius:12px;padding:14px 16px;margin:16px 0;color:#fff"><b style="color:#7db8ec">📖 Ending Explained</b><br><span style="font-size:14px">Confused by that ending? Was Nikki freed from Bear's wish — and is Bear really dead? Read our full breakdown →</span></a>';
+  }
+
   slot.innerHTML =
     '<h1>' + esc(m.title) + (m.year ? ' (' + m.year + ')' : '') + '</h1>' +
     '<div class="meta">' + esc(meta) + '</div>' +
@@ -172,6 +177,7 @@ fetch('data/movies.json').then(function (r) { return r.json(); }).then(function 
     '<button class="watch" id="watchNow">▶ Watch Now</button>' +
     NATIVE +
     '<div class="story"><p>' + esc(m.overview || 'Story details coming soon.') + '</p></div>' +
+    articleHtml +
     '<div class="facts">' +
       '<div><b>Director</b> ' + esc(m.director || 'Not disclosed') + '</div>' +
       '<div><b>Top Cast</b> ' + esc((m.cast || []).join(', ') || 'Not disclosed') + '</div>' +
