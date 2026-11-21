@@ -65,6 +65,24 @@ login par rukna ab smooth hai: screen usi halat me khuli
 rehti hai, progress note hoti hai, user ke 'ho gaya' par kaam
 usi step se aage badhta hai - shuru se dobara nahi (browser
 haath ke stop-rule ka wording bhi isi se align hai).
+v8.16: TEZ JAWAB (user ki shikayat: sawal puchho to agent
+der tak "soch raha hai" - haan/na tak jaldi nahi aata) -
+(1) FAST PATH: chhota status/haan-na sawal (classifier pakka
+ho tabhi) pure tool-loop se pehle ek halki tez call se
+nibatta hai - Groq chhote budget par, na ho to MiniMax;
+shak ho ya fast call fail ho to chup chaap aam loop.
+(2) NVIDIA pehla dimag ab 45s par fail-fast (pehle 120s) aur
+busy par 2 koshish (pehle 3) - atka hua free endpoint poori
+seedhi ko nahi latkata. (3) Kaam wale hukum par turant
+"Samajh gaya - kaam shuru kar raha hu" wali tasalli line aur
+har tool kadam se pehle saade shabdon me status (streaming
+par). (4) Prompt me nateeja-pehle wala niyam: har kaam wale
+jawab ki pehli line me ho gaya / nahi hua. (5) ROKO:
+UI me lal "⛔ Roko" button + POST /stop endpoint + sirf-stop
+wala sandesh - chalta kaam har kadam se pehle flag check
+karke agle kadam par rukta hai, "Ruk gaya" jawab ke saath;
+jo call/tool usi pal chal raha hai wo beech me nahi katata
+(seema code/prompt me saaf hai). UI v4.
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
@@ -127,7 +145,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.15"
+AGENT_VERSION = "8.16"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -440,6 +458,15 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
     kaunsi chuni; kai milein to ek line me top naam dekar pucho;
     koi na mile tabhi ek chhota sawal. KHALI "phir se bolo" wala
     jawab KABHI nahi - ya kaam karo, ya ek saaf chhota sawal.
+11. NATEEJA PEHLE (jawab ka kram): Har kaam wale jawab ki
+    PEHLI line me nateeja likho: ho gaya / nahi hua, aur ek
+    line me kya hua. Lambi tafseel uske baad. Haan/na wale
+    sawal ka jawab pehle haan ya na me do.
+12. ROKO: Ankit beech me "roko" bole ya Roko button dabaye
+    to system chalta kaam agle kadam par rok deta hai - iske
+    liye tumhe kuch karna nahi hai. Bas ye jhooth kabhi mat
+    bolo ki chal raha call ya tool beech me kat sakta hai:
+    rukna hamesha AGLE kadam par hota hai.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tum WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab
@@ -5329,6 +5356,61 @@ def _make_step_delta(on_event):
     return _delta
 
 
+# Tool kadam ke status saade shabdon me (v8.16): UI par kaccha
+# tool naam ("find_file chal raha hai") ki jagah user ko samajh
+# aane wali ek line dikhti hai. Naam map me na ho to purana
+# roop hi fallback hai.
+_TOOL_STATUS = {
+    "list_files": "Files ki list dekh raha hu",
+    "read_file": "File padh raha hu",
+    "write_file": "File likh raha hu",
+    "create_folder": "Folder bana raha hu",
+    "get_time": "Time dekh raha hu",
+    "web_fetch": "Web page padh raha hu",
+    "list_skills": "Skills ki list dekh raha hu",
+    "read_skill": "Skill padh raha hu",
+    "create_skill": "Nayi skill bana raha hu",
+    "yaad_likho": "Ye baat yaad rakh raha hu",
+    "purani_baat_dhundho": "Purani baatein dhoondh raha hu",
+    "open_url": "Link khol raha hu",
+    "video_info": "Video ki jaankari le raha hu",
+    "trim_video": "Video kaat raha hu",
+    "join_videos": "Video jod raha hu",
+    "speak_to_file": "Awaaz bana raha hu",
+    "agent_update": "Update kar raha hu",
+    "browser_open": "Page khol raha hu",
+    "browser_read": "Page padh raha hu",
+    "browser_click": "Page par click kar raha hu",
+    "browser_type": "Page me likh raha hu",
+    "browser_upload_file": "File laga raha hu",
+    "download_file": "File download kar raha hu",
+    "make_video": "Video bana raha hu",
+    "watch_video": "Video dekh raha hu",
+    "run_program": "Program chala raha hu",
+    "find_file": "File dhoondh raha hu",
+    "see_image": "Photo dekh raha hu",
+    "design_banao": "Design bana raha hu",
+    "open_file": "File khol raha hu",
+    "extract_zip": "Zip khol raha hu",
+    "screen_shot": "Screen dekh raha hu",
+    "screen_locate": "Screen par cheez dhoondh raha hu",
+    "screen_do": "Screen par kaam kar raha hu",
+    "mouse_move": "Mouse ghuma raha hu",
+    "mouse_click": "Click kar raha hu",
+    "mouse_scroll": "Scroll kar raha hu",
+    "type_text": "Type kar raha hu",
+    "press_key": "Key daba raha hu",
+}
+
+
+def _tool_status_text(tool_name: str) -> str:
+    """Tool kadam ke liye UI status line (saade shabdon me)."""
+    phrase = _TOOL_STATUS.get(tool_name or "")
+    if phrase:
+        return f"⚙️ {phrase}…"
+    return f"⚙️ {tool_name} chal raha hai…"
+
+
 def _sse_text_lines(resp):
     """Ek khule hue HTTP jawab ko SSE 'data:' payloads me todo.
     Har payload ek string (JSON text ya '[DONE]')."""
@@ -5454,6 +5536,10 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
     tracker = _StepTracker()
     nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
+        if _stop_requested():
+            stopped = _stopped_message(tracker)
+            _record_final_reply(stopped)
+            return stopped, used_tool
         if on_event is not None:
             try:
                 reply = _gemini_call_stream(
@@ -5485,9 +5571,13 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
                 _history.append({"role": "model",
                                  "parts": [{"text": reply}]})
             return reply, used_tool
+        if _stop_requested():
+            stopped = _stopped_message(tracker, tool_call["tool"])
+            _record_final_reply(stopped)
+            return stopped, used_tool
         used_tool = True
         _emit_event(on_event, "status",
-                    f"⚙️ {tool_call['tool']} chal raha hai…")
+                    _tool_status_text(tool_call["tool"]))
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
@@ -5671,7 +5761,7 @@ def _to_openai_messages(contents: list) -> list:
     return messages
 
 
-def _groq_call(messages: list) -> str:
+def _groq_call(messages: list, max_tokens: int = None) -> str:
     """Groq ko ek baar (retry ke saath) bulao aur jawab ka text do.
 
     Fail-fast neeti upar wali hai. Busy (429/503) ke alawa koi bhi
@@ -5679,8 +5769,13 @@ def _groq_call(messages: list) -> str:
     hai - retry bekaar hai, Gemini ki baari jaldi aani chahiye.
     Saari koshishen khatm hon to bhi _GroqDownError hi uthta hai,
     taaki caller hamesha ek hi tareeke se Gemini par gir sake.
+    max_tokens (v8.16): do to body me jata hai - fast path apne
+    chhote sawalon ke liye chhota budget isi se deta hai; na do
+    to vyavhaar bilkul purana (koi seema nahi bheji jati).
     """
     body = {"model": GROQ_MODEL, "messages": messages}
+    if max_tokens:
+        body["max_tokens"] = max_tokens
     payload = json.dumps(body).encode("utf-8")
     log(f"GROQ prompt ~{len(payload)} chars")
     req = urllib.request.Request(
@@ -5755,6 +5850,10 @@ def _groq_converse(contents: list, on_event=None):
     tracker = _StepTracker()
     nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
+        if _stop_requested():
+            stopped = _stopped_message(tracker)
+            _record_final_reply(stopped)
+            return stopped, used_tool
         if on_event is not None:
             try:
                 reply = _groq_call_stream(
@@ -5785,9 +5884,13 @@ def _groq_converse(contents: list, on_event=None):
                 _history.append({"role": "model",
                                  "parts": [{"text": reply}]})
             return reply, used_tool
+        if _stop_requested():
+            stopped = _stopped_message(tracker, tool_call["tool"])
+            _record_final_reply(stopped)
+            return stopped, used_tool
         used_tool = True
         _emit_event(on_event, "status",
-                    f"⚙️ {tool_call['tool']} chal raha hai…")
+                    _tool_status_text(tool_call["tool"]))
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
@@ -5824,11 +5927,13 @@ def _groq_converse(contents: list, on_event=None):
 _NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 _NVIDIA_MODELS_URL = "https://integrate.api.nvidia.com/v1/models"
 # Free endpoint bade models par dheera ho sakta hai (Kimi ~50s
-# tak dekha gaya) - isliye 120s ka intezaar. Fail-fast neeti
-# Groq wali hi hai: busy (429/503) par kul 3 koshish, timeout/
-# network par kul 2 koshish, baaki HTTP error par turant agli
-# seedhi - koi retry loop nahi.
-_NVIDIA_TIMEOUT = 120
+# tak dekha gaya). v8.16 se intezaar 45s par seemit hai: pehla
+# dimag atka rahe to user ko minute-bhar latkane ki jagah
+# jaldi agli seedhi (Groq tez hai) par jana behtar hai.
+# Fail-fast neeti Groq wali hi hai: busy (429/503) par kul 2
+# koshish, timeout/network par kul 2 koshish, baaki HTTP
+# error par turant agli seedhi - koi retry loop nahi.
+_NVIDIA_TIMEOUT = 45
 # Reasoning wale model pehle reasoning_content me lamba
 # sochte hain; chhota budget rakho to asal jawab (content)
 # khaali aa jata hai (Glimmer par live dekha gaya). Isliye
@@ -5888,7 +5993,7 @@ def _nvidia_request(body: dict) -> dict:
                     + (f": {detail}" if detail else ""),
                     status=exc.code, detail=detail) from exc
             last_exc = exc
-            max_attempts = 3
+            max_attempts = 2
             delays = _BUSY_DELAYS
             log(f"NVIDIA attempt {attempt + 1}/{max_attempts} fail: "
                 f"HTTP {exc.code} (server busy / rate limit, retry)")
@@ -6009,6 +6114,10 @@ def _nvidia_converse(contents: list, model: str = None,
     tracker = _StepTracker()
     nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
+        if _stop_requested():
+            stopped = _stopped_message(tracker)
+            _record_final_reply(stopped)
+            return stopped, used_tool
         if on_event is not None:
             try:
                 reply = _nvidia_call_stream(
@@ -6041,9 +6150,13 @@ def _nvidia_converse(contents: list, model: str = None,
                 _history.append({"role": "model",
                                  "parts": [{"text": reply}]})
             return reply, used_tool
+        if _stop_requested():
+            stopped = _stopped_message(tracker, tool_call["tool"])
+            _record_final_reply(stopped)
+            return stopped, used_tool
         used_tool = True
         _emit_event(on_event, "status",
-                    f"⚙️ {tool_call['tool']} chal raha hai…")
+                    _tool_status_text(tool_call["tool"]))
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
@@ -6191,6 +6304,14 @@ def _brain_run(contents: list, on_event=None):
                                  or "")[:120]
             log(f"BRAIN: NVIDIA (MiniMax) fail ({exc}) - agli "
                 "seedhi par ja raha hu")
+            if nvidia_status is None:
+                # HTTP jawab hi nahi aaya - timeout/network par
+                # atka tha. v8.16: saade shabdon me darj karo ki
+                # pehla dimag dheera pada, isliye seedhi aage
+                # badhi (user ki "bas soch raha hai" wali
+                # shikayat ka log wala saboot).
+                log("BRAIN: NVIDIA dheera pada (jawab time par "
+                    "nahi aaya) - agli seedhi par gaya")
     if GROQ_API_KEY:
         try:
             reply, used_tool = _groq_converse(contents, **extra)
@@ -6735,6 +6856,263 @@ def _finalize_reply(message: str, contents: list, reply: str,
     return _guard_reply_text()
 
 
+# --------------------------------------------------------------------------
+# ROKO - STOP mechanism (v8.16). User ki shikayat: beech me
+# "roko" bolne par agent rukta NAHI tha - chal raha kaam pehle
+# khatm hota tha, "roko" ek naye sandesh ki tarah line me lag
+# jata tha. Ab ek thread-safe stop flag hai:
+# - Har naye task ki shuruaat me flag saaf hota hai.
+# - Brain/tool loop ke HAR kadam se pehle (har brain call se
+#   pehle aur har tool chalane se pehle) flag check hota hai;
+#   set ho to loop WAHI ruk jata hai - koi aur kadam nahi.
+# - Rukne wala jawab aam final jawab ki jagah jata hai: pehli
+#   line "Ruk gaya", phir kis kadam par ruka + ab tak ka
+#   progress.
+# - Trigger do raaste: (a) UI ka lal "⛔ Roko" button ->
+#   POST /stop (halka endpoint, chal rahe /ask ko block nahi
+#   karta - server threading hai); (b) /ask me SIRF stop wala
+#   sandesh jab koi task chal raha ho -> line me nahi lagta,
+#   flag set hokar turant jawab aata hai.
+# SACH KI SEEMA (isse zyada vaada kabhi nahi): jo brain call
+# ya tool USI PAL chal raha hai, wo beech me kata nahi ja
+# sakta - rukna uske pure hote hi AGLE kadam par hota hai
+# (v8.16 ke 45s wale NVIDIA timeout ke baad zyada se zyada
+# utni der). Koi task chal hi na raha ho to "roko" par aam
+# dostana jawab milta hai.
+# --------------------------------------------------------------------------
+
+_STOP_EVENT = threading.Event()
+_TASK_COUNT_LOCK = threading.Lock()
+_TASK_COUNT = 0
+
+
+def _request_stop() -> None:
+    """Rukne ka hukum darj karo - chalta loop agle kadam par
+    rukega. Chal rahe call/tool ko beech me NAHI katata."""
+    _STOP_EVENT.set()
+    log("STOP: rukne ka hukum mila - loop agle kadam par rukega")
+
+
+def _stop_requested() -> bool:
+    return _STOP_EVENT.is_set()
+
+
+def _clear_stop() -> None:
+    _STOP_EVENT.clear()
+
+
+def _task_started() -> None:
+    global _TASK_COUNT
+    with _TASK_COUNT_LOCK:
+        _TASK_COUNT += 1
+
+
+def _task_finished() -> None:
+    global _TASK_COUNT
+    with _TASK_COUNT_LOCK:
+        _TASK_COUNT = max(0, _TASK_COUNT - 1)
+
+
+def _tasks_running() -> int:
+    with _TASK_COUNT_LOCK:
+        return _TASK_COUNT
+
+
+# Pura sandesh inhi me se ek ho (ya inhi shabdon se bana ho)
+# to wo rukne ka hukum hai, naya task NAHI.
+_STOP_PHRASES = {"roko", "ruko", "ruk", "ruk jao", "ruk jayo",
+                 "band karo", "band kar do", "stop", "stop karo",
+                 "bas karo", "bas"}
+_STOP_TOKENS = {"roko", "ruko", "ruk", "jao", "jayo", "band",
+                "bas", "karo", "kar", "do", "stop"}
+_STOP_STRONG = {"roko", "ruko", "ruk", "band", "bas", "stop"}
+
+
+def _is_stop_message(message: str) -> bool:
+    """Pura sandesh SIRF rukne wala hukum hai to True.
+
+    Chhota set, sakht jaanch: sandesh in shabdon ke alawa kuch
+    aur rakhe (jaise "video roko mat", "roko aur batao") to ye
+    rukne ka hukum NAHI - aam sandesh hai. Galat pehchan se
+    asal kaam ruk jaye, ye dheere rukne se bura hai."""
+    text = (message or "").strip().lower()
+    if not text or len(text) > 30:
+        return False
+    text = re.sub(r"[!?.,\s]+", " ", text).strip()
+    if not text:
+        return False
+    if text in _STOP_PHRASES:
+        return True
+    tokens = text.split()
+    return (all(t in _STOP_TOKENS for t in tokens)
+            and any(t in _STOP_STRONG for t in tokens))
+
+
+def _stopped_message(tracker, next_tool: str = None) -> str:
+    """Rukne par aakhri jawab: pehli line me 'Ruk gaya', phir
+    kis kadam par ruka aur ab tak kya ho gaya (progress)."""
+    lines = ["Ruk gaya — tumhare rokne par kaam wahi rok "
+             "diya hai."]
+    if next_tool:
+        lines.append(f"Ye kadam shuru hi nahi kiya: "
+                     f"{_tool_status_text(next_tool)}")
+    progress = list(getattr(tracker, "progress", []) or [])
+    if progress:
+        lines.append("Ab tak ye ho gaya tha:\n"
+                     + _progress_text(progress))
+    else:
+        lines.append("Ab tak koi kadam pura nahi hua tha.")
+    lines.append("Bacha hua kaam nahi kiya hai. Bolo to wahi "
+                 "se aage badhu, ya naya kaam do.")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Tez jawab - FAST PATH (v8.16). User ki shikayat: chhota sawal
+# ("hua?", "ho gaya kya?") bhi pure tool-loop se guzarta tha;
+# pehla dimag (NVIDIA ka dheera free endpoint) atak jaye to
+# minute-bhar sirf "soch raha hai" dikhta tha - haan/na tak
+# jaldi nahi aata tha. Ab pakka chhota status/haan-na sawal
+# seedhi se PEHLE ek halki tez call se nibatta hai: Groq
+# (sabse tez dimag) chhote budget par, wo key na ho to
+# MiniMax. Classifier jaan-boojh kar sakht hai: zara bhi shak
+# ho ki ye hukum ho sakta hai to fast path NAHI khulta, aam
+# loop hi chalta hai - galat roka hua hukum dheere jawab se
+# kahin bura hai. Fast call fail ho (error, khaali jawab,
+# tool-call wali shakal) to bhi chup chaap aam loop - user ko
+# kabhi pata nahi chalta ki pehle ye raasta try hua tha.
+# --------------------------------------------------------------------------
+
+_FASTPATH_MAX_CHARS = 120
+_FASTPATH_MAX_TOKENS = 400
+
+_FASTPATH_INSTRUCTION = (
+    "[TEZ JAWAB WALA KADAM: User ka chhota sawal hai. Jawab "
+    "ki PEHLI line me sirf nateeja do - haan/na, ya hua/"
+    "nahi-hua, jaisa sawal ho waisa. Uske baad zyada se zyada "
+    "EK line aur. Koi tool call NAHI, koi lambi tafseel NAHI.]")
+
+# Hukum wale roop - inme se kuch bhi mile to fast path band.
+# Bare "upload" jaise shabd yahan NAHI hain: "video upload
+# hua?" ek status sawal hai; hukum uske "kar do / karo" wale
+# roop se pakda jata hai.
+_FASTPATH_ORDER_RE = re.compile(
+    r"\b(kar\s*do|kardo|karo|kar\s*de|karde|kholo|khol\s*do|"
+    r"banao|bana\s*do|bhejo|bhej\s*do|lagao|laga\s*do|chalao|"
+    r"chala\s*do|hatao|hata\s*do|nikalo|likho|likh\s*do|"
+    r"dhoondo|dhundo|dikhao|dikha\s*do|roko|rok\s*do|"
+    r"band\s*kar|start\s*kar|set\s*kar|add\s*kar|"
+    r"upload\s*kar|download\s*kar|delete\s*kar|post\s*kar|"
+    r"share\s*kar|publish\s*kar|schedule\s*kar|save\s*kar|"
+    r"open\s*kar|create\s*kar|install\s*kar|update\s*kar|"
+    r"yaad\s*dila|remind|reminder|alarm)\b", re.IGNORECASE)
+
+# Sirf "?" wale aam sawal ke raaste par bare angrezi hukum
+# shabd bhi rok hain (jaise "can you open it?").
+_FASTPATH_BARE_VERB_RE = re.compile(
+    r"\b(upload|download|delete|open|create|start|play|send|"
+    r"make|write|post|share|publish|install|restart|update|"
+    r"remove|close|stop|launch|run)\b", re.IGNORECASE)
+
+# Pakke status / haan-na wale pattern.
+_FASTPATH_STATUS_RE = re.compile(
+    r"(ho\s*gaya|ho\s*gya|hua\s*hai|nahi\s*hua|nahin\s*hua|"
+    r"kya\s*hua|hua\s*kya|hua\b|hoga\b|hogi\b|ho\s*raha|"
+    r"ho\s*rha|chal\s*raha|chal\s*rha|kar\s*diya|ho\s*paya|"
+    r"theek\s*hai|thik\s*hai|sahi\s*hai|kyu\s*nahi|"
+    r"kyon\s*nahi|kyun\s*nahi|kab\b|complete|done|ready|"
+    r"status|khatam|aa\s*gaya|aa\s*gayi|mil\s*gaya|"
+    r"ban\s*gaya)", re.IGNORECASE)
+
+# Waqt ke saath wala schedule roop (jaise "7 baje") - ye
+# hukum hota hai, status sawal nahi.
+_FASTPATH_TIME_RE = re.compile(
+    r"\b\d+\s*(baje|am|pm|min|minute|ghante)\b", re.IGNORECASE)
+
+_FASTPATH_URL_RE = re.compile(
+    r"(https?://|www\.)", re.IGNORECASE)
+
+
+def _is_fastpath_question(message: str) -> bool:
+    """Chhota status/haan-na sawal hai to True, warna False.
+
+    Teen jaanch, teeno paas hona zaroori hai:
+    1. Chhota (<=120 akshar); koi URL, path, file naam ya
+       waqt-wala schedule roop nahi; photo wala andar ka
+       sandesh (augmented text) nahi.
+    2. Koi hukum wala roop NAHI (kar do, kholo, banao...).
+    3. Ya to pakka status pattern mile, ya sawal ho ("?") aur
+       koi bare hukum shabd bhi na ho.
+    Shak ho to False - aam loop hi sahi raasta hai.
+    """
+    msg = (message or "").strip()
+    if not msg or len(msg) > _FASTPATH_MAX_CHARS:
+        return False
+    low = msg.lower()
+    if "photo bheji hai" in low:
+        return False
+    if _FASTPATH_URL_RE.search(msg) or _FILE_MENTION_RE.search(msg):
+        return False
+    if "\\" in msg or re.search(r"[a-zA-Z]:[\\/]", msg):
+        return False
+    if _FASTPATH_TIME_RE.search(low) \
+            or _FASTPATH_ORDER_RE.search(low):
+        return False
+    if _FASTPATH_STATUS_RE.search(low):
+        return True
+    if "?" in msg and not _FASTPATH_BARE_VERB_RE.search(low):
+        return True
+    return False
+
+
+def _fastpath_answer(contents: list):
+    """Fast path ki asal call: Groq pehle (sabse tez, chhota
+    budget), wo key na ho to MiniMax usi budget par.
+
+    Safal ho to saaf jawab (string) aur jawab history me bhi
+    jud jata hai (baat ka silsila na toote). Koi bhi gadbad -
+    error, khaali jawab, tool-call/JSON wali shakal - ho to
+    None: caller chup chaap aam loop chalata hai.
+    """
+    try:
+        messages = _to_openai_messages(contents)
+    except Exception:
+        return None
+    if messages and messages[0].get("role") == "system":
+        messages[0] = dict(messages[0])
+        messages[0]["content"] = (
+            messages[0].get("content", "")
+            + "\n\n" + _FASTPATH_INSTRUCTION)
+    reply = None
+    if GROQ_API_KEY:
+        try:
+            reply = _groq_call(messages,
+                               max_tokens=_FASTPATH_MAX_TOKENS)
+            log("FASTPATH: jawab Groq se aaya")
+        except Exception as exc:
+            log(f"FASTPATH: Groq fail ({exc}) - aam loop")
+            return None
+    elif NVIDIA_API_KEY:
+        try:
+            reply = _nvidia_chat(messages, NVIDIA_MODEL,
+                                 max_tokens=_FASTPATH_MAX_TOKENS)
+            log("FASTPATH: jawab NVIDIA (MiniMax) se aaya")
+        except Exception as exc:
+            log(f"FASTPATH: NVIDIA fail ({exc}) - aam loop")
+            return None
+    else:
+        return None
+    reply = (reply or "").strip()
+    if not reply or _extract_tool_call(reply) is not None \
+            or _TOOL_JSON_SHAPE.search(reply):
+        log("FASTPATH: jawab theek shakal me nahi - aam loop")
+        return None
+    with _history_lock:
+        _history.append({"role": "model",
+                         "parts": [{"text": reply}]})
+    return reply
+
+
 def brain_ask(message: str, on_event=None) -> str:
     """Dimag se jawab lao - Groq pehle (key ho to), Gemini ladder
     peeche, aur discipline re-ask ke saath.
@@ -6751,6 +7129,12 @@ def brain_ask(message: str, on_event=None) -> str:
     on_event (v8.13 streaming): (kind, text) wala callback UI ko
     'status'/'delta' events bhejta hai; None ho to vyavhaar
     bilkul v8.12 jaisa (koi streaming nahi).
+    v8.16: pakka chhota status/haan-na sawal pehle fast path
+    se nibatta hai (classifier + _fastpath_answer); kaam wale
+    hukum par pehle dimag ke jawab se PEHLE ek turant tasalli
+    wali status line jati hai; aur rukne par aaya jawab
+    finalize ki re-ask mashinari se nahi guzarta (warna roka
+    hua kaam 'discipline' ke naam par phir shuru ho jata).
     """
     with _history_lock:
         _history.append({"role": "user", "parts": [{"text": message}]})
@@ -6758,7 +7142,22 @@ def brain_ask(message: str, on_event=None) -> str:
         # _HISTORY_SEND_MAX baariyan jati hain (v8.12).
         contents = list(_history[-_HISTORY_SEND_MAX:])
     extra = {"on_event": on_event} if on_event is not None else {}
+    if _is_fastpath_question(message):
+        fast = _fastpath_answer(contents)
+        if fast is not None:
+            return _guard_no_tool_json(fast)
+    if on_event is not None and _has_action_intent(message):
+        # Turant tasalli (v8.16): kaam wala hukum aate hi,
+        # pehle dimag ke jawab se pehle, ek line - user ko
+        # khamosh "soch raha hai" wali haalat nahi milti.
+        _emit_event(on_event, "status",
+                    "Samajh gaya — kaam shuru kar raha hu…")
     reply, used_tool = _brain_run(contents, **extra)
+    if _stop_requested():
+        # Rukne par aaya jawab ayn waisa jaye - finalize ki
+        # discipline re-ask roke hue kaam ko phir shuru kar
+        # degi, isliye sirf guard ki jaanch kaafi hai.
+        return _guard_no_tool_json(reply)
     return _finalize_reply(message, contents, reply, used_tool,
                            **extra)
 
@@ -6915,10 +7314,47 @@ def ask_agent(message: str, image: str = None,
     2. Session prefix: startup khud-jaanch ka one-time notice/
        sehat line session ke PEHLE jawab ke upar judta hai.
     Diary me jaane wala 'kya kiya' hissa ASAL jawab se banta
-    hai (prefix usme nahi jata)."""
-    reply = _ask_agent_core(message, image=image,
-                            image_mime=image_mime,
-                            on_event=on_event)
+    hai (prefix usme nahi jata).
+    3. Roko (v8.16): sirf-stop wala sandesh naye task ki
+       tarah line me NAHI lagta - koi task chal raha ho to
+       stop flag set hokar turant jawab aata hai; na chal
+       raha ho to dostana 'koi kaam chal hi nahi raha' wala
+       jawab. Baaki har sandesh par naya task shuru hone se
+       pehle stop flag saaf hota hai aur task-ginti badhti
+       hai (chal rahe task ki pehchan isi ginti se hoti hai).
+    """
+    if not image and _is_stop_message(message):
+        if _tasks_running() > 0:
+            _request_stop()
+            reply = ("Bol diya — chalta kaam agle kadam par "
+                     "ruk jayega.\nJo call ya kadam is pal chal "
+                     "raha hai wo beech me nahi katata, isliye "
+                     "rukne me kuch second lag sakte hain. "
+                     "Rukte hi wahi jawab ayega ki kaam kahan "
+                     "ruka aur kya bacha hai.")
+        else:
+            reply = ("Koi kaam chal hi nahi raha hai, bhai — "
+                     "rukne ko kuch hai hi nahi. Bolo, kya "
+                     "karna hai?")
+        try:
+            _diary_append((message or "").strip(),
+                          re.sub(r"\s+", " ", reply).strip())
+        except Exception:
+            pass
+        prefix = _take_session_prefix()
+        if prefix:
+            return prefix + "\n\n" + reply
+        return reply
+    # Naya task: purana stop hukum is par lagu nahi - flag
+    # pehle saaf, aur chalta-hua-task wali ginti me ye darj.
+    _clear_stop()
+    _task_started()
+    try:
+        reply = _ask_agent_core(message, image=image,
+                                image_mime=image_mime,
+                                on_event=on_event)
+    finally:
+        _task_finished()
     try:
         did = re.sub(r"\s+", " ", (reply or "")).strip()
         _diary_append((message or "").strip(), did)
@@ -6940,10 +7376,10 @@ def ask_agent(message: str, image: str = None,
 # me NAYI screen hi dikhegi, purani ui.html use rok nahi sakti.
 # --------------------------------------------------------------------------
 
-UI_VERSION = 3
+UI_VERSION = 4
 
 UI_HTML = r'''<!DOCTYPE html>
-<!-- myagent-ui-version: 3 -->
+<!-- myagent-ui-version: 4 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -7121,6 +7557,14 @@ UI_HTML = r'''<!DOCTYPE html>
   #send:active { transform: scale(.93); }
   #send:disabled { opacity: .55; }
   #send svg { width: 21px; height: 21px; margin-left: 2px; }
+  #stopBtn {
+    flex: 0 0 auto; align-self: center; padding: 10px 14px; border-radius: 999px; cursor: pointer;
+    font-family: inherit; font-size: 13.5px; font-weight: 800; color: #FFE1E1; white-space: nowrap;
+    background: linear-gradient(180deg, rgba(255,72,72,.30), rgba(185,22,22,.34));
+    border: 1px solid rgba(255,110,110,.55);
+    box-shadow: 0 6px 16px rgba(200,30,30,.35), inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  #stopBtn:active { transform: scale(.94); }
   /* ---------- Photo attach ---------- */
   #attach {
     flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; margin: 0 0 1px 1px;
@@ -7236,6 +7680,7 @@ UI_HTML = r'''<!DOCTYPE html>
   <button id="send" aria-label="Send">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.8-7.5c.8-.35.8-1.45 0-1.8L3.4 3.6c-.66-.29-1.39.2-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .72.73 1.2 1.39.91z"/></svg>
   </button>
+  <button id="stopBtn" type="button" title="Chal raha kaam roko">⛔ Roko</button>
 </div>
 
 </div>
@@ -7593,6 +8038,31 @@ UI_HTML = r'''<!DOCTYPE html>
   });
   sendBtn.addEventListener("click", function () { sendText(inputEl.value); });
 
+  /* Roko button (v8.16): chal raha kaam rokne ke liye alag
+     halka /stop call - chal rahe /ask ko block nahi karta.
+     Jawab ek chhoti workline bankar dikhta hai. */
+  document.getElementById("stopBtn").addEventListener("click", function () {
+    if (!getPin()) { openPinGate(""); return; }
+    function note(txt) {
+      var w = document.createElement("div");
+      w.className = "workline"; w.textContent = txt;
+      chatEl.appendChild(w); scrollDown();
+    }
+    fetch("/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: getPin() })
+    }).then(function (res) {
+      if (res.status === 200) {
+        note("⛔ Rukne ko bol diya — chalta kaam agle kadam par rukega.");
+      } else {
+        note("⛔ Roko nahi bheja ja saka (PIN galat ya server band hai).");
+      }
+    }).catch(function () {
+      note("⛔ Roko nahi bheja ja saka — agent band lag raha hai.");
+    });
+  });
+
   if (getPin()) { showHero(); } else { openPinGate(""); }
 })();
 </script>
@@ -7691,6 +8161,35 @@ class AskHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "not found"})
 
     def do_POST(self):
+        if self.path == "/stop":
+            # Roko endpoint (v8.16): halka aur turant - sirf
+            # stop flag set karta hai. Server threading hai,
+            # isliye ye chal rahe /ask ke SAATH parallel chalta
+            # hai, use block nahi karta. PIN ki jaanch /ask
+            # wali hi hai. Chal raha call/tool beech me nahi
+            # katata - loop agle kadam par rukega (sach ki
+            # seema yahi hai).
+            payload = {}
+            try:
+                length = int(self.headers.get("Content-Length",
+                                              "0"))
+                payload = json.loads(
+                    self.rfile.read(length) or b"{}")
+            except Exception:
+                payload = {}
+            _maybe_reload_config()
+            if AGENT_PIN:
+                given = str(payload.get("pin", "") or
+                            self.headers.get("X-Agent-PIN", ""))
+                if not hmac.compare_digest(given, AGENT_PIN):
+                    log("HTTP /stop REJECTED (wrong PIN)")
+                    self._send_json(403, {"error": "wrong PIN"})
+                    return
+            _request_stop()
+            self._send_json(200, {"ok": True,
+                                  "task_running":
+                                      _tasks_running() > 0})
+            return
         if self.path != "/ask":
             self._send_json(404, {"error": "not found"})
             return
