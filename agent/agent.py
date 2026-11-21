@@ -39,12 +39,22 @@ command/program chalata hai (software install/chalana) - ek
 chhoti denylist seatbelt ki tarah khatarnak commands (disk
 format, system delete, shutdown) rokti hai; paisa/delete par
 pehle puchna wala rule prompt me hai.
+v8.14: NVIDIA ADD-ON (user ki khaas haan se, v8.13 'final' ke
+baad ka chhota add-on) - config.env me NVIDIA_API_KEY ho to
+naya PEHLA dimag NVIDIA Build ke free model (default MiniMax
+M3.1 Flash) se jawab deta hai, Groq dusra, NVIDIA ka bhaari
+model (default Kimi K3.1 Pro) teesra, phir wahi Gemini ladder.
+Bina NVIDIA key ke vyavhaar bilkul v8.13 jaisa hai. Saath me
+see_image ko Glimmer (NVIDIA) wala vision backup bhi mila -
+Gemini photo dekhne me fail ho to wahi kaam Glimmer se hota
+hai. Key sirf config.env me rehti hai, code me kabhi nahi.
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
 - Brain = Google Gemini free API (key from a local config file, never in code),
-  plus optional Groq free API as the fast first brain (same rule: key
-  only in the local config file, never in code).
+  plus optional Groq free API as the fast brain, plus optional NVIDIA
+  Build free API as the first brain when its key is set (same rule:
+  keys only in the local config file, never in code).
 - Without a key it runs in demo/offline mode: direct tool commands still work.
 - Tools are confined to the work/ folder. Nothing outside it can be touched.
 - A tiny HTTP hook on 127.0.0.1 (localhost ONLY) lets the phone app talk to
@@ -99,7 +109,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.13"
+AGENT_VERSION = "8.14"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -142,6 +152,12 @@ def load_config() -> dict:
                          Ho to pehle tez wala Groq dimag jawab deta hai,
                          atak jaye to Gemini khud sambhal leta hai.
       GROQ_MODEL       - default: llama-3.3-70b-versatile
+      NVIDIA_API_KEY   - optional (v8.14): his free NVIDIA Build key
+                         (stored ONLY here). Ho to pehle NVIDIA wala
+                         dimag jawab deta hai, atak jaye to Groq,
+                         phir NVIDIA ka bhaari model, phir Gemini.
+      NVIDIA_MODEL     - default: minimaxai/minimax-m3.1-flash
+      NVIDIA_MODEL_HEAVY - default: moonshotai/kimi-k3.1-pro
       AGENT_PIN        - shared PIN checked on every HTTP /ask request
       AGENT_PORT       - default: 8765
       AGENT_WORK_DIR   - default: the work/ folder next to this script
@@ -159,7 +175,9 @@ def load_config() -> dict:
             break
     # Real environment variables win over the file.
     for key in ("GEMINI_API_KEY", "GEMINI_MODEL", "GROQ_API_KEY",
-                "GROQ_MODEL", "AGENT_PIN", "AGENT_PORT", "AGENT_WORK_DIR"):
+                "GROQ_MODEL", "NVIDIA_API_KEY", "NVIDIA_MODEL",
+                "NVIDIA_MODEL_HEAVY", "AGENT_PIN", "AGENT_PORT",
+                "AGENT_WORK_DIR"):
         if os.environ.get(key):
             cfg[key] = os.environ[key]
     return cfg
@@ -200,12 +218,18 @@ def _apply_config(cfg: dict) -> None:
     se bane hote hain; unhe badalne ke liye engine restart hi chahiye).
     """
     global GEMINI_API_KEY, GEMINI_MODEL, GROQ_API_KEY, GROQ_MODEL
+    global NVIDIA_API_KEY, NVIDIA_MODEL, NVIDIA_MODEL_HEAVY
     global AGENT_PIN
     GEMINI_API_KEY = _heal_key(cfg.get("GEMINI_API_KEY", "").strip())
     GEMINI_MODEL = cfg.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
     GROQ_API_KEY = _heal_key(cfg.get("GROQ_API_KEY", "").strip())
     GROQ_MODEL = (cfg.get("GROQ_MODEL", "").strip()
                   or "llama-3.3-70b-versatile")
+    NVIDIA_API_KEY = _heal_key(cfg.get("NVIDIA_API_KEY", "").strip())
+    NVIDIA_MODEL = (cfg.get("NVIDIA_MODEL", "").strip()
+                    or "minimaxai/minimax-m3.1-flash")
+    NVIDIA_MODEL_HEAVY = (cfg.get("NVIDIA_MODEL_HEAVY", "").strip()
+                          or "moonshotai/kimi-k3.1-pro")
     AGENT_PIN = cfg.get("AGENT_PIN", "").strip()
 
 
@@ -2039,7 +2063,7 @@ def tool_see_image(path: str) -> str:
     raw = (path or "").strip().strip('"').strip("'")
     if not raw:
         return "Kaunsi photo dekhu - uska path to do."
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY and not NVIDIA_API_KEY:
         return ("Photo dekhne ke liye Gemini ki key chahiye, lekin "
                 "config.env me GEMINI_API_KEY mili nahi. Key daal "
                 "kar phir bolo - main photo dekh kar bata dunga "
@@ -2060,19 +2084,37 @@ def tool_see_image(path: str) -> str:
     b64 = base64.b64encode(target.read_bytes()).decode("ascii")
     parts = [{"inline_data": {"mime_type": mime, "data": b64}},
              {"text": _SEE_IMAGE_PROMPT}]
-    try:
-        text = _gemini_video_call(parts)
-    except urllib.error.HTTPError as exc:
-        log(f"SEE_IMAGE fail: HTTP {exc.code}")
-        return (f"Photo dekh nahi paya - Gemini ne HTTP {exc.code} "
-                "diya. Thodi der baad phir try karo.")
-    except Exception as exc:
-        log(f"SEE_IMAGE fail: {exc}")
-        return (f"Photo dekh nahi paya: {exc}. Internet check "
-                "karke phir try karo.")
+    text = ""
+    fail_reply = None
+    if GEMINI_API_KEY:
+        try:
+            text = _gemini_video_call(parts)
+        except urllib.error.HTTPError as exc:
+            log(f"SEE_IMAGE fail: HTTP {exc.code}")
+            fail_reply = (f"Photo dekh nahi paya - Gemini ne HTTP "
+                          f"{exc.code} diya. Thodi der baad phir "
+                          "try karo.")
+        except Exception as exc:
+            log(f"SEE_IMAGE fail: {exc}")
+            fail_reply = (f"Photo dekh nahi paya: {exc}. Internet "
+                          "check karke phir try karo.")
+        if not text and fail_reply is None:
+            fail_reply = ("Photo bheja to tha, lekin Gemini se koi "
+                          "jawab nahi aaya - ek baar phir try karo.")
+    if not text and NVIDIA_API_KEY:
+        # v8.14: Gemini fail/khaali ho (ya uski key hi na ho) to
+        # photo Glimmer (NVIDIA) se samjho - wahi prompt, wahi
+        # jawab ki shakal.
+        try:
+            text = _nvidia_vision_call(b64, mime, _SEE_IMAGE_PROMPT)
+            if text:
+                log(f"SEE_IMAGE ok (NVIDIA Glimmer): {_rel(target)}")
+        except Exception as exc:
+            log(f"SEE_IMAGE NVIDIA backup fail: {exc}")
     if not text:
-        return ("Photo bheja to tha, lekin Gemini se koi jawab "
-                "nahi aaya - ek baar phir try karo.")
+        return fail_reply or ("Photo bheja to tha, lekin Gemini se "
+                              "koi jawab nahi aaya - ek baar phir "
+                              "try karo.")
     if len(text) > 12000:
         text = text[:12000] + "\n... (jawab aur lamba tha, kata gaya)"
     log(f"SEE_IMAGE ok: {_rel(target)}")
@@ -2477,7 +2519,17 @@ def _dimag_report() -> dict:
     tool_dimag_test chalata hai (_groq_selftest /
     _gemini_selftest / browser line), lekin bina text-lines
     ke - startup sehat line isi se banti hai. States:
-    none | pass | fail | badkey (sirf Groq)."""
+    none | pass | fail | badkey (Groq/NVIDIA)."""
+    nvidia_state = "none"
+    if NVIDIA_API_KEY:
+        res = _nvidia_selftest()
+        if res.startswith("✅"):
+            nvidia_state = "pass"
+        elif "Invalid API Key" in res or "HTTP 401" in res \
+                or "HTTP 403" in res:
+            nvidia_state = "badkey"
+        else:
+            nvidia_state = "fail"
     groq_state = "none"
     if GROQ_API_KEY:
         res = _groq_selftest()
@@ -2499,7 +2551,8 @@ def _dimag_report() -> dict:
         else:
             lite_state = gemini_state
     browser_line = _browser_state_line()
-    return {"groq": {"state": groq_state},
+    return {"nvidia": {"state": nvidia_state},
+            "groq": {"state": groq_state},
             "gemini": {"state": gemini_state},
             "gemini_lite": {"state": lite_state},
             "browser_setup_done":
@@ -2516,18 +2569,23 @@ def _startup_health_line() -> str:
     except Exception as exc:
         log(f"STARTUP-HEALTH: report fail ({exc})")
         return ""
+    nvidia_state = report.get("nvidia", {}).get("state")
     groq_state = report.get("groq", {}).get("state")
     gemini_state = report.get("gemini", {}).get("state")
     lite_state = report.get("gemini_lite", {}).get("state")
     browser_ok = report.get("browser_setup_done")
     problems = []
+    if nvidia_state in ("fail", "badkey"):
+        problems.append("naya dimag (NVIDIA) abhi kaam nahi kar "
+                        "raha - jawab Groq/Gemini se aayenge")
     if groq_state in ("fail", "badkey"):
         problems.append("tez dimag (Groq) abhi kaam nahi kar "
                         "raha - jawab Gemini se aayenge")
     if gemini_state == "fail" and lite_state == "fail":
         problems.append("Gemini ke dono model abhi jawab nahi "
                         "de rahe")
-    if gemini_state == "none" and groq_state == "none":
+    if gemini_state == "none" and groq_state == "none" \
+            and nvidia_state == "none":
         problems.append("dimag ki koi key config me nahi hai - "
                         "free chat band hai")
     if browser_ok is False:
@@ -4903,6 +4961,279 @@ def _groq_converse(contents: list, on_event=None):
 
 
 # --------------------------------------------------------------------------
+# NVIDIA Build - naya PEHLA dimag (v8.14 add-on, user ki khaas
+# haan se). config.env me NVIDIA_API_KEY ho to pehle NVIDIA ke
+# free model jawab dete hain: pehle tez-halka MiniMax M3.1 Flash
+# (NVIDIA_MODEL), aur Groq ke baad bhaari Kimi K3.1 Pro
+# (NVIDIA_MODEL_HEAVY) - seedhi _brain_run me hai. API
+# OpenAI-compatible hai (https://integrate.api.nvidia.com/v1):
+# wahi system prompt, wahi tool protocol (jawab ke text me JSON,
+# _extract_tool_call hi pehchanta hai - Groq wala ayn tarika),
+# wahi tool loop. NVIDIA ki koi bhi haar (timeout, busy 429/503,
+# galat key 401, khaali jawab) haar NAHI mani jati: agent chup
+# chaap agli seedhi par gir jata hai. Bina NVIDIA key ke ye
+# hissa bilkul nahi chalta (v8.13 wala vyavhaar ayn waisa).
+# Key SIRF config.env me rehti hai - code/log/jawab me kabhi
+# nahi aati.
+# --------------------------------------------------------------------------
+
+_NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+_NVIDIA_MODELS_URL = "https://integrate.api.nvidia.com/v1/models"
+# Free endpoint bade models par dheera ho sakta hai (Kimi ~50s
+# tak dekha gaya) - isliye 120s ka intezaar. Fail-fast neeti
+# Groq wali hi hai: busy (429/503) par kul 3 koshish, timeout/
+# network par kul 2 koshish, baaki HTTP error par turant agli
+# seedhi - koi retry loop nahi.
+_NVIDIA_TIMEOUT = 120
+# Reasoning wale model pehle reasoning_content me lamba
+# sochte hain; chhota budget rakho to asal jawab (content)
+# khaali aa jata hai (Glimmer par live dekha gaya). Isliye
+# har NVIDIA call me kam se kam 2048 tokens ki jagah.
+_NVIDIA_MAX_TOKENS = 2048
+# Photo dekhne ka backup model (see_image) - Glimmer photo/
+# screenshot samajhne ke liye bana hai.
+_NVIDIA_VISION_MODEL = "meta/muse-glimmer-30b"
+
+
+class _NvidiaDownError(Exception):
+    """NVIDIA se jawab nahi aaya - caller agli seedhi par girega.
+
+    status me HTTP code rehta hai jab haar kisi HTTP jawab se
+    aayi ho (401/403 matlab key ki gadbad); detail me server ke
+    error body ki asal baat (jaise "Invalid API Key") jab bheji
+    gayi ho. Bilkul _GroqDownError ka aaina.
+    """
+
+    def __init__(self, message, status=None, detail=""):
+        super().__init__(message)
+        self.status = status
+        self.detail = detail
+
+
+def _nvidia_request(body: dict) -> dict:
+    """NVIDIA chat-completions ko ek POST (retry ke saath) aur
+    parse hua JSON jawab do. Haar ki har haalat me
+    _NvidiaDownError uthta hai - caller ek hi tareeke se agli
+    seedhi par gir sakta hai. Key sirf Authorization header me
+    jati hai; log me sirf prompt ka size aata hai."""
+    payload = json.dumps(body).encode("utf-8")
+    log(f"NVIDIA[{body.get('model')}] prompt ~{len(payload)} chars")
+    req = urllib.request.Request(
+        _NVIDIA_URL,
+        data=payload,
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {NVIDIA_API_KEY}",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "application/json"},
+        method="POST",
+    )
+    last_exc = None
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=_NVIDIA_TIMEOUT) as resp:  # noqa: S310
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code not in _BUSY_CODES:
+                detail = _http_error_message(exc)
+                log(f"NVIDIA fail: HTTP {exc.code} (turant agli "
+                    "seedhi)" + (f" - NVIDIA ne kaha: {detail}"
+                                  if detail else ""))
+                raise _NvidiaDownError(
+                    f"HTTP {exc.code}"
+                    + (f": {detail}" if detail else ""),
+                    status=exc.code, detail=detail) from exc
+            last_exc = exc
+            max_attempts = 3
+            delays = _BUSY_DELAYS
+            log(f"NVIDIA attempt {attempt + 1}/{max_attempts} fail: "
+                f"HTTP {exc.code} (server busy / rate limit, retry)")
+        except (urllib.error.URLError, socket.timeout, TimeoutError,
+                ConnectionError) as exc:
+            last_exc = exc
+            max_attempts = 2
+            delays = _TIMEOUT_DELAYS
+            log(f"NVIDIA attempt {attempt + 1}/{max_attempts} fail: "
+                f"{exc}")
+        if attempt + 1 >= max_attempts:
+            break
+        time.sleep(delays[min(attempt, len(delays) - 1)])
+        attempt += 1
+    detail = ""
+    if isinstance(last_exc, urllib.error.HTTPError):
+        detail = _http_error_message(last_exc)
+    raise _NvidiaDownError(
+        str(last_exc) + (f": {detail}" if detail else ""),
+        status=(last_exc.code
+                if isinstance(last_exc, urllib.error.HTTPError)
+                else None),
+        detail=detail)
+
+
+def _nvidia_chat(messages: list, model: str = None,
+                 max_tokens: int = None) -> str:
+    """NVIDIA ko ek baar bulao aur jawab ka text do (_groq_call
+    ka aaina). Jawab ka content khaali mile (reasoning ne pura
+    budget kha liya ho) to use haar mano - khaali jawab aage
+    bhejne se behtar hai agli seedhi ka asal jawab."""
+    body = {"model": model or NVIDIA_MODEL,
+            "messages": messages,
+            "max_tokens": max_tokens or _NVIDIA_MAX_TOKENS}
+    data = _nvidia_request(body)
+    try:
+        message = data["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise _NvidiaDownError(
+            "NVIDIA ke jawab ki shakal samajh nahi aayi") from exc
+    content = (message.get("content") or "").strip()
+    if not content:
+        log("NVIDIA: content khaali aaya (reasoning ne budget "
+            "kha liya hoga) - haar man kar agli seedhi")
+        raise _NvidiaDownError("NVIDIA se khaali jawab aaya")
+    return content
+
+
+def _nvidia_call_stream(messages: list, model: str = None,
+                        on_delta=None) -> str:
+    """_nvidia_chat ka streaming roop: EK koshish (stream toote
+    to caller non-stream _nvidia_chat se pura jawab lata hai,
+    jahan poori retry neeti hai). Haar par _NvidiaDownError hi
+    uthta hai - status/detail ke saath, bilkul _nvidia_request
+    ki tarah."""
+    body = {"model": model or NVIDIA_MODEL,
+            "messages": messages,
+            "max_tokens": _NVIDIA_MAX_TOKENS,
+            "stream": True}
+    payload = json.dumps(body).encode("utf-8")
+    log(f"NVIDIA[{body['model']}] STREAM prompt ~{len(payload)} chars")
+    req = urllib.request.Request(
+        _NVIDIA_URL, data=payload,
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {NVIDIA_API_KEY}",
+                 "User-Agent": _BROWSER_UA,
+                 "Accept": "text/event-stream"},
+        method="POST")
+    parts_all = []
+    try:
+        with urllib.request.urlopen(req, timeout=_NVIDIA_TIMEOUT) as resp:  # noqa: S310
+            for data in _sse_text_lines(resp):
+                if not data:
+                    continue
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                    delta = chunk["choices"][0].get("delta") or {}
+                except (ValueError, KeyError, IndexError, TypeError):
+                    continue
+                text = delta.get("content")
+                if text:
+                    parts_all.append(text)
+                    if on_delta is not None:
+                        on_delta(text)
+    except urllib.error.HTTPError as exc:
+        detail = _http_error_message(exc)
+        raise _NvidiaDownError(
+            f"HTTP {exc.code}" + (f": {detail}" if detail else ""),
+            status=exc.code, detail=detail) from exc
+    except (urllib.error.URLError, socket.timeout, TimeoutError,
+            ConnectionError) as exc:
+        raise _NvidiaDownError(str(exc)) from exc
+    result = "".join(parts_all).strip()
+    if not result:
+        raise _NvidiaDownError("NVIDIA stream se khaali jawab aaya")
+    return result
+
+
+def _nvidia_converse(contents: list, model: str = None,
+                     on_event=None):
+    """NVIDIA ke saath pura tool-loop - _groq_converse ka aaina.
+
+    (jawab, tool_chala_kya) return hota hai. Tool protocol bilkul
+    wahi hai: jawab me JSON mile to _extract_tool_call use pehchan
+    kar tool chalata hai, warna jawab plain text hai. NVIDIA ki
+    haar par _NvidiaDownError (ya koi aur exception) upar jata
+    hai. model na do to NVIDIA_MODEL (MiniMax) chalta hai;
+    bhaari kadam ke liye caller NVIDIA_MODEL_HEAVY (Kimi) deta
+    hai.
+
+    Kadam-seema aur loop-pehchan _groq_converse wali hi hai
+    (_MAX_TOOL_STEPS = 20 + _StepTracker, v8.11).
+    """
+    contents = list(contents)
+    used_tool = False
+    tracker = _StepTracker()
+    nudges = 0
+    for _ in range(_MAX_TOOL_STEPS):
+        if on_event is not None:
+            try:
+                reply = _nvidia_call_stream(
+                    _to_openai_messages(contents), model,
+                    _make_step_delta(on_event))
+            except Exception as exc:
+                log(f"STREAM (NVIDIA) fail: {exc} - aam call se "
+                    "jawab la raha hu")
+                reply = _nvidia_chat(_to_openai_messages(contents),
+                                     model)
+        else:
+            reply = _nvidia_chat(_to_openai_messages(contents),
+                                 model)
+        tool_call = _extract_tool_call(reply)
+        if tool_call is None:
+            if nudges < _MAX_NUDGES \
+                    and len(tracker.approaches) < 2 \
+                    and _looks_like_giveup(reply) \
+                    and not _has_user_blocker(reply, tracker):
+                nudges += 1
+                log(f"NUDGE {nudges}: sirf "
+                    f"{len(tracker.approaches)} rasta try hua tha - "
+                    "haar ki jagah dusra rasta try karne ko kaha")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _nudge_text(tracker.approaches)}]})
+                continue
+            with _history_lock:
+                _history.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+            return reply, used_tool
+        used_tool = True
+        _emit_event(on_event, "status",
+                    f"⚙️ {tool_call['tool']} chal raha hai…")
+        result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if tracker.note(tool_call, result):
+            stuck = _loop_stuck_message(tool_call["tool"],
+                                        tracker.progress,
+                                        tracker.approaches)
+            _record_final_reply(stuck)
+            return stuck, used_tool
+        contents.append({"role": "model", "parts": [{"text": reply}]})
+        contents.append({"role": "user",
+                         "parts": [{"text": "Tool result: "
+                                            + _model_bound_result(result)}]})
+    done = _cap_reached_message(tracker.progress, tracker.approaches)
+    _record_final_reply(done)
+    return done, used_tool
+
+
+def _nvidia_vision_call(b64: str, mime: str, prompt: str) -> str:
+    """Photo/screenshot ko Glimmer se samjho (v8.14) - see_image
+    ka backup raasta jab Gemini photo dekhne me fail ho jaye.
+
+    OpenAI wali shakal: image data-URI bankar jati hai. Budget
+    jaan-boojh kar bada (2048) - Glimmer pehle reasoning_content
+    me sochta hai, chhota budget asal jawab kha jata hai. Haar
+    par _NvidiaDownError - caller Gemini wale purane jawab par
+    hi rehta hai."""
+    messages = [{"role": "user", "content": [
+        {"type": "text", "text": prompt},
+        {"type": "image_url",
+         "image_url": {"url": f"data:{mime};base64,{b64}"}}]}]
+    return _nvidia_chat(messages, model=_NVIDIA_VISION_MODEL,
+                        max_tokens=_NVIDIA_MAX_TOKENS)
+
+
+# --------------------------------------------------------------------------
 # Tool discipline (v8.1) - 'khud kar lo' wali shikayat ka code ilaaj.
 # Hukum me action wala shabd ho (kholo, banao, likho...) aur model ne
 # BINA koi tool chalaye sirf text jawab de diya ho, to ek baar sakht
@@ -4972,24 +5303,50 @@ def _ladder_run(contents: list, fast_primary: bool = False,
 
 
 def _brain_run(contents: list, on_event=None):
-    """Dimag chalao: pehle Groq (agar key hai), fail ho to Gemini ladder.
+    """Dimag chalao - seedhi (v8.14): pehle NVIDIA MiniMax (agar
+    NVIDIA key hai), phir Groq (agar key hai), phir NVIDIA ka
+    bhaari model Kimi, aakhir me Gemini ladder.
 
     Safal ho to (jawab, tool_chala_kya); sab fail hon to
     (error_message, None) - error message Gemini wali class-neeti
     se hi banta hai (busy -> busy wala, slow -> slow wala, 404 ->
-    plain). Groq se gir kar Gemini se jawab aaye to jawab ke upar
-    ek chhota note lagta hai. Groq ki haar key wali ho (HTTP
-    401/403) to note me key jaanchne ka ishara bhi jud jata hai -
-    baaki haar (timeout/429/5xx/network) par note bilkul waisa
-    hi rehta hai. Bina Groq key ke ye seedha Gemini ladder hai -
-    bilkul v8.1 wala vyavhaar, koi note nahi.
+    plain). Upar wali seedhi se gir kar neeche se jawab aaye to
+    jawab ke upar ek chhota note lagta hai. Kisi dimag ki haar
+    key wali ho (HTTP 401/403) to note me usi key ko jaanchne ka
+    ishara bhi jud jata hai - baaki haar (timeout/429/5xx/
+    network) par note bilkul waisa hi rehta hai. Bina NVIDIA
+    key ke vyavhaar bilkul v8.13 wala hai (Groq -> Gemini);
+    bina dono keys ke ye seedha Gemini ladder hai - bilkul
+    v8.1 wala vyavhaar, koi note nahi.
     """
+    nvidia_failed = False
+    nvidia_key_error = False
+    nvidia_detail = ""
+    nvidia_status = None
     groq_failed = False
     groq_key_error = False
     groq_detail = ""
     groq_status = None
     groq_rate_scope = ""
     extra = {"on_event": on_event} if on_event is not None else {}
+    if NVIDIA_API_KEY:
+        try:
+            reply, used_tool = _nvidia_converse(
+                contents, NVIDIA_MODEL, **extra)
+            log("BRAIN: jawab NVIDIA (MiniMax) se aaya")
+            return reply, used_tool
+        except Exception as exc:  # har haar par agli seedhi
+            nvidia_failed = True
+            nvidia_status = getattr(exc, "status", None)
+            if nvidia_status in (401, 403):
+                # Key wali gadbad - note me ishara milega, aur
+                # bhaari NVIDIA model bhi NAHI try hoga (wahi
+                # key hai, wahi 401 aayega - waqt barbaad nahi).
+                nvidia_key_error = True
+                nvidia_detail = (getattr(exc, "detail", "")
+                                 or "")[:120]
+            log(f"BRAIN: NVIDIA (MiniMax) fail ({exc}) - agli "
+                "seedhi par ja raha hu")
     if GROQ_API_KEY:
         try:
             reply, used_tool = _groq_converse(contents, **extra)
@@ -5009,27 +5366,68 @@ def _brain_run(contents: list, on_event=None):
                 groq_detail = (getattr(exc, "detail", "") or "")[:120]
             log(f"BRAIN: GROQ fail ({exc}) - Gemini ladder par ja "
                 "raha hu")
-    reply, used_tool = _ladder_run(contents, fast_primary=groq_failed,
-                                   on_event=on_event)
-    if used_tool is not None and groq_failed:
-        note = ("(tez wale model se jawab nahi aaya, dusre model se "
-                "laya hu)")
-        if groq_key_error:
-            note += (" (Note: lagta hai Groq wali key sahi nahi "
-                     "hai — config.env me GROQ_API_KEY wali line "
-                     "ek baar jaanch lo, key gsk_ se shuru hoti "
-                     "hai.)")
-            if groq_detail:
-                note += f" (Groq ne kaha: {groq_detail})"
-        if groq_status == 429 and groq_rate_scope == "daily":
-            # v8.12: 429 ka dayra saaf batao - din wali seema
-            # khatam hai to user ko pata ho ki kal tak tez dimag
-            # wapas aayega, koi gadbad nahi hui.
-            note += (" (tez dimag ki aaj ki free seema khatam ho "
-                     "gayi hai — kal phir tez ho jayega)")
-        elif groq_status == 429 and groq_rate_scope == "minute":
-            note += (" (tez dimag ki ek-minute wali seema lagi "
-                     "hai — thodi der me phir tez ho jayega)")
+    if NVIDIA_API_KEY and not nvidia_key_error \
+            and NVIDIA_MODEL_HEAVY != NVIDIA_MODEL:
+        # Bhaari dimag (Kimi) - MiniMax/Groq dono fail hon tabhi
+        # iski baari aati hai. NVIDIA ki key hi kharab ho
+        # (401/403) to ye try hi nahi hota (upar wala
+        # nvidia_key_error wahi rok hai - wahi key, wahi 401).
+        try:
+            reply, used_tool = _nvidia_converse(
+                contents, NVIDIA_MODEL_HEAVY, **extra)
+            log("BRAIN: jawab NVIDIA (Kimi, bhaari) se aaya")
+            if used_tool is not None:
+                reply = ("(pehle wale dimagon se jawab nahi aaya, "
+                         "bhaari NVIDIA dimag se laya hu)\n"
+                         + reply)
+            return reply, used_tool
+        except Exception as exc:  # har haar par Gemini ki baari
+            log(f"BRAIN: NVIDIA (Kimi) fail ({exc}) - Gemini "
+                "ladder par ja raha hu")
+    reply, used_tool = _ladder_run(
+        contents, fast_primary=(groq_failed or nvidia_failed),
+        on_event=on_event)
+    if used_tool is not None and (groq_failed or nvidia_failed):
+        if groq_failed:
+            note = ("(tez wale model se jawab nahi aaya, dusre "
+                    "model se laya hu)")
+            if groq_key_error:
+                note += (" (Note: lagta hai Groq wali key sahi "
+                         "nahi hai — config.env me GROQ_API_KEY "
+                         "wali line ek baar jaanch lo, key gsk_ se "
+                         "shuru hoti hai.)")
+                if groq_detail:
+                    note += f" (Groq ne kaha: {groq_detail})"
+            if nvidia_key_error:
+                # Dono taraf haar hui aur NVIDIA ki key pakki
+                # kharab nikli - user ko wo ishara bhi mile.
+                note += (" (Note: NVIDIA wali key bhi sahi nahi "
+                         "hai — config.env me NVIDIA_API_KEY wali "
+                         "line jaanch lo, key nvapi- se shuru "
+                         "hoti hai.)")
+            if groq_status == 429 and groq_rate_scope == "daily":
+                # v8.12: 429 ka dayra saaf batao - din wali seema
+                # khatam hai to user ko pata ho ki kal tak tez
+                # dimag wapas aayega, koi gadbad nahi hui.
+                note += (" (tez dimag ki aaj ki free seema khatam "
+                         "ho gayi hai — kal phir tez ho jayega)")
+            elif groq_status == 429 and groq_rate_scope == "minute":
+                note += (" (tez dimag ki ek-minute wali seema "
+                         "lagi hai — thodi der me phir tez ho "
+                         "jayega)")
+        else:
+            # Sirf NVIDIA fail hua tha (Groq ya to hai hi nahi,
+            # ya usne jawab de diya hota to hum yahan hote hi
+            # nahi - ye Gemini se aaya jawab hai).
+            note = ("(NVIDIA wale dimag se jawab nahi aaya, dusre "
+                    "model se laya hu)")
+            if nvidia_key_error:
+                note += (" (Note: lagta hai NVIDIA wali key sahi "
+                         "nahi hai — config.env me NVIDIA_API_KEY "
+                         "wali line ek baar jaanch lo, key nvapi- "
+                         "se shuru hoti hai.)")
+                if nvidia_detail:
+                    note += f" (NVIDIA ne kaha: {nvidia_detail})"
         reply = note + "\n" + reply
     return reply, used_tool
 
@@ -5037,7 +5435,9 @@ def _brain_run(contents: list, on_event=None):
 # --------------------------------------------------------------------------
 # Dimag test (v8.6) - 'dimag test karo' par dono dimagon ki ASAL
 # jaanch: Groq par halki GET /models call, Gemini par sabse chhoti
-# generateContent call. Jawab me har dimag ki pass/fail ke saath
+# generateContent call. v8.14: NVIDIA par sabse chhoti chat call
+# (uske /models par bina sahi key ke bhi 200 aa jata hai, isliye
+# GET wali jaanch wahan kaafi nahi). Jawab me har dimag ki pass/fail ke saath
 # asal wajah (HTTP code + server ki baat) aati hai - "lagta hai key
 # sahi nahi" wala andaz khatm. Test se pehle config hot-reload
 # hota hai, isliye taazi save ki hui key hi test hoti hai aur
@@ -5079,6 +5479,33 @@ def _groq_selftest() -> str:
         return f"❌ fail — {exc.__class__.__name__}"
 
 
+def _nvidia_selftest() -> str:
+    """NVIDIA ki key sach me chal rahi hai ya nahi (v8.14).
+
+    GET /models yahan kaafi NAHI hai - wo bina sahi key ke bhi
+    khul jata hai (live smoke me dummy key par bhi 200 aaya
+    tha), isliye asal jaanch sabse chhoti chat call se hoti
+    hai: key, model aur endpoint teeno ek saath pakke ho jate
+    hain. Jawab ka content khaali bhi ho (reasoning budget)
+    to call ka safal hona hi PASS hai. Key kabhi nahi dikhti."""
+    try:
+        _nvidia_request({"model": NVIDIA_MODEL,
+                         "messages": [{"role": "user",
+                                       "content": "ok"}],
+                         "max_tokens": 64})
+        log("DIMAG TEST: NVIDIA PASS")
+        return "✅ chal raha hai"
+    except _NvidiaDownError as exc:
+        log(f"DIMAG TEST: NVIDIA FAIL {exc}")
+        if exc.status:
+            return f"❌ fail — {exc}"
+        return ("❌ fail — server tak pahuncha hi nahi "
+                "(internet/timeout)")
+    except Exception as exc:
+        log(f"DIMAG TEST: NVIDIA FAIL {exc}")
+        return f"❌ fail — {exc.__class__.__name__}"
+
+
 def _gemini_selftest(model: str) -> str:
     """Ek model par sabse chhoti Gemini call ('ok') - pass/fail + wajah."""
     try:
@@ -5111,15 +5538,18 @@ def _config_state_line() -> str:
     nahi (✓/✗). Key ka koi hissa kabhi nahi dikhta."""
     g = "✓" if GEMINI_API_KEY else "✗"
     q = "✓" if GROQ_API_KEY else "✗"
-    return f"Config: Gemini key lagi hai {g}, Groq key lagi hai {q}"
+    n = "✓" if NVIDIA_API_KEY else "✗"
+    return (f"Config: Gemini key lagi hai {g}, Groq key lagi "
+            f"hai {q}, NVIDIA key lagi hai {n}")
 
 
 def tool_dimag_test() -> str:
     """'dimag test karo' ka jawab: har dimag ki ek line + aakhri salah.
 
     Pehle config hot-reload (taaki jo key abhi-abhi save hui hai
-    wahi test ho), phir Groq (key ho to), phir Gemini ke dono
-    ladder model (primary + lite; dono ek hi hon to ek baar).
+    wahi test ho), phir NVIDIA (key ho to), Groq (key ho to),
+    phir Gemini ke dono ladder model (primary + lite; dono ek
+    hi hon to ek baar).
 
     v8.9: report me do lines aur - Browser ki haalat aur Config
     me keys ki maujudgi (sirf ✓/✗) - taaki 'dimag theek hai
@@ -5128,6 +5558,20 @@ def tool_dimag_test() -> str:
     """
     _maybe_reload_config()
     lines = []
+    nvidia_state = "none"  # none | pass | fail | badkey
+    if NVIDIA_API_KEY:
+        res = _nvidia_selftest()
+        lines.append(f"NVIDIA (pehla dimag): {res}")
+        if res.startswith("✅"):
+            nvidia_state = "pass"
+        elif "Invalid API Key" in res or "HTTP 401" in res \
+                or "HTTP 403" in res:
+            nvidia_state = "badkey"
+        else:
+            nvidia_state = "fail"
+    else:
+        lines.append("NVIDIA (pehla dimag): key config me hai hi "
+                     "nahi — purana Groq/Gemini wala kram chalega")
     groq_state = "none"  # none | pass | fail | badkey
     if GROQ_API_KEY:
         res = _groq_selftest()
@@ -5138,6 +5582,9 @@ def tool_dimag_test() -> str:
             groq_state = "badkey"
         else:
             groq_state = "fail"
+    elif NVIDIA_API_KEY:
+        lines.append("Groq (tez dimag): key config me hai hi nahi — "
+                     "NVIDIA aur Gemini chalenge")
     else:
         lines.append("Groq (tez dimag): key config me hai hi nahi — "
                      "sirf Gemini chalega")
@@ -5162,7 +5609,17 @@ def tool_dimag_test() -> str:
     lines.append(_config_state_line())
     browser_setup_done = "setup nahi hua hai" not in browser_line
     # Aakhri salah - haalat ke hisaab se ek saaf line.
-    if groq_state == "pass" and gemini_state == "pass":
+    if nvidia_state == "badkey":
+        lines.append("NVIDIA ki key galat hai: build.nvidia.com "
+                     "par apne account se nayi API key banao, COPY "
+                     "karke config.env ki NVIDIA_API_KEY wali line "
+                     "me waisa hi chipka do (haath se type mat "
+                     "karna, key nvapi- se shuru hoti hai). Restart "
+                     "ki zaroorat NAHI hai — main config khud "
+                     "dobara padh leta hu. Phir 'dimag test karo' "
+                     "phir se bolo.")
+    elif (nvidia_state == "pass" or groq_state == "pass") \
+            and gemini_state == "pass":
         lines.append("Sab theek hai — ab kaam bolo, agent poori "
                      "taqat se chalega.")
     elif groq_state == "badkey":
@@ -5172,20 +5629,31 @@ def tool_dimag_test() -> str:
                      "hi chipka do (haath se type mat karna). Restart "
                      "ki zaroorat NAHI hai — main config khud dobara "
                      "padh leta hu. Phir 'dimag test karo' phir se bolo.")
+    elif nvidia_state == "pass" and gemini_state in ("fail", "none"):
+        lines.append("NVIDIA wala pehla dimag chal raha hai — kaam "
+                     "chalega. Gemini backup abhi theek nahi hai; "
+                     "uski key config.env me ek baar jaanch lo.")
     elif groq_state == "fail" and gemini_state == "pass":
         lines.append("Gemini chal raha hai, isliye kaam to hoga — "
                      "lekin tez wala dimag abhi fail hai. Internet "
                      "check karo aur thodi der baad 'dimag test karo' "
                      "phir bolo.")
+    elif nvidia_state == "fail" and gemini_state == "pass":
+        lines.append("Gemini chal raha hai — kaam hoga, lekin "
+                     "NVIDIA wala pehla dimag abhi fail hai. "
+                     "Internet check karo aur thodi der baad "
+                     "'dimag test karo' phir bolo.")
     elif groq_state == "pass" and gemini_state in ("fail", "none"):
         lines.append("Tez dimag (Groq) chal raha hai — kaam chalega. "
                      "Gemini backup abhi theek nahi hai; uski key "
                      "config.env me ek baar jaanch lo.")
-    elif groq_state == "none" and gemini_state == "pass":
+    elif groq_state == "none" and nvidia_state == "none" \
+            and gemini_state == "pass":
         lines.append("Gemini chal raha hai — kaam hoga. Tez jawab "
                      "chahiye to config.env me GROQ_API_KEY bhi daal "
                      "do (free hai, console.groq.com se).")
-    elif groq_state == "none" and gemini_state == "none":
+    elif groq_state == "none" and nvidia_state == "none" \
+            and gemini_state == "none":
         lines.append("Dono keys config me nahi hain — pehle "
                      "config.env me GEMINI_API_KEY daalo, phir "
                      "'dimag test karo' bolo.")
@@ -5195,7 +5663,8 @@ def tool_dimag_test() -> str:
     # v8.9: dono dimag pass hon lekin browser setup hi na hua ho
     # to ek line aur - warna 'sab theek' sunkar bhi asal kaam
     # (logged-in sites) atka rehta hai.
-    if groq_state == "pass" and gemini_state == "pass" \
+    if (groq_state == "pass" or nvidia_state == "pass") \
+            and gemini_state == "pass" \
             and not browser_setup_done:
         lines.append("Ek kaam baki hai: 'browser setup karo' "
                      "likho taaki agent wala Chrome taiyaar ho "
@@ -6358,7 +6827,11 @@ class AskHandler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html", "/ui"):
             self._send_html(_ui_page())
         elif self.path == "/health":
-            if GROQ_API_KEY and GEMINI_API_KEY:
+            if NVIDIA_API_KEY and GROQ_API_KEY and GEMINI_API_KEY:
+                mode = "nvidia+groq+gemini"
+            elif NVIDIA_API_KEY:
+                mode = "nvidia"
+            elif GROQ_API_KEY and GEMINI_API_KEY:
                 mode = "groq+gemini"
             elif GROQ_API_KEY:
                 mode = "groq"
