@@ -83,6 +83,31 @@ wala sandesh - chalta kaam har kadam se pehle flag check
 karke agle kadam par rukta hai, "Ruk gaya" jawab ke saath;
 jo call/tool usi pal chal raha hai wo beech me nahi katata
 (seema code/prompt me saaf hai). UI v4.
+v8.17: PEHLE SAMJHO (user ki shikayat, asal screenshot se:
+wo beech me samjha raha tha - "abhi baat kar rha, achhe se
+samjho, fhir kaam karna" - aur agent jawab dene ki jagah
+phir find_file/list_files chalane laga; sath wale screenshot
+me ek hi list_files kadam do baar lagatar chala bhi tha) -
+(1) SAMAJH GATE: samjhane/dantne wala sandesh (samjho, suno,
+"baat kar rha", "maine bola", "aise nahi" jaise pakke
+nishan) aam loop se PEHLE pakda jata hai - ek text-only
+dimag call (tool bilkul band) jo apne shabdon me dohra kar
+bata hai ki kya samjha, na samajh aaye to EK sawal, aur
+andar hukum ghula ho to aakhir me "bolo to shuru karu?"
+Saaf hukum/file-naam/URL wale sandesh gate par NAHI rukte.
+(2) Prompt me niyam 13 "PEHLE SAMJHO". (3) DUP GUARD:
+lagatar ayn wahi tool+args dobara manga jaye to dusri baar
+chalaya NAHI jata - dimag ko note milta hai "yehi kadam
+abhi-abhi ho chuka hai" aur loop aage badhta hai. UI wahi.
+BATTERY SE MILE TEEN FIX AUR (asal-baatcheet wale drishyon
+se saabit): (4) SAARRE dimag fail hon to jawab sirf Gemini
+wali canned line nahi rehta - pehle ek line me nateeja
+(kaun-kaun try hua, kya hua), phir asal wajah. (5) Browser
+setup na ho to pehla browser tool hi run rok deta hai -
+setup wala saaf sandesh hi jawab hai; aur ek hi browser
+tool lagatar 2 baar fail ho to teesri maang nahi chalti.
+(6) Sirf NVIDIA key ho to bhi brain chalta hai (dispatch
+shart me NVIDIA jud gaya).
 
 A personal agent that runs on Ankit's OWN computer.
 - All files and logs stay on this machine.
@@ -145,7 +170,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.16"
+AGENT_VERSION = "8.17"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -467,6 +492,14 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
     liye tumhe kuch karna nahi hai. Bas ye jhooth kabhi mat
     bolo ki chal raha call ya tool beech me kat sakta hai:
     rukna hamesha AGLE kadam par hota hai.
+13. PEHLE SAMJHO: Ankit kuch SAMJHA raha ho, aadhi baat bol
+    raha ho, ya pichhle kaam par sudhaar/narazgi bata raha
+    ho, to pehle apne shabdon me dohra kar batao ki tumne
+    kya samjha - aur kuch saaf na ho to EK chhota sawal
+    puchho. Tool tabhi chalao jab hukum saaf ho. Hukum
+    AADHA lage (kaunsi file, kahan, kab - kuch gayab ho) to
+    bhi andaze se kaam shuru mat karo: pehle samajh pakki
+    karo ya ek sawal puchho, phir kaam karo.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tum WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab
@@ -5079,6 +5112,45 @@ def _extract_tool_call(reply: str):
 
 _MAX_TOOL_STEPS = 20
 
+# Dup guard (v8.17): dimag LAGATAR ayn wahi tool+args dobara
+# mange to dusri baar chalaya nahi jata - dimag ko ye note
+# tool-result bankar milta hai aur loop aage badhta hai
+# (kadam wahi gina jata hai, seema ayn waisi khatam hoti
+# hai). Alag args ya beech me dusra kadam aa jaye to aam
+# chalana - sirf lagatar-ayn-wahi par rok hai. (Screenshot
+# me ek hi list_files do baar lagatar chala tha - asal
+# barbaadi yahi thi; _StepTracker wali loop-pehchan iska
+# backup hai, ye guard usse pehle rok deta hai.)
+_DUP_STEP_NOTE = ("yehi kadam abhi-abhi ho chuka hai — iska "
+                  "nateeja upar hai; aage badho ya final "
+                  "jawab do")
+
+# Browser asafal-dohrao seema (v8.17, battery drishya f):
+# browser setup hi na ho to har browser tool wahi setup
+# wala sandesh deta hai - dimag URL badal-badal kar wahi
+# asafal kadam dohrata rehta tha aur aakhir me jhootha
+# "page par ye dikha" wala jawab bana deta tha. Ab: setup
+# wala sandesh milte hi run wahi rukta hai aur wahi sandesh
+# user ko jata hai; aur ek hi browser tool lagatar 2 baar
+# fail ho to teesri maang chalti hi nahi (note milta hai).
+_BROWSER_FAIL_NOTE = ("ye browser wala kadam lagatar fail "
+                      "ho raha hai — wahi kaam dohrane se "
+                      "wahi nateeja hoga. Pehle wajah dekho "
+                      "(browser setup ya login baki ho to "
+                      "wahi), warna aage badho ya final "
+                      "jawab me wajah batao")
+
+_BROWSER_FAIL_MARKERS = ("nahi ho paya", "ho nahi paya",
+                         "uplabdh nahi", "setup karo",
+                         "connect nahi", "khul nahi",
+                         "band hai", "fail", "error")
+
+
+def _browser_result_failed(result) -> bool:
+    """Browser tool ka jawab asafalta wala hai kya."""
+    low = str(result or "").lower()
+    return any(m in low for m in _BROWSER_FAIL_MARKERS)
+
 
 def _tool_signature(tool_call: dict) -> str:
     """Tool call ki pehchan: naam + args ka canonical JSON.
@@ -5534,6 +5606,9 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
     contents = list(contents)
     used_tool = False
     tracker = _StepTracker()
+    last_sig = None
+    bfail_tool = None
+    bfail_streak = 0
     nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
         if _stop_requested():
@@ -5575,10 +5650,57 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
             stopped = _stopped_message(tracker, tool_call["tool"])
             _record_final_reply(stopped)
             return stopped, used_tool
+        sig = _tool_signature(tool_call)
+        if last_sig is not None and sig == last_sig:
+            # Dup guard (v8.17): lagatar ayn wahi kadam
+            # dobara NAHI chalega - note dekar aage badho.
+            log(f"DUP GUARD: {tool_call['tool']} ayn wahi "
+                "kadam lagatar dobara manga gaya - dobara "
+                "chalaya nahi")
+            contents.append({"role": "model",
+                             "parts": [{"text": reply}]})
+            contents.append({"role": "user", "parts": [
+                {"text": "Tool result: " + _DUP_STEP_NOTE}]})
+            continue
+        if tool_call["tool"].startswith("browser_") \
+                and bfail_tool == tool_call["tool"] \
+                and bfail_streak >= 2:
+            # Browser fail seema (v8.17): ek hi browser tool
+            # lagatar 2 baar fail - teesri maang nahi chalegi.
+            log(f"BROWSER FAIL GUARD: {tool_call['tool']} "
+                "lagatar fail ke baad dobara manga gaya - "
+                "chalaya nahi")
+            contents.append({"role": "model",
+                             "parts": [{"text": reply}]})
+            contents.append({"role": "user", "parts": [
+                {"text": "Tool result: "
+                         + _BROWSER_FAIL_NOTE}]})
+            continue
+        last_sig = sig
         used_tool = True
         _emit_event(on_event, "status",
                     _tool_status_text(tool_call["tool"]))
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if tool_call["tool"].startswith("browser_") \
+                and "'browser setup karo'" in result:
+            # Browser setup hi nahi hai (v8.17) - ye user ke
+            # haath ka kadam hai; URL badal-badal kar loop
+            # ghumane ki jagah run yahi roko aur wahi saaf
+            # sandesh user ko do.
+            log("BROWSER: setup nahi hai - run yahi roka, "
+                "user ko saaf sandesh diya")
+            _record_final_reply(result)
+            return result, True
+        if tool_call["tool"].startswith("browser_"):
+            if _browser_result_failed(result):
+                if bfail_tool == tool_call["tool"]:
+                    bfail_streak += 1
+                else:
+                    bfail_tool = tool_call["tool"]
+                    bfail_streak = 1
+            else:
+                bfail_tool = None
+                bfail_streak = 0
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
                                         tracker.progress,
@@ -5848,6 +5970,9 @@ def _groq_converse(contents: list, on_event=None):
     contents = list(contents)
     used_tool = False
     tracker = _StepTracker()
+    last_sig = None
+    bfail_tool = None
+    bfail_streak = 0
     nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
         if _stop_requested():
@@ -5888,10 +6013,57 @@ def _groq_converse(contents: list, on_event=None):
             stopped = _stopped_message(tracker, tool_call["tool"])
             _record_final_reply(stopped)
             return stopped, used_tool
+        sig = _tool_signature(tool_call)
+        if last_sig is not None and sig == last_sig:
+            # Dup guard (v8.17): lagatar ayn wahi kadam
+            # dobara NAHI chalega - note dekar aage badho.
+            log(f"DUP GUARD: {tool_call['tool']} ayn wahi "
+                "kadam lagatar dobara manga gaya - dobara "
+                "chalaya nahi")
+            contents.append({"role": "model",
+                             "parts": [{"text": reply}]})
+            contents.append({"role": "user", "parts": [
+                {"text": "Tool result: " + _DUP_STEP_NOTE}]})
+            continue
+        if tool_call["tool"].startswith("browser_") \
+                and bfail_tool == tool_call["tool"] \
+                and bfail_streak >= 2:
+            # Browser fail seema (v8.17): ek hi browser tool
+            # lagatar 2 baar fail - teesri maang nahi chalegi.
+            log(f"BROWSER FAIL GUARD: {tool_call['tool']} "
+                "lagatar fail ke baad dobara manga gaya - "
+                "chalaya nahi")
+            contents.append({"role": "model",
+                             "parts": [{"text": reply}]})
+            contents.append({"role": "user", "parts": [
+                {"text": "Tool result: "
+                         + _BROWSER_FAIL_NOTE}]})
+            continue
+        last_sig = sig
         used_tool = True
         _emit_event(on_event, "status",
                     _tool_status_text(tool_call["tool"]))
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if tool_call["tool"].startswith("browser_") \
+                and "'browser setup karo'" in result:
+            # Browser setup hi nahi hai (v8.17) - ye user ke
+            # haath ka kadam hai; URL badal-badal kar loop
+            # ghumane ki jagah run yahi roko aur wahi saaf
+            # sandesh user ko do.
+            log("BROWSER: setup nahi hai - run yahi roka, "
+                "user ko saaf sandesh diya")
+            _record_final_reply(result)
+            return result, True
+        if tool_call["tool"].startswith("browser_"):
+            if _browser_result_failed(result):
+                if bfail_tool == tool_call["tool"]:
+                    bfail_streak += 1
+                else:
+                    bfail_tool = tool_call["tool"]
+                    bfail_streak = 1
+            else:
+                bfail_tool = None
+                bfail_streak = 0
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
                                         tracker.progress,
@@ -6112,6 +6284,9 @@ def _nvidia_converse(contents: list, model: str = None,
     contents = list(contents)
     used_tool = False
     tracker = _StepTracker()
+    last_sig = None
+    bfail_tool = None
+    bfail_streak = 0
     nudges = 0
     for _ in range(_MAX_TOOL_STEPS):
         if _stop_requested():
@@ -6154,10 +6329,57 @@ def _nvidia_converse(contents: list, model: str = None,
             stopped = _stopped_message(tracker, tool_call["tool"])
             _record_final_reply(stopped)
             return stopped, used_tool
+        sig = _tool_signature(tool_call)
+        if last_sig is not None and sig == last_sig:
+            # Dup guard (v8.17): lagatar ayn wahi kadam
+            # dobara NAHI chalega - note dekar aage badho.
+            log(f"DUP GUARD: {tool_call['tool']} ayn wahi "
+                "kadam lagatar dobara manga gaya - dobara "
+                "chalaya nahi")
+            contents.append({"role": "model",
+                             "parts": [{"text": reply}]})
+            contents.append({"role": "user", "parts": [
+                {"text": "Tool result: " + _DUP_STEP_NOTE}]})
+            continue
+        if tool_call["tool"].startswith("browser_") \
+                and bfail_tool == tool_call["tool"] \
+                and bfail_streak >= 2:
+            # Browser fail seema (v8.17): ek hi browser tool
+            # lagatar 2 baar fail - teesri maang nahi chalegi.
+            log(f"BROWSER FAIL GUARD: {tool_call['tool']} "
+                "lagatar fail ke baad dobara manga gaya - "
+                "chalaya nahi")
+            contents.append({"role": "model",
+                             "parts": [{"text": reply}]})
+            contents.append({"role": "user", "parts": [
+                {"text": "Tool result: "
+                         + _BROWSER_FAIL_NOTE}]})
+            continue
+        last_sig = sig
         used_tool = True
         _emit_event(on_event, "status",
                     _tool_status_text(tool_call["tool"]))
         result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if tool_call["tool"].startswith("browser_") \
+                and "'browser setup karo'" in result:
+            # Browser setup hi nahi hai (v8.17) - ye user ke
+            # haath ka kadam hai; URL badal-badal kar loop
+            # ghumane ki jagah run yahi roko aur wahi saaf
+            # sandesh user ko do.
+            log("BROWSER: setup nahi hai - run yahi roka, "
+                "user ko saaf sandesh diya")
+            _record_final_reply(result)
+            return result, True
+        if tool_call["tool"].startswith("browser_"):
+            if _browser_result_failed(result):
+                if bfail_tool == tool_call["tool"]:
+                    bfail_streak += 1
+                else:
+                    bfail_tool = tool_call["tool"]
+                    bfail_streak = 1
+            else:
+                bfail_tool = None
+                bfail_streak = 0
         if tracker.note(tool_call, result):
             stuck = _loop_stuck_message(tool_call["tool"],
                                         tracker.progress,
@@ -6259,6 +6481,22 @@ def _ladder_run(contents: list, fast_primary: bool = False,
     return _final_error_message(last_exc), None
 
 
+def _rung_fail_word(status, key_error, rate_scope="") -> str:
+    """Ek fail hue dimag ki wajah chhote roop me (v8.17) -
+    all-fail wale nateeja note ke liye."""
+    if key_error:
+        return "key sahi nahi lagi"
+    if status is None:
+        return "jawab time par nahi aaya (dheera pada)"
+    if status == 429 and rate_scope == "daily":
+        return "aaj ki free seema khatam thi"
+    if status == 429 and rate_scope == "minute":
+        return "ek-minute wali seema lagi thi"
+    if status in (429, 503):
+        return "server busy tha"
+    return f"HTTP {status} par fail hua"
+
+
 def _brain_run(contents: list, on_event=None):
     """Dimag chalao - seedhi (v8.14): pehle NVIDIA MiniMax (agar
     NVIDIA key hai), phir Groq (agar key hai), phir NVIDIA ka
@@ -6280,6 +6518,7 @@ def _brain_run(contents: list, on_event=None):
     nvidia_key_error = False
     nvidia_detail = ""
     nvidia_status = None
+    heavy_tried = False
     groq_failed = False
     groq_key_error = False
     groq_detail = ""
@@ -6337,6 +6576,7 @@ def _brain_run(contents: list, on_event=None):
         # iski baari aati hai. NVIDIA ki key hi kharab ho
         # (401/403) to ye try hi nahi hota (upar wala
         # nvidia_key_error wahi rok hai - wahi key, wahi 401).
+        heavy_tried = True
         try:
             reply, used_tool = _nvidia_converse(
                 contents, NVIDIA_MODEL_HEAVY, **extra)
@@ -6352,6 +6592,28 @@ def _brain_run(contents: list, on_event=None):
     reply, used_tool = _ladder_run(
         contents, fast_primary=(groq_failed or nvidia_failed),
         on_event=on_event)
+    if used_tool is None and (groq_failed or nvidia_failed):
+        # v8.17 (battery drishya e2): SAARRE dimag fail - sirf
+        # aakhri (Gemini) wajah wala canned jawab gumrah karta
+        # tha; user ko lagta tha sirf Gemini try hua aur baat
+        # bina nateeje khatam ho gayi. Nateeja pehle: kaun-kaun
+        # try hua aur kya hua, ek line me - asal wajah wala
+        # jawab uske neeche ayn waisa rehta hai.
+        tried = []
+        if nvidia_failed:
+            naam = ("NVIDIA (MiniMax + bhaari model)"
+                    if heavy_tried else "NVIDIA (MiniMax)")
+            tried.append(
+                f"{naam}: "
+                f"{_rung_fail_word(nvidia_status, nvidia_key_error)}")
+        if groq_failed:
+            tried.append(
+                f"Groq: "
+                f"{_rung_fail_word(groq_status, groq_key_error, groq_rate_scope)}")
+        reply = ("(Nateeja: jawab nahi ban paya — "
+                 + "; ".join(tried)
+                 + "; aur Gemini se bhi jawab nahi aaya.)\n"
+                 + reply)
     if used_tool is not None and (groq_failed or nvidia_failed):
         if groq_failed:
             note = ("(tez wale model se jawab nahi aaya, dusre "
@@ -7113,6 +7375,131 @@ def _fastpath_answer(contents: list):
     return reply
 
 
+# --------------------------------------------------------------------------
+# Samajh gate (v8.17) - PEHLE SAMJHO. User ki asal shikayat
+# (screenshot, 2026-11-21): wo beech me samjha raha tha -
+# "abhi maine tume bola ki ye sab khojo jo tum find karne
+# chale gye abhi baat kar rha achhe se samjho fhir kaam
+# karna" - aur agent ne jawab dene ki jagah phir se
+# find_file/list_files chala diye. Wajah: dimag har sandesh
+# ko hukum samajh kar tool-loop me ghus jata tha; samjhane
+# wala sandesh bhi usi raaste jata tha. Ab aisa sandesh CODE
+# se pakda jata hai (sirf prompt se nahi), aam loop se pehle:
+# ek TEXT-ONLY dimag call hoti hai jisme tool chalana hi
+# band hai (jawab parse hi nahi hota), aur dimag ko hukum
+# hai - (a) apne shabdon me dohrao ki kya samjha, (b) kuch
+# saaf na ho to EK chhota sawal, (c) koi kaam shuru NAHI
+# karna; sandesh me hukum ghula ho to aakhir me ek line me
+# go-ahead maango ("bolo to shuru karu?"). Gate hukum wale
+# shabdon par bhi jeet-ta hai (dant me "khojo" tha, phir bhi
+# gate laga) - lekin saaf hukum (bina samjhane wale nishan
+# ke), file-naam ya URL wale sandesh gate par kabhi nahi
+# rukte. Text-only call saare dimagon par fail ho to chup
+# chaap aam loop - user kabhi bina jawab ke nahi rehta.
+# --------------------------------------------------------------------------
+
+_SAMAJH_GATE_INSTRUCTION = (
+    "[SAMAJH WALA KADAM: User abhi koi naya hukum NAHI de "
+    "raha - wo kuch SAMJHA raha hai, sudhaar bata raha hai, "
+    "ya pichhli baat par narazgi dikha raha hai. Is kadam me "
+    "tool chalana bilkul band hai aur koi kaam shuru NAHI "
+    "karna hai. Sirf ye karo: (1) Apne shabdon me dohra kar "
+    "batao ki tumne kya samjha - 2-3 chhoti lines me. "
+    "(2) Kuch saaf na ho to aakhir me EK chhota sawal puchho. "
+    "(3) Agar user ki baat me koi kaam/hukum ghula hua hai, "
+    "to aakhir me ek line me puchho: 'bolo to shuru karu?' - "
+    "khud se shuru mat karo. Jawab Hinglish me, shaant aur "
+    "saaf.]")
+
+# Samjhane/dantne ke pakke nishan. Sirf wahi shabd/roop jo
+# aam hukum me nahi aate: "dhoondo", "kholo", "kar do" jaise
+# hukum-shabd yahan jaan-boojh kar NAHI hain - saaf hukum
+# gate par nahi rukna chahiye.
+_SAMAJH_RE = re.compile(
+    r"(samajh|samjho|samjhaya|samjhao|suno|"
+    r"baat\s+kar\s+rh|baat\s+kar\s+rah|baat\s+suno|"
+    r"abhi\s+bola|maine\s+bola|maine\s+tume\s+bola|"
+    r"maine\s+tumhe\s+bola|phir\s+kaam\s+karna|"
+    r"pehle\s+samajh|dhyan\s+se|aise\s+nahi|"
+    r"nahi\s+bola\s+tha|galat\s+kar)",
+    re.IGNORECASE)
+
+
+def _is_samajh_message(message: str) -> bool:
+    """User samjha/dant raha hai (hukum nahi de raha) to True.
+
+    Teen shartein:
+    1. Sandesh me samjhane ka pakka nishan mile.
+    2. Koi asal file-naam ya URL na ho - wo kaam wala
+       sandesh hai, aam raaste jayega (fast path wali hi
+       rok yahan bhi).
+    3. Photo wala andar ka sandesh nahi (uska caption kaam
+       wala hota hai, use tools chahiye).
+    Nishan mile to gate hukum wale shabdon par bhi jeet-ta
+    hai - dant me "khojo" hone se wo hukum nahi ban jata.
+    """
+    msg = (message or "").strip()
+    if not msg:
+        return False
+    low = msg.lower()
+    if "photo bheji hai" in low:
+        return False
+    if _FASTPATH_URL_RE.search(msg) or _FILE_MENTION_RE.search(msg):
+        return False
+    if "\\" in msg or re.search(r"[a-zA-Z]:[\\/]", msg):
+        return False
+    return bool(_SAMAJH_RE.search(low))
+
+
+def _samajh_answer(contents: list):
+    """Gate ki text-only call: dimag seedhi (NVIDIA MiniMax
+    -> Groq -> Gemini) par EK call, system ke aakhir me
+    samajh wali hidayat jod kar.
+
+    Tool chalana band hai - is raaste me jawab ka tool-call
+    parse hi nahi hota, run_tool kabhi bulaya hi nahi jata;
+    bahar jane se pehle jawab _guard_no_tool_json se bhi
+    guzarta hai (caller par). Safal ho to saaf jawab aur wo
+    history me bhi jud jata hai; saare dimag fail hon to
+    None - caller aam loop chalata hai.
+    """
+    gate_contents = list(contents) + [
+        {"role": "user",
+         "parts": [{"text": _SAMAJH_GATE_INSTRUCTION}]}]
+    reply = None
+    if NVIDIA_API_KEY:
+        try:
+            reply = _nvidia_chat(
+                _to_openai_messages(gate_contents), NVIDIA_MODEL,
+                max_tokens=_NVIDIA_MAX_TOKENS)
+            log("SAMAJH GATE: jawab NVIDIA (MiniMax) se aaya")
+        except Exception as exc:
+            log(f"SAMAJH GATE: NVIDIA fail ({exc}) - agli seedhi")
+            reply = None
+    if reply is None and GROQ_API_KEY:
+        try:
+            reply = _groq_call(_to_openai_messages(gate_contents))
+            log("SAMAJH GATE: jawab Groq se aaya")
+        except Exception as exc:
+            log(f"SAMAJH GATE: Groq fail ({exc}) - agli seedhi")
+            reply = None
+    if reply is None and GEMINI_API_KEY:
+        try:
+            reply = _gemini_call(gate_contents,
+                                 _ladder_models()[0])
+            log("SAMAJH GATE: jawab Gemini se aaya")
+        except Exception as exc:
+            log(f"SAMAJH GATE: Gemini fail ({exc}) - aam loop")
+            reply = None
+    reply = (reply or "").strip()
+    if not reply:
+        return None
+    with _history_lock:
+        _history.append({"role": "model",
+                         "parts": [{"text": reply}]})
+    return reply
+
+
 def brain_ask(message: str, on_event=None) -> str:
     """Dimag se jawab lao - Groq pehle (key ho to), Gemini ladder
     peeche, aur discipline re-ask ke saath.
@@ -7135,6 +7522,10 @@ def brain_ask(message: str, on_event=None) -> str:
     wali status line jati hai; aur rukne par aaya jawab
     finalize ki re-ask mashinari se nahi guzarta (warna roka
     hua kaam 'discipline' ke naam par phir shuru ho jata).
+    v8.17: samjhane/dantne wala sandesh sabse pehle SAMAJH
+    GATE se nibatta hai (text-only call, tool band) - fast
+    path se bhi pehle, kyunki samajh wali baat ka jawab
+    pehle aana chahiye, kaam baad me.
     """
     with _history_lock:
         _history.append({"role": "user", "parts": [{"text": message}]})
@@ -7142,6 +7533,16 @@ def brain_ask(message: str, on_event=None) -> str:
         # _HISTORY_SEND_MAX baariyan jati hain (v8.12).
         contents = list(_history[-_HISTORY_SEND_MAX:])
     extra = {"on_event": on_event} if on_event is not None else {}
+    if _is_samajh_message(message):
+        # Samajh gate (v8.17): samjhane/dantne wala sandesh
+        # tool-loop me hi nahi jata - pehle text-only jawab.
+        # Gate fail ho (saare dimag) to neeche aam loop hi
+        # chalega; user bina jawab ke kabhi nahi rehta.
+        log("SAMAJH GATE: pehle jawab, tool nahi")
+        gated = _samajh_answer(contents)
+        if gated is not None:
+            return _guard_no_tool_json(gated)
+        log("SAMAJH GATE: text-only call fail - aam loop par gira")
     if _is_fastpath_question(message):
         fast = _fastpath_answer(contents)
         if fast is not None:
@@ -7294,13 +7695,13 @@ def _ask_agent_core(message: str, image: str = None,
     demo_reply = demo_ask(message)
     if demo_reply is not None:
         return demo_reply
-    if GEMINI_API_KEY or GROQ_API_KEY:
+    if GEMINI_API_KEY or GROQ_API_KEY or NVIDIA_API_KEY:
         extra = {"on_event": on_event} if on_event is not None else {}
         return brain_ask(message, **extra)
     return ("Abhi main demo mode me hu - bina kisi key ke main sirf "
             "tool wale kaam kar sakta hu. 'help' likho, commands dikha dunga. "
             "Free chat ke liye config.env me apni free Gemini key (ya "
-            "tez jawab ke liye Groq key) daal do.")
+            "tez jawab ke liye Groq key, ya NVIDIA key) daal do.")
 
 
 def ask_agent(message: str, image: str = None,
