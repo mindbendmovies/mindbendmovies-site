@@ -170,7 +170,7 @@ MEMORY_FILE = BASE_DIR / "MEMORY.md"
 # me rehti hai), isliye ise khule aam host karna surakshit hai.
 # --------------------------------------------------------------------------
 
-AGENT_VERSION = "8.17"
+AGENT_VERSION = "8.18"
 UPDATE_URL = "https://mindbendmovies.github.io/mindbendmovies-site/agent/agent.py"
 SELF_FILE = Path(__file__).resolve()
 BACKUP_FILE = BASE_DIR / "agent_backup.py"
@@ -434,6 +434,13 @@ dhyaan me rakho. Ankit zaroori baat bataye (pasand, faisla,
 chal raha kaam, naam, date) to yaad_likho se save kar do. Roz ki
 chhoti baatein save mat karo; memory me bhi password/API key/PIN
 kabhi mat likho.
+YAAD KI SEEMA (jhooth kabhi nahi): tumhari sthaayi yaad SIRF
+MEMORY.md (yaadein + Seekhe hue niyam) aur diary
+(baatein.jsonl) me hai. Restart ke baad baat-cheet ka aam
+sandarbh (history) mit jata hai - jo in fileon me nahi hai
+wo tumhe yaad NAHI hai. "Mujhe sab yaad hai" kabhi mat
+bolo; kisi purani baat par shak ho to pehle
+purani_baat_dhundho se diary dekho, phir jawab do.
 SEEKHNA (Ankit ki baaton se): Ankit SUDHAAR de ya niyam sikhaye
 ("aise nahi", "galat", "hamesha", "kabhi nahi", "yaad rakhna",
 "agli baar" jaisi baat) to wo niyam SABSE PEHLE
@@ -441,6 +448,12 @@ yaad_likho(text, section="niyam") se save karo, phir kaam karo,
 aur jawab me ek line likho: "Seekh liya: <niyam ek line me>".
 Seekhe hue niyam har jawab ke saath neeche milte hain - unhe
 hamesha mano.
+Niyam aur hukum EK SAATH aayein (jaise "yaad rahe ... kabhi
+nahi karna, ab ye kaam karo") to pehle niyam save karo aur
+"Yaad kar liya: <niyam>" line se pushti karo, phir USI baari
+me hukum wala kaam bhi aage badhao - sirf pushti karke ruk
+mat jao. Niyam save hi na ho paye to jawab me saaf batao ki
+save nahi ho paya - chup mat raho.
 PURANI BAATEIN: Ankit puchhe "kab bola tha / maine kya kaha
 tha / yaad hai maine ... bola tha" to jawab SIRF
 purani_baat_dhundho ke record se do - andaz kabhi mat lagao.
@@ -500,6 +513,18 @@ KAAM KARNE KA TAREEKA (hamesha yahi follow karo):
     AADHA lage (kaunsi file, kahan, kab - kuch gayab ho) to
     bhi andaze se kaam shuru mat karo: pehle samajh pakki
     karo ya ek sawal puchho, phir kaam karo.
+14. MIL CHUKI JANKARI DOBARA MAT PUCHO + KAAM PURA KARO:
+    is baat-cheet me ya is kaam ke pichhle kadmo me jo
+    file/path/naam (jaise Page ka naam) mil chuka hai, use
+    istemal karo - "location bata do", "kaunsi file?" tabhi
+    pucho jab wo jankari sach me kahin mili hi na ho. User
+    kisi folder/source ki taraf ishara kare aur wahan kai
+    file hon to upload se pehle unke naam gin kar pushti
+    karo ki kaunsi leni hai. Aur hukum ke AAKHRI kadam tak
+    badho: pehla asaan kadam (jaise page kholna) karke
+    "khol diya" jaisi aadhi report dekar mat ruko - beech
+    me rukna hi pade to wajah aur bacha hua kaam saaf
+    batao.
 
 WORKER RULE - SABSE SAKHT (ise kabhi mat todo):
 - Tum WORKER ho, salah dene wale advisor NAHI. Hukum ka matlab
@@ -519,6 +544,19 @@ BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
 - Login wali site ka kaam ho (upload, post, comments) to pehle
   matching skill padho, phir browser tools: browser_open,
   browser_read, phir click/type/upload.
+- CLICK KI PUSHTI (pakka niyam): har browser_click ke baad
+  browser_read karke jaancho ki apekshit badlav aaya - naya
+  text, URL ya element jo skill/kadam me likha ho. Na aye to
+  EK baar dusre tareeke se koshish karo (scroll karke ya
+  dusri milti-julti jagah); phir bhi na bane to WAHI RUK kar
+  saaf report do - andha click ya khol-padh ka chakkar
+  kabhi nahi.
+- JAANE HUE PRAVAH (Facebook/YouTube upload jaise) SKILL-
+  SCRIPT ki tarah chalao: skill ke kadam ek-ek karke, har
+  kadam ke baad apekshit sthiti ki jaanch; kadam fail ho to
+  agla kadam MAT badho - pehle report karo. In pravahon me
+  apni taraf se shortcut/improvisation kam se kam rakho -
+  skill hi script hai.
 - Reel/post upload ke liye Meta Business Suite ke
   content_calendar wala rasta MAT lo - seedha uske Page par jaa
   kar create flow use karo ('Create reel' wahan nahi milta).
@@ -542,7 +580,10 @@ BROWSER HAATH (agent wala Chrome - logged-in sites ke liye):
   verify karke tabhi "ho gaya" bolo. Aakhri click SIRF tab roko
   jab Ankit bole "pehle dikhao" ya "draft banao".
 - Har browser kadam ke baad browser_read se page dobara padho;
-  andhere me click mat karo.
+  andhere me click mat karo. browser_open ke TURANT baad
+  browser_read karo - bina padhe "khol diya" bol kar rukna
+  sabse badi galti hai; page kholna kaam ki SHURUAAT hai,
+  nateeja nahi.
 
 VIDEO BANANA (poster + awaaz se poori video):
 - "Is movie ki video banao" par pehle 'video-banana' skill
@@ -660,7 +701,7 @@ Available tools:
 - agent_update() - naya version check karke install karo (restart ke baad lagega)
 - browser_open(url) - agent wale Chrome me page kholo (taiyaar na ho to 'browser setup karo' bolo)
 - browser_read() - khule page ka title + text padho
-- browser_click(target) - button/link dabao (CSS selector ya dikhai dene wala text)
+- browser_click(target) - button/link dabao (CSS selector ya dikhai dene wala text); click ke baad browser_read se pushti anivarya hai
 - browser_type(target, text) - field me likho (caption, title adi)
 - browser_upload_file(target, path) - page ke file-input par file lagao (pura path; naam hi pata ho to pehle find_file)
 - download_file(url, filename) - internet se file download karo (apne folders; 25 MB tak)
@@ -3533,8 +3574,17 @@ function (target) {
     return (el.innerText || el.value ||
             el.getAttribute('aria-label') || '').trim();
   }
-  var el = null;
+  function usable(el) {
+    if (!el) return false;
+    if (el.disabled) return false;
+    if ((el.getAttribute('aria-disabled') || '') === 'true')
+      return false;
+    return true;
+  }
+  var el = null, exact = false, cands = [];
   try { el = document.querySelector(target); } catch (e) { el = null; }
+  if (el && !usable(el)) el = null;
+  if (el) exact = true;
   if (!el) {
     var want = String(target).trim().toLowerCase();
     var nodes = document.querySelectorAll(
@@ -3542,18 +3592,29 @@ function (target) {
       'input[type="button"], [onclick]');
     var i, t;
     for (i = 0; i < nodes.length; i++) {
+      if (!usable(nodes[i])) continue;
       t = labelOf(nodes[i]).toLowerCase();
-      if (t && t === want) { el = nodes[i]; break; }
+      if (t && t === want) { el = nodes[i]; exact = true; break; }
     }
     if (!el) {
+      var best = null, bestLen = 1e9;
       for (i = 0; i < nodes.length; i++) {
-        t = labelOf(nodes[i]).toLowerCase();
-        if (t && t.indexOf(want) !== -1) { el = nodes[i]; break; }
+        if (!usable(nodes[i])) continue;
+        t = labelOf(nodes[i]);
+        if (t && t.toLowerCase().indexOf(want) !== -1) {
+          if (cands.indexOf(t) === -1 && cands.length < 4)
+            cands.push(t);
+          if (t.length < bestLen) {
+            bestLen = t.length; best = nodes[i];
+          }
+        }
       }
+      el = best;
     }
   }
   if (!el) return {found: false};
-  el.scrollIntoView({block: 'center', inline: 'center'});
+  el.scrollIntoView({block: 'center', inline: 'center',
+                     behavior: 'instant'});
   var r = el.getBoundingClientRect();
   var s = getComputedStyle(el);
   if (r.width <= 0 || r.height <= 0 || s.display === 'none' ||
@@ -3561,10 +3622,22 @@ function (target) {
     return {found: false,
             reason: 'element page par dikhai nahi de raha'};
   }
-  return {found: true, x: r.x + r.width / 2, y: r.y + r.height / 2,
+  var cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+  var top = null;
+  try { top = document.elementFromPoint(cx, cy); } catch (e) {}
+  if (top && top !== el && !el.contains(top)) {
+    return {found: false, covered: true,
+            reason: 'element ke upar kuch aur hai - "' +
+              labelOf(top).slice(0, 40) +
+              '" use dhak raha hai (popup/banner hoga); pehle ' +
+              'use band karo ya scroll karo'};
+  }
+  return {found: true, x: cx, y: cy, exact: exact,
+          candidates: cands,
           label: labelOf(el).slice(0, 80)};
 }
 """
+
 
 _TYPE_FOCUS_JS = """
 function (target) {
@@ -3651,6 +3724,7 @@ def tool_browser_click(target: str) -> str:
         return "Kya dabana hai - uska text ya CSS selector to do."
 
     def work(client, session):
+        before_url = client.evaluate(session, "location.href") or ""
         info = client.evaluate(
             session,
             "(" + _CLICK_FIND_JS + ")(" + json.dumps(target) + ")")
@@ -3660,6 +3734,16 @@ def tool_browser_click(target: str) -> str:
             return (f"'{target}' nahi dab paya: {reason}. Pehle "
                     "browser_read karke dekho page par kya-kya dikh "
                     "raha hai, phir sahi naam/selector se try karo.")
+        # Scroll-settle (v8.18 click-vishvasta): scrollIntoView
+        # ke baad coordinates DOBARA maapo - scroll pura hone
+        # se pehle liye gaye coordinates galat jagah click kar
+        # dete the (asal "click nahi ho raha" wali bimari).
+        time.sleep(0.35)
+        info2 = client.evaluate(
+            session,
+            "(" + _CLICK_FIND_JS + ")(" + json.dumps(target) + ")")
+        if info2 and info2.get("found"):
+            info = info2
         for etype, buttons in (("mousePressed", 1),
                                ("mouseReleased", 0)):
             client.call(
@@ -3669,12 +3753,43 @@ def tool_browser_click(target: str) -> str:
                  "clickCount": 1},
                 session_id=session)
             time.sleep(0.05)
-        time.sleep(0.8)  # click ke baad page ko sambhalne ka samay
+        # Load ka intezaar (v8.18): fixed 0.8s neend ki jagah
+        # readyState 'complete' hone tak chhota poll - dheeme
+        # page par click ke baad ki padhai aadhi-adhuri
+        # haalat par ho jati thi.
+        for _ in range(10):
+            try:
+                state = client.evaluate(session,
+                                        "document.readyState")
+            except Exception:
+                state = "complete"
+            if state == "complete":
+                break
+            time.sleep(0.25)
+        time.sleep(0.3)
+        after_title = client.evaluate(session,
+                                      "document.title") or ""
+        after_url = client.evaluate(session, "location.href") or ""
         label = info.get("label") or target
-        return f"'{label}' par click kar diya."
+        out = f"'{label}' par click kar diya."
+        out += (f"\nAb page: {after_title or '(bina title)'}"
+                f" | {after_url}")
+        if after_url and before_url and after_url != before_url:
+            out += "\n(URL badal gaya hai - naya page khula hai.)"
+        cands = [c for c in (info.get("candidates") or [])
+                 if c and c != label]
+        if cands and not info.get("exact"):
+            out += ("\nDhyaan do: page par milte-julte aur bhi "
+                    "mile the: " + ", ".join(
+                        "'" + c + "'" for c in cands[:3]) +
+                    " - sahi wala yahi hai, browser_read se "
+                    "pushti kar lo.")
+        out += ("\nAb browser_read karke PUSHTI karo ki "
+                "apekshit badlav aaya; na aaya ho to ek baar "
+                "dusre tareeke se koshish karo, phir report do.")
+        return out
 
     return _with_browser(work)
-
 
 def tool_browser_type(target: str, text: str) -> str:
     target = (target or "").strip()
@@ -4583,6 +4698,14 @@ def _site_open_command(message: str):
               for m in re.finditer(r"[a-z0-9]+", text)]
     if _looks_like_question(message, text, [w for w, _ in tokens]):
         return None
+    if _UPLOADISH_RE.search(text) or _RULE_MARKER_RE.search(text):
+        # v8.18: sirf kholna nahi hai - saath me asal kaam
+        # (upload/post) ya sthaayi niyam bhi ghula hai.
+        # Instant kholne par kaam aur niyam dono beh jate
+        # the (asal screenshot 2026-11-21 14:11: jawab sirf
+        # "khol diya hai" aaya, na niyam save hua na kaam
+        # shuru hua) - aisa sandesh dimag ke paas jayega.
+        return None
     verb_pos = [pos for w, pos in tokens if w in _OPEN_WORDS]
     if not verb_pos:
         return None
@@ -4681,10 +4804,96 @@ TOOLS = {
 }
 
 
+# --------------------------------------------------------------------------
+# Duplicate-post guard + kaam record (v8.18) - user ka
+# seekha niyam "post ki hui video dobara post nahi karni"
+# tabhi lagu hoga jab asal RECORD ho ki kya ho chuka hai.
+# Record ke liye maujood diary (baatein.jsonl) hi istemal
+# hoti hai - koi nayi parallel vyavastha nahi:
+# - browser_upload_file safal ho to diary me ek
+#   [KAAM-RECORD] entry jati hai (file, tareekh ke saath).
+# - Wahi file dobara browser_upload_file par aaye to
+#   run_tool use chalata hi nahi: dimag ko record dikha
+#   kar rok wala jawab milta hai, aur agent user ko record
+#   + niyam suna kar mana karta hai.
+# - User ne record ke BAAD saaf taur par "phir bhi /
+#   dobara kar do" bola ho to rok nahi lagti (uski marzi
+#   niyam se upar hai, par wo baat diary me honi chahiye).
+# --------------------------------------------------------------------------
+
+
+def _posted_record_for(filename: str):
+    """Diary me is file ka purana post/upload record ho to
+    (tareekh, summary) lautao, warna None. User ka baad
+    wala saaf override mile to bhi None."""
+    name = (filename or "").strip().lower()
+    if not name:
+        return None
+    entries = _diary_load()
+    found = None
+    found_idx = -1
+    for idx, entry in enumerate(entries):
+        did = (entry.get("did") or "")
+        low = did.lower()
+        if name not in low:
+            continue
+        if "kaam-record" not in low and "post" not in low \
+                and "upload" not in low:
+            continue
+        if any(w in low for w in ("lag gayi", "lagayi gayi",
+                                  "ho gayi", "ho gaya",
+                                  "kar diya")):
+            found = entry
+            found_idx = idx
+    if not found:
+        return None
+    # Override ki pehchan diary ke KRAM se hoti hai, ghadi
+    # se nahi: ts second-resolution ka hai - record aur
+    # override ek hi second me gir jayein to ts-tulna
+    # override ko miss kar deti thi (v8.18 asal bug).
+    for entry in entries[found_idx + 1:]:
+        u = (entry.get("user") or "").lower()
+        if name in u and ("phir bhi" in u
+                          or "dobara kar do" in u
+                          or "dobara post kar" in u
+                          or "phir se post" in u):
+            return None
+    return (_diary_fmt_date(found.get("ts")),
+            (found.get("did") or "")[:160])
+
+
+def _dup_post_block(filename: str):
+    """Is file ka purana record ho to rok wala jawab,
+    warna None (aage badho)."""
+    rec = _posted_record_for(filename)
+    if not rec:
+        return None
+    log(f"DUP-POST GUARD: {filename} ka purana record "
+        "mila - upload roka")
+    return ("RUKO — ye file '" + filename + "' pehle "
+            "post/upload ho chuki hai. Record (" + rec[0]
+            + "): " + rec[1] + "\nAnkit ka seekha hua "
+            "niyam hai: jo video ek baar post ho jaye, wo "
+            "dobara post NAHI karni. Isliye ye upload nahi "
+            "hoga. Ankit ko ye record dikha kar saaf batao "
+            "ki ye video pehle post ho chuki hai — aur "
+            "agar wo khud nayi baat me 'phir bhi kar do' "
+            "bole, tabhi aage badhna.")
+
+
 def run_tool(name: str, args: dict) -> str:
     """Run one tool, log it, and always return text (never crash the agent)."""
     if name not in TOOLS:
         return f"Unknown tool: {name}"
+    if name == "browser_upload_file":
+        # Duplicate-post guard (v8.18): record wali file
+        # dobara page par nahi lagegi.
+        _raw = str((args or {}).get("path") or "")
+        _fname = Path(_raw).name if _raw else ""
+        if _fname:
+            _block = _dup_post_block(_fname)
+            if _block:
+                return _block
     try:
         result = TOOLS[name](**{k: v for k, v in (args or {}).items()
                                 if k in TOOLS[name].__code__.co_varnames})
@@ -4692,6 +4901,21 @@ def run_tool(name: str, args: dict) -> str:
         result = f"Tool argument error: {exc}"
     except Exception as exc:  # tools must never kill the loop
         result = f"Tool error: {exc}"
+    if name == "browser_upload_file" and (
+            result.startswith("File lag gayi")
+            or result.startswith("File input par laga di hai")):
+        # Kaam record (v8.18): safal upload diary me
+        # tareekh ke saath - yahi record aage dobara-post
+        # rokega, restart ke baad bhi (file me rehta hai).
+        try:
+            _fname = Path(
+                str((args or {}).get("path") or "")).name
+            _diary_append(
+                "", f"[KAAM-RECORD] upload: file "
+                f"'{_fname}' page par lag gayi (post ki "
+                "taiyaari puri).")
+        except Exception:
+            pass
     log_args = args or {}
     if name == "type_text" and "text" in log_args:
         # v8.15: type_text ka content log me KABHI nahi jata -
@@ -4805,8 +5029,15 @@ def demo_ask(message: str):
         return "Meri yaadein (MEMORY.md):\n" + memory
 
     m = re.match(r"yaad\s+(.+)$", text, re.IGNORECASE | re.DOTALL)
-    if m:
+    if m and not re.match(r"(rahe|raho|rakhna|rakho|rakh)\b",
+                          m.group(1).strip(), re.IGNORECASE):
         return run_tool("yaad_likho", {"text": m.group(1).strip()})
+    # "yaad rahe ki..." wala sandesh demo hukum NAHI hai -
+    # sthaayi niyam hai (v8.18 asal bimari: yahi block pure
+    # sandesh ko yaad bana kar nigal jata tha aur saath wala
+    # kaam kabhi shuru hi nahi hota tha). Aise sandesh ko
+    # neeche ke kisi demo hukum se match na ho to brain_ask
+    # ke niyam-bandobast par chhodo.
 
     if low in ("kya seekha", "kya seekha hai", "seekhe hue niyam",
                "niyam dikhao", "tumne kya seekha") or nlow in (
@@ -5146,10 +5377,23 @@ _BROWSER_FAIL_MARKERS = ("nahi ho paya", "ho nahi paya",
                          "band hai", "fail", "error")
 
 
-def _browser_result_failed(result) -> bool:
-    """Browser tool ka jawab asafalta wala hai kya."""
+def _browser_result_failed(result, tool: str = "") -> bool:
+    """Browser tool ka jawab asafalta wala hai kya.
+
+    v8.18: click/type/upload ke apne fail-jumle ("nahi dab
+    paya", "nahi mila") aam markers me nahi the, isliye un
+    tools ki haar ginati me aati hi nahi thi - ab tool ka
+    naam mile to wo jumle bhi fail mane jate hain (page ke
+    text par ye lagu nahi - read ke liye purane markers)."""
     low = str(result or "").lower()
-    return any(m in low for m in _BROWSER_FAIL_MARKERS)
+    if any(m in low for m in _BROWSER_FAIL_MARKERS):
+        return True
+    if tool in ("browser_click", "browser_type",
+                "browser_upload_file"):
+        return any(m in low for m in ("nahi dab paya",
+                                      "nahi mila", "nahi mili",
+                                      "mili nahi"))
+    return False
 
 
 def _tool_signature(tool_call: dict) -> str:
@@ -5213,6 +5457,222 @@ def _loop_stuck_message(tool_name: str, progress: list,
         msg += f"\nJo kaam ho gaya:\n{_progress_text(progress)}"
     msg += _tried_line(approaches)
     return msg
+
+
+# --------------------------------------------------------------------------
+# Run-level NO-PROGRESS WATCHDOG (v8.18) - user ke asal
+# screenshot ki bimari: browser_open fail -> browser_read
+# fail -> browser_open... badal-badal kar ghumta raha, kyunki
+# v8.17 ki rok (dup guard + same-tool fail seema) sirf
+# LAGATAR ek hi kadam pakadti thi. Ab _StepTracker har chale
+# kadam ka hastakshar, uske jawab ki "nayi jankari" aur
+# fail ki kism yaad rakhta hai, aur teen haalaton me run
+# wahi rok deta hai - saade shabdon wali report ke saath
+# (kya hua, ab tak kya ho gaya, user ko kya karna hai):
+#   cycle       - do kadam ABAB ki tarah dohraye jayein
+#   same-error  - ek hi kism ki fail lagatar 3 baar
+#                 (notfound isme nahi - kai naam dhoondhna
+#                 jaayaz khoj hai, wo dry ginati me aata hai)
+#   no-progress - 5 kadam se koi nayi jankari nahi mili
+# Login/checkpoint handoff bhi yahi se banta hai: browser
+# ke jawab me login wali deewaar (title/URL/body ke pakke
+# nishan) dikhe to run wahi rukta hai - page khula rehta
+# hai, user ko bulaya jata hai, "ho gaya" par yahi se
+# aage badhne ki baat jawab me saaf likhi hoti hai.
+# --------------------------------------------------------------------------
+
+_WATCHDOG_DRY_LIMIT = 5
+_PROGRESS_NOTE_AT = 10
+
+
+def _result_fail_class(tool_call, result):
+    """Tool ke jawab ki fail-kism: 'browser' | 'notfound' |
+    'error' | None (safal). Watchdog ki ginati ke liye."""
+    name = (tool_call or {}).get("tool") or ""
+    low = str(result or "").lower()
+    if name.startswith("browser_"):
+        return "browser" if _browser_result_failed(
+            result, name) else None
+    if ("nahi mila" in low or "nahi mili" in low
+            or "not found" in low):
+        return "notfound"
+    if any(m in low for m in ("nahi ho paya", "ho nahi paya",
+                              "tool error",
+                              "tool argument error",
+                              "exception", "traceback",
+                              "permission denied")):
+        return "error"
+    return None
+
+
+def _watchdog_message(reason: str, tracker) -> str:
+    """Watchdog par rukne wala imaandaar jawab: pehli line
+    me nateeja, phir progress, phir user ke haath ka kaam."""
+    if reason == "cycle":
+        head = ("Nahi hua — main ek hi chakkar me ghum raha "
+                "tha (do kadam baar-baar dohraya raha tha, "
+                "aage kuch badh nahi raha tha), isliye yahi "
+                "ruk gaya hu.")
+    elif reason == "same-error":
+        head = ("Nahi hua — ek hi tarah ki rukawat par main "
+                "baar-baar atak raha tha, isliye yahi ruk "
+                "gaya hu.")
+    else:
+        head = ("Nahi hua — kai kadam se koi nayi jankari "
+                "nahi mil rahi aur kaam aage nahi badh raha, "
+                "isliye yahi ruk gaya hu.")
+    msg = head
+    if tracker.progress:
+        msg += (f"\nAb tak ye ho gaya:\n"
+                f"{_progress_text(tracker.progress)}")
+    msg += _tried_line(tracker.approaches)
+    msg += ("\nTum ye karo: upar wali rukawat sambhal kar "
+            "'jaari rakho' bolo — main yahi se aage "
+            "badhunga, shuru se nahi.")
+    return msg
+
+
+_LOGIN_TITLE_MARKERS = (
+    "log in", "login", "sign in", "sign up", "checkpoint",
+    "captcha", "confirm your identity", "confirm it's you",
+    "two-factor", "two factor", "verify your identity",
+    "authentication")
+_LOGIN_URL_MARKERS = (
+    "/login", "checkpoint", "captcha", "/auth",
+    "two_factor", "login?")
+_BODY_BLOCKER_MARKERS = (
+    "confirm it's you", "confirm its you",
+    "confirm your identity", "we need to verify your "
+    "identity", "enter the characters you see",
+    "security check", "two-factor authentication",
+    "help us confirm", "checkpoint")
+
+
+def _browser_blocker_kind(result):
+    """Browser ke jawab me login/checkpoint wali deewaar
+    hai to uski kism ('login' | 'checkpoint'), warna None.
+    Pehchan page ke title aur URL se (pakki jagah), body
+    me sirf checkpoint wale pakke nishan."""
+    text = str(result or "")
+    if "'browser setup karo'" in text:
+        return None
+    title = ""
+    url = ""
+    for ln in text.split("\n")[:4]:
+        s = ln.strip()
+        if s.startswith("Page: "):
+            title = s[6:].lower()
+        elif s.startswith("URL: "):
+            url = s[5:].lower()
+        elif "khul gaya:" in s:
+            title = s.split("khul gaya:", 1)[1].strip().lower()
+        elif s.startswith("http") and not url:
+            url = s.lower()
+    if title and any(m in title for m in _LOGIN_TITLE_MARKERS):
+        return "login"
+    if url and any(m in url for m in _LOGIN_URL_MARKERS):
+        return "login"
+    low = text.lower()
+    if any(m in low for m in _BODY_BLOCKER_MARKERS):
+        return "checkpoint"
+    return None
+
+
+def _browser_blocker_message(result, tracker):
+    """Login/checkpoint handoff wala jawab (page khula
+    rakho, ruk jao, user ko bulao) - deewaar na ho to None."""
+    kind = _browser_blocker_kind(result)
+    if not kind:
+        return None
+    if kind == "login":
+        head = ("Nahi hua — page par LOGIN wali screen aa "
+                "gayi hai (agent wale Chrome me is site par "
+                "login nahi hai). Page usi halat me khula "
+                "chhod diya hai — band nahi kiya.")
+    else:
+        head = ("Nahi hua — page par CAPTCHA/checkpoint "
+                "wali screen aa gayi hai. Page usi halat me "
+                "khula chhod diya hai — band nahi kiya.")
+    msg = (head + "\nTum ye karo: usi agent wale Chrome me "
+           "wo screen khud sambhal do, phir yahan 'ho gaya' "
+           "bolo — main yahi se aage badhunga, shuru se "
+           "nahi.")
+    if tracker.progress:
+        msg += (f"\nAb tak ye ho gaya:\n"
+                f"{_progress_text(tracker.progress)}")
+    return msg
+
+
+_CLICK_VERIFY_NOTE = (
+    "INTERNAL INSTRUCTION (user ko mat dikhana): Pichhle "
+    "click ke baad tumne page dobara padh kar PUSHTI nahi "
+    "ki ki apekshit badlav aaya hai ya nahi. Agla browser "
+    "kadam (click/type/upload) chalane se pehle browser_read "
+    "chalao aur jaancho: sahi jagah pahunche ho? apekshit "
+    "text/element dikh raha hai? Badlav na dikha ho to EK "
+    "baar dusre tareeke se koshish karo (scroll karke ya "
+    "dusri milti-julti jagah); phir bhi na bane to wahi ruk "
+    "kar saaf report do - andha click aage mat badhao.")
+
+_OPEN_UNREAD_NOTE = (
+    "INTERNAL INSTRUCTION (user ko mat dikhana): Tumne "
+    "page khol diya lekin browser_read se page PADHA hi "
+    "nahi - bina padhe 'khol diya' bol kar rukna galat "
+    "hai; page kholna kaam ki SHURUAAT hai, nateeja nahi. "
+    "Abhi browser_read chalao, page ki haalat dekho (login "
+    "wali screen ho to wahi ruk kar user ko bulao), phir "
+    "hukum ke aage ke kadam badhao.")
+
+_ASK_KNOWN_RE = re.compile(
+    r"(location|path)\s*(bata|batao|do|kya|kahan)|"
+    r"kaunsi\s+file|kahan\s+(hai|se\s+lu|se\s+loon|"
+    r"se\s+lene)", re.IGNORECASE)
+
+_PARTIAL_RE = re.compile(
+    r"(khol diya|dhoondh liya|dekh liya|ready hoon|"
+    r"taiyaar hoon|bas bata do|ab bata do)", re.IGNORECASE)
+
+
+def _known_info_hit(tracker):
+    """Is run ke kadmo me mili file/path ki jankari - jawab
+    me wahi dobara mangi jaye to pakadne ke liye."""
+    for _name, snippet in tracker.progress:
+        m = _FILE_MENTION_RE.search(snippet or "")
+        if m:
+            return m.group(0)
+        m = re.search(r"[A-Za-z]:\\[^\s…]+", snippet or "")
+        if m:
+            return m.group(0)
+    return None
+
+
+def _progress_note_text(tracker) -> str:
+    """Lambe kaam ke beech (kadam 10 par) dimag ko andar
+    wala note: ab tak ki jankari + 'dobara mat pucho,
+    aakhri kadam tak badho'."""
+    return ("[INTERNAL NOTE — is kaam ke 10 kadam ho chuke "
+            "hain. Ab tak ki jankari:\n"
+            + _progress_text(tracker.progress)
+            + "\nJo jankari upar mil chuki hai use DOBARA "
+            "MAT pucho aur ho chuke kadam dobara MAT karo. "
+            "Ab hukum ke aakhri kadam tak badho; sach me "
+            "atke ho to teen-cheez wala saaf jawab do: kya "
+            "try kiya, asal rukawat, user ke haath ka EK "
+            "kaam.]")
+
+
+def _inject_progress_note(contents: list, tracker) -> None:
+    """Progress note ko aakhri user baari (tool result) ke
+    aakhir me jodo - baariyon ka kram nahi bigadta."""
+    note = _progress_note_text(tracker)
+    if contents and contents[-1].get("role") == "user":
+        parts = contents[-1].get("parts") or []
+        if parts and isinstance(parts[0], dict) \
+                and "text" in parts[0]:
+            parts[0]["text"] = parts[0]["text"] + "\n" + note
+            return
+    contents.append({"role": "user",
+                     "parts": [{"text": note}]})
 
 
 # --------------------------------------------------------------------------
@@ -5297,6 +5757,17 @@ def _has_user_blocker(reply: str, tracker) -> bool:
     return any(m in low for m in _BLOCKER_MARKERS)
 
 
+def _dup_stop_seen(tracker) -> bool:
+    """Is run me duplicate-post wali rok lagi hai kya.
+    Ye haar NAHI hai - seekha hua niyam hai (jo video ek
+    baar post ho jaye, dobara nahi). Aisi mana par
+    'haar na manna' wala nudge kabhi nahi chalega -
+    warna agent sahi mana ko bhi todne ki koshish
+    karta tha (v8.18 me pakda gaya asal bug)."""
+    return any("RUKO \u2014 ye file" in (s or "")
+               for s in tracker.result_snippets)
+
+
 def _nudge_text(approaches) -> str:
     """Andar wala koshish-hukum: user ko NAHI dikhta, dimag ko
     dusra rasta try karne par majboor karta hai."""
@@ -5323,6 +5794,16 @@ class _StepTracker:
         self._last_sig = None
         self._last_result = None
         self._same = 0            # lagatar ek-jaise (call, jawab)
+        # Watchdog (v8.18): har chale kadam ka hastakshar,
+        # fail ki kism aur 'nayi jankari' ka hisaab.
+        self.sigs = []
+        self._fail_classes = []
+        self._info_hashes = set()
+        self._dry = 0             # lagatar bina-nayi-jankari kadam
+        self.open_unread = False  # browser_open hua, read nahi
+        self.click_unread = False  # click hua, pushti nahi
+        self.browser_open_seen = False
+        self.browser_acted = False  # click/type/upload hua kya
 
     def note(self, tool_call: dict, result: str) -> bool:
         """Ek chala hua kadam note karo.
@@ -5337,6 +5818,30 @@ class _StepTracker:
         if key not in self.approaches:
             self.approaches.append(key)
         self.result_snippets.append(str(result or "")[:500])
+        # Watchdog hisaab (v8.18): hastakshar + fail-kism +
+        # nayi jankari. Nayi jankari = safal jawab jiska
+        # saar is run me pehle na aaya ho.
+        self.sigs.append(_tool_signature(tool_call))
+        _cls = _result_fail_class(tool_call, result)
+        self._fail_classes.append(_cls)
+        _norm = re.sub(r"\s+", " ",
+                       str(result or "")).strip().lower()[:220]
+        if _cls is None and _norm not in self._info_hashes:
+            self._info_hashes.add(_norm)
+            self._dry = 0
+        else:
+            self._dry += 1
+        if name == "browser_open":
+            self.open_unread = True
+            self.browser_open_seen = True
+        elif name == "browser_read":
+            self.open_unread = False
+            self.click_unread = False
+        if name == "browser_click":
+            self.click_unread = True
+        if name in ("browser_click", "browser_type",
+                    "browser_upload_file"):
+            self.browser_acted = True
         sig = _tool_signature(tool_call)
         if sig == self._last_sig and result == self._last_result:
             self._same += 1
@@ -5345,6 +5850,22 @@ class _StepTracker:
         self._last_sig = sig
         self._last_result = result
         return self._same >= 2
+
+    def watchdog_reason(self):
+        """Run rokne ki wajah: 'cycle' | 'same-error' |
+        'no-progress' | None (v8.18). Sirf CHALE hue kadam
+        gine jate hain (guard se ruke hue nahi)."""
+        s = self.sigs
+        if len(s) >= 4 and s[-1] == s[-3] \
+                and s[-2] == s[-4] and s[-1] != s[-2]:
+            return "cycle"
+        fc = self._fail_classes
+        if len(fc) >= 3 and fc[-1] in ("browser", "error") \
+                and fc[-1] == fc[-2] == fc[-3]:
+            return "same-error"
+        if self._dry >= _WATCHDOG_DRY_LIMIT:
+            return "no-progress"
+        return None
 
 
 def _record_final_reply(text: str):
@@ -5610,11 +6131,23 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
     bfail_tool = None
     bfail_streak = 0
     nudges = 0
-    for _ in range(_MAX_TOOL_STEPS):
+    open_nudges = 0
+    click_nudges = 0
+    known_nudges = 0
+    partial_nudges = 0
+    for _step in range(_MAX_TOOL_STEPS):
         if _stop_requested():
             stopped = _stopped_message(tracker)
             _record_final_reply(stopped)
             return stopped, used_tool
+        if _step == _PROGRESS_NOTE_AT:
+            # Lambe kaam ke beech (v8.18): dimag ko ab tak
+            # ki jankari wala note + user ko ek progress
+            # line - khamosh 19-kadam wala chakkar na bane.
+            _inject_progress_note(contents, tracker)
+            _emit_event(on_event, "status",
+                        "Aadha kaam ho gaya hai — aage badh "
+                        "raha hu…")
         if on_event is not None:
             try:
                 reply = _gemini_call_stream(
@@ -5629,10 +6162,90 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
             reply = _gemini_call(contents, model, fast_fail=fast_fail)
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
+            if tracker.open_unread and open_nudges < 2 \
+                    and not _has_user_blocker(reply, tracker):
+                # Khol kar ruk jana (v8.18): page khola
+                # lekin padha hi nahi - pehle padhwao.
+                open_nudges += 1
+                log("OPEN-UNREAD GUARD: page khola lekin "
+                    "padha nahi - browser_read wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _OPEN_UNREAD_NOTE}]})
+                continue
+            if tracker.click_unread and click_nudges < 3 \
+                    and not _has_user_blocker(reply, tracker):
+                # Click karke bina pushti ruk jana (v8.18
+                # click-vishvasta): pehle padhwao.
+                click_nudges += 1
+                log("CLICK-VERIFY GUARD: click ke baad bina "
+                    "padhe rukne ki koshish - pushti wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _CLICK_VERIFY_NOTE}]})
+                continue
+            if known_nudges < 1 \
+                    and _ASK_KNOWN_RE.search(reply or ""):
+                _hit = _known_info_hit(tracker)
+                if _hit:
+                    # Mil chuki jankari dobara mangna
+                    # (v8.18): wahi file/path upar mil
+                    # chuka hai - usi par aage badho.
+                    known_nudges += 1
+                    log("KNOWN-INFO GUARD: mili hui jankari "
+                        f"dobara mangi gayi ({_hit})")
+                    contents.append({"role": "model",
+                                     "parts": [
+                                         {"text": reply}]})
+                    contents.append({"role": "user", "parts": [
+                        {"text": (
+                            "INTERNAL INSTRUCTION (user ko "
+                            "mat dikhana): Tum wahi jankari "
+                            "maang rahe ho jo is kaam ke "
+                            "kadmo me MIL CHUKI hai: '"
+                            + _hit + "'. Use dobara MAT "
+                            "pucho - usi file/path par aage "
+                            "ka kaam karo. Kaam pura karke "
+                            "nateeja batao; rukna pade to "
+                            "wajah + bacha kaam saaf "
+                            "batao.")}]})
+                    continue
+            if partial_nudges < 1 and used_tool \
+                    and tracker.browser_open_seen \
+                    and not tracker.browser_acted \
+                    and len(reply or "") < 220 \
+                    and _PARTIAL_RE.search(reply or "") \
+                    and "?" not in (reply or "") \
+                    and not _has_user_blocker(reply, tracker):
+                # Aadhi report (v8.18): page khola/padha
+                # lekin kaam ki taraf ek kadam bhi nahi -
+                # 'khol diya' par rukna mana hai.
+                partial_nudges += 1
+                log("PARTIAL GUARD: browser khula lekin "
+                    "kaam aage nahi badha - aage badhne "
+                    "wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": (
+                        "INTERNAL INSTRUCTION (user ko mat "
+                        "dikhana): Tum page khol/padh kar "
+                        "ruk rahe ho, lekin hukum ka asal "
+                        "kaam (jaise upload ki taraf badhna) "
+                        "abhi shuru hi nahi hua. 'Khol diya' "
+                        "nateeja nahi hai. Abhi agla asal "
+                        "kadam chalao - click/type/upload "
+                        "jo bhi kaam ka hissa hai. Rukna "
+                        "pade to wajah + bacha hua kaam "
+                        "saaf batao.")}]})
+                continue
             if nudges < _MAX_NUDGES \
                     and len(tracker.approaches) < 2 \
                     and _looks_like_giveup(reply) \
-                    and not _has_user_blocker(reply, tracker):
+                    and not _has_user_blocker(reply, tracker) \
+                    and not _dup_stop_seen(tracker):
                 nudges += 1
                 log(f"NUDGE {nudges}: sirf "
                     f"{len(tracker.approaches)} rasta try hua tha - "
@@ -5680,7 +6293,18 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
         used_tool = True
         _emit_event(on_event, "status",
                     _tool_status_text(tool_call["tool"]))
-        result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if (tracker.click_unread and click_nudges < 3
+                and tool_call["tool"] in ("browser_click",
+                        "browser_type", "browser_upload_file")):
+            # Click-vishvasta (v8.18): pichhle click ki
+            # pushti (browser_read) ke bina agla browser
+            # kadam nahi chalega - pehle padho.
+            click_nudges += 1
+            log("CLICK-VERIFY GUARD: bina pushti agla "
+                "browser kadam roka - pehle browser_read")
+            result = _CLICK_VERIFY_NOTE
+        else:
+            result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tool_call["tool"].startswith("browser_") \
                 and "'browser setup karo'" in result:
             # Browser setup hi nahi hai (v8.17) - ye user ke
@@ -5692,7 +6316,7 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
             _record_final_reply(result)
             return result, True
         if tool_call["tool"].startswith("browser_"):
-            if _browser_result_failed(result):
+            if _browser_result_failed(result, tool_call["tool"]):
                 if bfail_tool == tool_call["tool"]:
                     bfail_streak += 1
                 else:
@@ -5707,6 +6331,23 @@ def _gemini_converse(contents: list, model: str, fast_fail: bool = False,
                                         tracker.approaches)
             _record_final_reply(stuck)
             return stuck, used_tool
+        if tool_call["tool"].startswith("browser_"):
+            blocker = _browser_blocker_message(result, tracker)
+            if blocker:
+                # Login/checkpoint handoff (v8.18): page
+                # khula rakho, wahi ruko, user ko bulao.
+                log("BROWSER HANDOFF: login/checkpoint "
+                    "wali screen - run roka, user ko bulaya")
+                _record_final_reply(blocker)
+                return blocker, True
+        wd_reason = tracker.watchdog_reason()
+        if wd_reason:
+            # No-progress watchdog (v8.18): chakkar/khamosh
+            # lamba run wahi roko, report ke saath.
+            wd = _watchdog_message(wd_reason, tracker)
+            log(f"WATCHDOG: run roka ({wd_reason})")
+            _record_final_reply(wd)
+            return wd, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": "Tool result: "
@@ -5974,11 +6615,23 @@ def _groq_converse(contents: list, on_event=None):
     bfail_tool = None
     bfail_streak = 0
     nudges = 0
-    for _ in range(_MAX_TOOL_STEPS):
+    open_nudges = 0
+    click_nudges = 0
+    known_nudges = 0
+    partial_nudges = 0
+    for _step in range(_MAX_TOOL_STEPS):
         if _stop_requested():
             stopped = _stopped_message(tracker)
             _record_final_reply(stopped)
             return stopped, used_tool
+        if _step == _PROGRESS_NOTE_AT:
+            # Lambe kaam ke beech (v8.18): dimag ko ab tak
+            # ki jankari wala note + user ko ek progress
+            # line - khamosh 19-kadam wala chakkar na bane.
+            _inject_progress_note(contents, tracker)
+            _emit_event(on_event, "status",
+                        "Aadha kaam ho gaya hai — aage badh "
+                        "raha hu…")
         if on_event is not None:
             try:
                 reply = _groq_call_stream(
@@ -5992,10 +6645,90 @@ def _groq_converse(contents: list, on_event=None):
             reply = _groq_call(_to_openai_messages(contents))
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
+            if tracker.open_unread and open_nudges < 2 \
+                    and not _has_user_blocker(reply, tracker):
+                # Khol kar ruk jana (v8.18): page khola
+                # lekin padha hi nahi - pehle padhwao.
+                open_nudges += 1
+                log("OPEN-UNREAD GUARD: page khola lekin "
+                    "padha nahi - browser_read wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _OPEN_UNREAD_NOTE}]})
+                continue
+            if tracker.click_unread and click_nudges < 3 \
+                    and not _has_user_blocker(reply, tracker):
+                # Click karke bina pushti ruk jana (v8.18
+                # click-vishvasta): pehle padhwao.
+                click_nudges += 1
+                log("CLICK-VERIFY GUARD: click ke baad bina "
+                    "padhe rukne ki koshish - pushti wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _CLICK_VERIFY_NOTE}]})
+                continue
+            if known_nudges < 1 \
+                    and _ASK_KNOWN_RE.search(reply or ""):
+                _hit = _known_info_hit(tracker)
+                if _hit:
+                    # Mil chuki jankari dobara mangna
+                    # (v8.18): wahi file/path upar mil
+                    # chuka hai - usi par aage badho.
+                    known_nudges += 1
+                    log("KNOWN-INFO GUARD: mili hui jankari "
+                        f"dobara mangi gayi ({_hit})")
+                    contents.append({"role": "model",
+                                     "parts": [
+                                         {"text": reply}]})
+                    contents.append({"role": "user", "parts": [
+                        {"text": (
+                            "INTERNAL INSTRUCTION (user ko "
+                            "mat dikhana): Tum wahi jankari "
+                            "maang rahe ho jo is kaam ke "
+                            "kadmo me MIL CHUKI hai: '"
+                            + _hit + "'. Use dobara MAT "
+                            "pucho - usi file/path par aage "
+                            "ka kaam karo. Kaam pura karke "
+                            "nateeja batao; rukna pade to "
+                            "wajah + bacha kaam saaf "
+                            "batao.")}]})
+                    continue
+            if partial_nudges < 1 and used_tool \
+                    and tracker.browser_open_seen \
+                    and not tracker.browser_acted \
+                    and len(reply or "") < 220 \
+                    and _PARTIAL_RE.search(reply or "") \
+                    and "?" not in (reply or "") \
+                    and not _has_user_blocker(reply, tracker):
+                # Aadhi report (v8.18): page khola/padha
+                # lekin kaam ki taraf ek kadam bhi nahi -
+                # 'khol diya' par rukna mana hai.
+                partial_nudges += 1
+                log("PARTIAL GUARD: browser khula lekin "
+                    "kaam aage nahi badha - aage badhne "
+                    "wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": (
+                        "INTERNAL INSTRUCTION (user ko mat "
+                        "dikhana): Tum page khol/padh kar "
+                        "ruk rahe ho, lekin hukum ka asal "
+                        "kaam (jaise upload ki taraf badhna) "
+                        "abhi shuru hi nahi hua. 'Khol diya' "
+                        "nateeja nahi hai. Abhi agla asal "
+                        "kadam chalao - click/type/upload "
+                        "jo bhi kaam ka hissa hai. Rukna "
+                        "pade to wajah + bacha hua kaam "
+                        "saaf batao.")}]})
+                continue
             if nudges < _MAX_NUDGES \
                     and len(tracker.approaches) < 2 \
                     and _looks_like_giveup(reply) \
-                    and not _has_user_blocker(reply, tracker):
+                    and not _has_user_blocker(reply, tracker) \
+                    and not _dup_stop_seen(tracker):
                 nudges += 1
                 log(f"NUDGE {nudges}: sirf "
                     f"{len(tracker.approaches)} rasta try hua tha - "
@@ -6043,7 +6776,18 @@ def _groq_converse(contents: list, on_event=None):
         used_tool = True
         _emit_event(on_event, "status",
                     _tool_status_text(tool_call["tool"]))
-        result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if (tracker.click_unread and click_nudges < 3
+                and tool_call["tool"] in ("browser_click",
+                        "browser_type", "browser_upload_file")):
+            # Click-vishvasta (v8.18): pichhle click ki
+            # pushti (browser_read) ke bina agla browser
+            # kadam nahi chalega - pehle padho.
+            click_nudges += 1
+            log("CLICK-VERIFY GUARD: bina pushti agla "
+                "browser kadam roka - pehle browser_read")
+            result = _CLICK_VERIFY_NOTE
+        else:
+            result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tool_call["tool"].startswith("browser_") \
                 and "'browser setup karo'" in result:
             # Browser setup hi nahi hai (v8.17) - ye user ke
@@ -6055,7 +6799,7 @@ def _groq_converse(contents: list, on_event=None):
             _record_final_reply(result)
             return result, True
         if tool_call["tool"].startswith("browser_"):
-            if _browser_result_failed(result):
+            if _browser_result_failed(result, tool_call["tool"]):
                 if bfail_tool == tool_call["tool"]:
                     bfail_streak += 1
                 else:
@@ -6070,6 +6814,23 @@ def _groq_converse(contents: list, on_event=None):
                                         tracker.approaches)
             _record_final_reply(stuck)
             return stuck, used_tool
+        if tool_call["tool"].startswith("browser_"):
+            blocker = _browser_blocker_message(result, tracker)
+            if blocker:
+                # Login/checkpoint handoff (v8.18): page
+                # khula rakho, wahi ruko, user ko bulao.
+                log("BROWSER HANDOFF: login/checkpoint "
+                    "wali screen - run roka, user ko bulaya")
+                _record_final_reply(blocker)
+                return blocker, True
+        wd_reason = tracker.watchdog_reason()
+        if wd_reason:
+            # No-progress watchdog (v8.18): chakkar/khamosh
+            # lamba run wahi roko, report ke saath.
+            wd = _watchdog_message(wd_reason, tracker)
+            log(f"WATCHDOG: run roka ({wd_reason})")
+            _record_final_reply(wd)
+            return wd, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": "Tool result: "
@@ -6288,11 +7049,23 @@ def _nvidia_converse(contents: list, model: str = None,
     bfail_tool = None
     bfail_streak = 0
     nudges = 0
-    for _ in range(_MAX_TOOL_STEPS):
+    open_nudges = 0
+    click_nudges = 0
+    known_nudges = 0
+    partial_nudges = 0
+    for _step in range(_MAX_TOOL_STEPS):
         if _stop_requested():
             stopped = _stopped_message(tracker)
             _record_final_reply(stopped)
             return stopped, used_tool
+        if _step == _PROGRESS_NOTE_AT:
+            # Lambe kaam ke beech (v8.18): dimag ko ab tak
+            # ki jankari wala note + user ko ek progress
+            # line - khamosh 19-kadam wala chakkar na bane.
+            _inject_progress_note(contents, tracker)
+            _emit_event(on_event, "status",
+                        "Aadha kaam ho gaya hai — aage badh "
+                        "raha hu…")
         if on_event is not None:
             try:
                 reply = _nvidia_call_stream(
@@ -6308,10 +7081,90 @@ def _nvidia_converse(contents: list, model: str = None,
                                  model)
         tool_call = _extract_tool_call(reply)
         if tool_call is None:
+            if tracker.open_unread and open_nudges < 2 \
+                    and not _has_user_blocker(reply, tracker):
+                # Khol kar ruk jana (v8.18): page khola
+                # lekin padha hi nahi - pehle padhwao.
+                open_nudges += 1
+                log("OPEN-UNREAD GUARD: page khola lekin "
+                    "padha nahi - browser_read wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _OPEN_UNREAD_NOTE}]})
+                continue
+            if tracker.click_unread and click_nudges < 3 \
+                    and not _has_user_blocker(reply, tracker):
+                # Click karke bina pushti ruk jana (v8.18
+                # click-vishvasta): pehle padhwao.
+                click_nudges += 1
+                log("CLICK-VERIFY GUARD: click ke baad bina "
+                    "padhe rukne ki koshish - pushti wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": _CLICK_VERIFY_NOTE}]})
+                continue
+            if known_nudges < 1 \
+                    and _ASK_KNOWN_RE.search(reply or ""):
+                _hit = _known_info_hit(tracker)
+                if _hit:
+                    # Mil chuki jankari dobara mangna
+                    # (v8.18): wahi file/path upar mil
+                    # chuka hai - usi par aage badho.
+                    known_nudges += 1
+                    log("KNOWN-INFO GUARD: mili hui jankari "
+                        f"dobara mangi gayi ({_hit})")
+                    contents.append({"role": "model",
+                                     "parts": [
+                                         {"text": reply}]})
+                    contents.append({"role": "user", "parts": [
+                        {"text": (
+                            "INTERNAL INSTRUCTION (user ko "
+                            "mat dikhana): Tum wahi jankari "
+                            "maang rahe ho jo is kaam ke "
+                            "kadmo me MIL CHUKI hai: '"
+                            + _hit + "'. Use dobara MAT "
+                            "pucho - usi file/path par aage "
+                            "ka kaam karo. Kaam pura karke "
+                            "nateeja batao; rukna pade to "
+                            "wajah + bacha kaam saaf "
+                            "batao.")}]})
+                    continue
+            if partial_nudges < 1 and used_tool \
+                    and tracker.browser_open_seen \
+                    and not tracker.browser_acted \
+                    and len(reply or "") < 220 \
+                    and _PARTIAL_RE.search(reply or "") \
+                    and "?" not in (reply or "") \
+                    and not _has_user_blocker(reply, tracker):
+                # Aadhi report (v8.18): page khola/padha
+                # lekin kaam ki taraf ek kadam bhi nahi -
+                # 'khol diya' par rukna mana hai.
+                partial_nudges += 1
+                log("PARTIAL GUARD: browser khula lekin "
+                    "kaam aage nahi badha - aage badhne "
+                    "wala note")
+                contents.append({"role": "model",
+                                 "parts": [{"text": reply}]})
+                contents.append({"role": "user", "parts": [
+                    {"text": (
+                        "INTERNAL INSTRUCTION (user ko mat "
+                        "dikhana): Tum page khol/padh kar "
+                        "ruk rahe ho, lekin hukum ka asal "
+                        "kaam (jaise upload ki taraf badhna) "
+                        "abhi shuru hi nahi hua. 'Khol diya' "
+                        "nateeja nahi hai. Abhi agla asal "
+                        "kadam chalao - click/type/upload "
+                        "jo bhi kaam ka hissa hai. Rukna "
+                        "pade to wajah + bacha hua kaam "
+                        "saaf batao.")}]})
+                continue
             if nudges < _MAX_NUDGES \
                     and len(tracker.approaches) < 2 \
                     and _looks_like_giveup(reply) \
-                    and not _has_user_blocker(reply, tracker):
+                    and not _has_user_blocker(reply, tracker) \
+                    and not _dup_stop_seen(tracker):
                 nudges += 1
                 log(f"NUDGE {nudges}: sirf "
                     f"{len(tracker.approaches)} rasta try hua tha - "
@@ -6359,7 +7212,18 @@ def _nvidia_converse(contents: list, model: str = None,
         used_tool = True
         _emit_event(on_event, "status",
                     _tool_status_text(tool_call["tool"]))
-        result = run_tool(tool_call["tool"], tool_call.get("args") or {})
+        if (tracker.click_unread and click_nudges < 3
+                and tool_call["tool"] in ("browser_click",
+                        "browser_type", "browser_upload_file")):
+            # Click-vishvasta (v8.18): pichhle click ki
+            # pushti (browser_read) ke bina agla browser
+            # kadam nahi chalega - pehle padho.
+            click_nudges += 1
+            log("CLICK-VERIFY GUARD: bina pushti agla "
+                "browser kadam roka - pehle browser_read")
+            result = _CLICK_VERIFY_NOTE
+        else:
+            result = run_tool(tool_call["tool"], tool_call.get("args") or {})
         if tool_call["tool"].startswith("browser_") \
                 and "'browser setup karo'" in result:
             # Browser setup hi nahi hai (v8.17) - ye user ke
@@ -6371,7 +7235,7 @@ def _nvidia_converse(contents: list, model: str = None,
             _record_final_reply(result)
             return result, True
         if tool_call["tool"].startswith("browser_"):
-            if _browser_result_failed(result):
+            if _browser_result_failed(result, tool_call["tool"]):
                 if bfail_tool == tool_call["tool"]:
                     bfail_streak += 1
                 else:
@@ -6386,6 +7250,23 @@ def _nvidia_converse(contents: list, model: str = None,
                                         tracker.approaches)
             _record_final_reply(stuck)
             return stuck, used_tool
+        if tool_call["tool"].startswith("browser_"):
+            blocker = _browser_blocker_message(result, tracker)
+            if blocker:
+                # Login/checkpoint handoff (v8.18): page
+                # khula rakho, wahi ruko, user ko bulao.
+                log("BROWSER HANDOFF: login/checkpoint "
+                    "wali screen - run roka, user ko bulaya")
+                _record_final_reply(blocker)
+                return blocker, True
+        wd_reason = tracker.watchdog_reason()
+        if wd_reason:
+            # No-progress watchdog (v8.18): chakkar/khamosh
+            # lamba run wahi roko, report ke saath.
+            wd = _watchdog_message(wd_reason, tracker)
+            log(f"WATCHDOG: run roka ({wd_reason})")
+            _record_final_reply(wd)
+            return wd, used_tool
         contents.append({"role": "model", "parts": [{"text": reply}]})
         contents.append({"role": "user",
                          "parts": [{"text": "Tool result: "
@@ -7425,6 +8306,106 @@ _SAMAJH_RE = re.compile(
     re.IGNORECASE)
 
 
+# --------------------------------------------------------------------------
+# Sthaayi niyam khud-pakad (v8.18) - user ka sawal: "ye kuch
+# memory me save nhi karta kay, ki use yaad rahe?" Asal
+# bimari: niyam tabhi save hota tha jab dimag khud
+# yaad_likho chalaye; kaam ke beech ghuli sthaayi baat
+# ("yaad rahe ki...", "kabhi dobara nahi", "hamesha") beh
+# jati thi - aur samajh gate wale sandesh me to tool chalta
+# hi nahi tha, niyam pakka beh jata tha. Ab brain_ask se
+# pehle CODE khud niyam pakadta hai: nishan mile to niyam
+# Seekhe hue niyam me save (dohra ho to dobara nahi) aur
+# jawab ke upar "Yaad kar liya:" wali pushti - save fail
+# ho to pushti ki jagah haar ki saaf line (chup rehna mana
+# hai). Niyam ke saath taza hukum bhi ho to samajh gate
+# nahi lagta - kaam usi baari me aage badhta hai.
+# --------------------------------------------------------------------------
+
+_RULE_MARKER_RE = re.compile(
+    r"(kabhi\s+(nahi|nhi)\b|kabhi\s+bhi|hamesha|"
+    r"yaad\s+(rahe|raho|rakhna|rakho|rakh)\b|agli\s+baar)",
+    re.IGNORECASE)
+_RULE_PROHIBIT_RE = re.compile(r"\b(nahi|nhi|mat)\b",
+                               re.IGNORECASE)
+_RULE_ORDER_RE = re.compile(
+    r"(upload|uplode|post\s+kar|khol|open|bhej|share\s+kar|"
+    r"daal\s*do|publish)", re.IGNORECASE)
+
+
+def _extract_standing_rule(message: str):
+    """Sandesh me sthaayi niyam wala hissa ho to wahi hissa
+    (marker se shuru karke) lautao, warna None.
+
+    Nishan: yaad-rahe parivaar / kabhi-nahi / hamesha / agli
+    baar - aur usi hisse me manaahi (nahi/nhi/mat) bhi ho,
+    taaki "hamesha ki tarah post kar do" jaisa aam hukum
+    galti se niyam na ban jaye. Raaz wali baat kabhi niyam
+    nahi banti."""
+    msg = re.sub(r"\s+", " ", (message or "")).strip()
+    if not msg or len(msg) > 600:
+        return None
+    if _looks_secret(msg):
+        return None
+    parts = [p.strip() for p in re.split(
+        r"[.!?\n,]+|\s+suno\s+", msg) if p and p.strip()]
+    if not parts:
+        parts = [msg]
+    for i, part in enumerate(parts):
+        if "ki tarah" in part.lower():
+            continue  # "hamesha ki tarah kar do" aam hukum hai
+        m = _RULE_MARKER_RE.search(part)
+        if not m:
+            continue
+        rule = part[m.start():].strip(" ,;")
+        # Niyam comma par bata ho ("yaad rakhna, jo video
+        # ... nahi karna") to agla hissa jodo - par hukum
+        # wala hissa (upload/khol...) kabhi mat jodo.
+        j = i
+        while (not _RULE_PROHIBIT_RE.search(rule)
+               or len(rule) < 12) and j + 1 < len(parts):
+            nxt = parts[j + 1]
+            if _RULE_ORDER_RE.search(nxt) \
+                    and not _RULE_PROHIBIT_RE.search(nxt):
+                break
+            rule = rule + ", " + nxt
+            j += 1
+        # Niyam ki shakal: ya manaahi (nahi/nhi/mat) ho, ya
+        # aage ke liye hukum jaisa "karna" wala roop -
+        # "hamesha subah post karna" bhi sthaayi niyam hai.
+        if not _RULE_PROHIBIT_RE.search(rule) \
+                and "karna" not in rule.lower():
+            continue
+        if len(rule) < 12:
+            continue
+        return rule[:300]
+    return None
+
+
+def _save_standing_rule(rule: str) -> str:
+    """Niyam ko 'Seekhe hue niyam' me save karo.
+    'saved' | 'known' (pehle se hai) | 'failed' lautao -
+    jawab me sach wali pushti/ Haar hi jayegi."""
+    norm = re.sub(r"[^a-z0-9]+", " ", rule.lower()).strip()
+    for old in load_learned_rules():
+        if re.sub(r"[^a-z0-9]+", " ", old.lower()).strip() == norm:
+            return "known"
+    out = tool_save_memory(rule, section="niyam")
+    if out.startswith("Yaad save nahi ho payi"):
+        log(f"NIYAM SAVE FAIL: {out}")
+        return "failed"
+    log(f"NIYAM: sthaayi niyam save hua: {rule[:80]}")
+    return "saved"
+
+
+def _rule_has_fresh_order(message: str, rule: str) -> bool:
+    """Niyam wale hisse ko hata kar bache sandesh me taza
+    hukum hai kya (upload/khol/post jaisa)?"""
+    msg = re.sub(r"\s+", " ", (message or "")).strip()
+    rest = msg.replace(rule, " ")
+    return bool(_RULE_ORDER_RE.search(rest))
+
+
 def _is_samajh_message(message: str) -> bool:
     """User samjha/dant raha hai (hukum nahi de raha) to True.
 
@@ -7533,7 +8514,15 @@ def brain_ask(message: str, on_event=None) -> str:
         # _HISTORY_SEND_MAX baariyan jati hain (v8.12).
         contents = list(_history[-_HISTORY_SEND_MAX:])
     extra = {"on_event": on_event} if on_event is not None else {}
-    if _is_samajh_message(message):
+    # Sthaayi niyam (v8.18): niyam ka SAVE + pushti
+    # ask_agent wrapper me hoti hai (sab raaston ka ek
+    # darwaza - command wale raaste brain_ask tak aate hi
+    # nahi). Yahan sirf itna parkho ki niyam ke saath taza
+    # hukum bhi hai to samajh gate nahi lagega - kaam usi
+    # baari me aage badhega.
+    rule = _extract_standing_rule(message)
+    if _is_samajh_message(message) and not (
+            rule and _rule_has_fresh_order(message, rule)):
         # Samajh gate (v8.17): samjhane/dantne wala sandesh
         # tool-loop me hi nahi jata - pehle text-only jawab.
         # Gate fail ho (saare dimag) to neeche aam loop hi
@@ -7750,6 +8739,25 @@ def ask_agent(message: str, image: str = None,
     # pehle saaf, aur chalta-hua-task wali ginti me ye darj.
     _clear_stop()
     _task_started()
+    # Sthaayi niyam khud-pakad (v8.18): ye wrapper SAB
+    # raaston ka ek darwaza hai - command wale raaste
+    # (site-open, update, demo) brain_ask tak pahunchte hi
+    # nahi, isliye niyam ka save + pushti yahin hoti hai,
+    # warna ghula hua niyam beh jata tha. Save fail ho to
+    # pushti ki jagah haar ki saaf line (chup rehna mana).
+    rule_prefix = ""
+    _rule = _extract_standing_rule(message)
+    if _rule:
+        _state = _save_standing_rule(_rule)
+        if _state == "failed":
+            rule_prefix = (
+                "Ek baat — tumhara niyam samajh gaya lekin "
+                "use apni seekh me SAVE NAHI kar paya (file "
+                "me dikkat hai), isliye ye niyam sirf is "
+                "baat-cheet ke liye mana jayega: " + _rule
+                + "\n")
+        else:
+            rule_prefix = f"Yaad kar liya: {_rule}\n"
     try:
         reply = _ask_agent_core(message, image=image,
                                 image_mime=image_mime,
@@ -7763,7 +8771,9 @@ def ask_agent(message: str, image: str = None,
         log(f"DIARY wrapper fail (jawab par asar nahi): {exc}")
     prefix = _take_session_prefix()
     if prefix:
-        return prefix + "\n\n" + reply
+        reply = prefix + "\n\n" + reply
+    if rule_prefix:
+        return rule_prefix + reply
     return reply
 
 # --------------------------------------------------------------------------
